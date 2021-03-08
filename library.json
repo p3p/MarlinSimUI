@@ -17,6 +17,15 @@
         "name": "Chris Pepper"
     }
   ],
+  "dependencies":
+  {
+    "imgui": "git@github.com:p3p/imgui.git#pio_docking",
+    "implot": "git@github.com:p3p/implot.git#pio_master"
+  },
+  "build": {
+    "libLDFMode": "deep"
+  },
   "frameworks": "*",
-  "platforms": "*"
+  "platforms": "native"
 }
+
