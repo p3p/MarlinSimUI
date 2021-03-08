@@ -1,0 +1,22 @@
+{
+  "name": "MarlinSimulator",
+  "keywords": "MarlinSimulator",
+  "description": "Marlin Simulator UI",
+  "repository":
+  {
+    "type": "git",
+    "url": "https://github.com/p3p/MarlinSimulator.git"
+  },
+  "version": "0.0.1",
+  "authors":
+  [
+    {
+        "url": null,
+        "maintainer": true,
+        "email": "p3p@p3psoft.co.uk",
+        "name": "Chris Pepper"
+    }
+  ],
+  "frameworks": "*",
+  "platforms": "*"
+}
