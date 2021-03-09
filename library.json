@@ -19,8 +19,8 @@
   ],
   "dependencies":
   {
-    "imgui": "git@github.com:p3p/imgui.git#pio_docking",
-    "implot": "git@github.com:p3p/implot.git#pio_master"
+    "imgui": "https://github.com/p3p/imgui.git#pio_docking",
+    "implot": "https://github.com/p3p/implot.git#pio_master"
   },
   "build": {
     "libLDFMode": "deep"
