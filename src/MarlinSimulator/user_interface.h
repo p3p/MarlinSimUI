@@ -36,57 +36,78 @@ Size=400,400
 Collapsed=0
 
 [Window][Components]
-Pos=1039,0
-Size=241,720
+Pos=995,0
+Size=285,720
 Collapsed=0
 DockId=0x00000006,0
 
-[Window][Serial Monitor]
-Pos=296,509
-Size=741,211
-Collapsed=0
-DockId=0x00000008,0
-
 [Window][Simulation]
 Pos=0,0
-Size=294,159
+Size=270,159
 Collapsed=0
 DockId=0x00000003,0
 
 [Window][Viewport]
-Pos=296,0
-Size=741,507
+Pos=272,0
+Size=721,386
 Collapsed=0
-DockId=0x00000007,0
+DockId=0x00000009,0
 
 [Window][Status]
 Pos=0,161
-Size=294,559
+Size=270,559
 Collapsed=0
 DockId=0x00000004,0
 
 [Window][Signal Analyser]
-Pos=296,0
-Size=741,507
+Pos=272,0
+Size=721,386
 Collapsed=0
-DockId=0x00000007,1
+DockId=0x00000009,1
 
 [Window][Pin List]
-Pos=1039,0
-Size=241,720
+Pos=995,0
+Size=285,720
 Collapsed=0
 DockId=0x00000006,1
 
+[Window][Serial Monitor(0)]
+Pos=272,388
+Size=721,332
+Collapsed=0
+DockId=0x0000000A,0
+
+[Window][Serial Monitor(1)]
+Pos=272,388
+Size=721,332
+Collapsed=0
+DockId=0x0000000A,1
+
+[Window][Serial Monitor(2)]
+Pos=272,388
+Size=721,332
+Collapsed=0
+DockId=0x0000000A,2
+
+[Window][Serial Monitor(3)]
+Pos=272,388
+Size=721,332
+Collapsed=0
+DockId=0x0000000A,3
+
 [Docking][Data]
-DockSpace       ID=0x6F13380E Window=0x49B6D357 Pos=0,0 Size=1280,720 Split=X
-  DockNode      ID=0x00000005 Parent=0x6F13380E SizeRef=1037,720 Split=X
-    DockNode    ID=0x00000001 Parent=0x00000005 SizeRef=294,720 Split=Y Selected=0x7CAC602A
-      DockNode  ID=0x00000003 Parent=0x00000001 SizeRef=637,159 Selected=0x848745AB
-      DockNode  ID=0x00000004 Parent=0x00000001 SizeRef=637,559 Selected=0x7CAC602A
-    DockNode    ID=0x00000002 Parent=0x00000005 SizeRef=741,720 Split=Y Selected=0x995B0CF8
-      DockNode  ID=0x00000007 Parent=0x00000002 SizeRef=448,507 CentralNode=1 Selected=0x995B0CF8
-      DockNode  ID=0x00000008 Parent=0x00000002 SizeRef=448,211 Selected=0xB42549D5
-  DockNode      ID=0x00000006 Parent=0x6F13380E SizeRef=241,720 Selected=0xA115F62D
+DockSpace         ID=0x6F13380E Window=0x49B6D357 Pos=0,0 Size=1280,720 Split=X
+  DockNode        ID=0x00000005 Parent=0x6F13380E SizeRef=1389,720 Split=X
+    DockNode      ID=0x00000001 Parent=0x00000005 SizeRef=378,720 Split=Y Selected=0x7CAC602A
+      DockNode    ID=0x00000003 Parent=0x00000001 SizeRef=637,159 Selected=0x848745AB
+      DockNode    ID=0x00000004 Parent=0x00000001 SizeRef=637,559 Selected=0x7CAC602A
+    DockNode      ID=0x00000002 Parent=0x00000005 SizeRef=1009,720 Split=Y Selected=0x995B0CF8
+      DockNode    ID=0x00000007 Parent=0x00000002 SizeRef=448,451 Split=Y Selected=0x995B0CF8
+        DockNode  ID=0x00000009 Parent=0x00000007 SizeRef=623,386 CentralNode=1 Selected=0x995B0CF8
+        DockNode  ID=0x0000000A Parent=0x00000007 SizeRef=623,332 Selected=0x9E3BE472
+      DockNode    ID=0x00000008 Parent=0x00000002 SizeRef=448,267 Selected=0xB42549D5
+  DockNode        ID=0x00000006 Parent=0x6F13380E SizeRef=399,720 Selected=0x18ABEC8D
+
 )";
 
 class UiWindow {
