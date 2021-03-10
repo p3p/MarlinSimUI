@@ -39,11 +39,30 @@ bool Kernel::execute_loop( uint64_t max_end_ticks) {
 
   //todo: investigate dataloss when pulling from SerialMonitor rather than pushing from here
 
-  if (usb_serial.transmit_buffer.available()) {
-    char buffer[usb_serial.transmit_buffer_size];
-    auto count = usb_serial.transmit_buffer.read((uint8_t *)buffer, usb_serial.transmit_buffer_size - 1);
+  //todo: bad chris, stop just making shit work, look at this mess
+  if (serial_stream_0.transmit_buffer.available()) {
+    char buffer[serial_stream_0.transmit_buffer_size];
+    auto count = serial_stream_0.transmit_buffer.read((uint8_t *)buffer, serial_stream_0.transmit_buffer_size - 1);
     buffer[count] = '\0';
-    std::dynamic_pointer_cast<SerialMonitor>(UserInterface::ui_elements["Serial Monitor"])->insert_text(buffer);
+    std::dynamic_pointer_cast<SerialMonitor>(UserInterface::ui_elements["Serial Monitor(0)"])->insert_text(buffer);
+  }
+  if (serial_stream_1.transmit_buffer.available()) {
+    char buffer[serial_stream_1.transmit_buffer_size];
+    auto count = serial_stream_1.transmit_buffer.read((uint8_t *)buffer, serial_stream_1.transmit_buffer_size - 1);
+    buffer[count] = '\0';
+    std::dynamic_pointer_cast<SerialMonitor>(UserInterface::ui_elements["Serial Monitor(1)"])->insert_text(buffer);
+  }
+  if (serial_stream_2.transmit_buffer.available()) {
+    char buffer[serial_stream_2.transmit_buffer_size];
+    auto count = serial_stream_2.transmit_buffer.read((uint8_t *)buffer, serial_stream_2.transmit_buffer_size - 1);
+    buffer[count] = '\0';
+    std::dynamic_pointer_cast<SerialMonitor>(UserInterface::ui_elements["Serial Monitor(2)"])->insert_text(buffer);
+  }
+  if (serial_stream_3.transmit_buffer.available()) {
+    char buffer[serial_stream_3.transmit_buffer_size];
+    auto count = serial_stream_3.transmit_buffer.read((uint8_t *)buffer, serial_stream_3.transmit_buffer_size - 1);
+    buffer[count] = '\0';
+    std::dynamic_pointer_cast<SerialMonitor>(UserInterface::ui_elements["Serial Monitor(3)"])->insert_text(buffer);
   }
 
   uint64_t current_ticks = TimeControl::getTicks();

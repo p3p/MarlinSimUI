@@ -158,10 +158,13 @@ struct StatusWindow : public UiWindow {
 };
 
 #include <serial.h>
-extern MSerialT usb_serial;
+extern MSerialT serial_stream_0;
+extern MSerialT serial_stream_1;
+extern MSerialT serial_stream_2;
+extern MSerialT serial_stream_3;
 
 struct SerialMonitor : public UiWindow {
-  SerialMonitor(std::string name) : UiWindow(name) {};
+  SerialMonitor(std::string name, MSerialT& serial_stream) : UiWindow(name), serial_stream(serial_stream) {};
   char InputBuf[256] = {};
   std::string working_buffer;
   struct line_meta {
@@ -174,6 +177,7 @@ struct SerialMonitor : public UiWindow {
   std::string input_buffer = {};
   bool scroll_follow = true;
   uint8_t scroll_follow_state = false;
+  MSerialT& serial_stream;
 
   int input_callback(ImGuiInputTextCallbackData* data) {
     switch (data->EventFlag) {
@@ -260,8 +264,8 @@ struct SerialMonitor : public UiWindow {
           if (command_history.size() == 0 || command_history.front() != input) command_history.push_front(input);
           history_index = 0;
           input.push_back('\n');
-          std::size_t count = usb_serial.receive_buffer.free();
-          usb_serial.receive_buffer.write((uint8_t *)input.c_str(), std::min({count, input.size()}));
+          std::size_t count = serial_stream.receive_buffer.free();
+          serial_stream.receive_buffer.write((uint8_t *)input.c_str(), std::min({count, input.size()}));
         }
         strcpy((char*)InputBuf, "");
         reclaim_focus = true;

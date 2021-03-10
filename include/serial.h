@@ -25,7 +25,7 @@
 #if ENABLED(EMERGENCY_PARSER)
   #include <src/feature/e_parser.h>
 #endif
-#include "src/core/serial_hook.h"
+#include <src/core/serial_hook.h>
 
 #include <mutex>
 #include <atomic>

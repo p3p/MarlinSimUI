@@ -12,7 +12,11 @@
 Application::Application() {
   sim.vis.create();
 
-  user_interface.addElement<SerialMonitor>("Serial Monitor");
+  user_interface.addElement<SerialMonitor>("Serial Monitor(0)", serial_stream_0);
+  user_interface.addElement<SerialMonitor>("Serial Monitor(1)", serial_stream_1);
+  user_interface.addElement<SerialMonitor>("Serial Monitor(2)", serial_stream_2);
+  user_interface.addElement<SerialMonitor>("Serial Monitor(3)", serial_stream_3);
+
   //user_interface.addElement<TextureWindow>("Controller Display", sim.display.texture_id, (float)sim.display.width / (float)sim.display.height, [this](UiWindow* window){ this->sim.display.ui_callback(window); });
   user_interface.addElement<StatusWindow>("Status", &clear_color, [this](UiWindow* window){ this->sim.ui_info_callback(window); });
   user_interface.addElement<UiWindow>("Components", [this](UiWindow* window){ this->sim.testPrinter.ui_widgets(); });
@@ -159,10 +163,10 @@ void Application::update() {
   }
 
   // File read into serial port
-  if (input_file.is_open() && usb_serial.receive_buffer.free()) {
+  if (input_file.is_open() && serial_stream_0.receive_buffer.free()) {
     uint8_t buffer[HalSerial::receive_buffer_size]{};
-    auto count = input_file.readsome((char*)buffer, usb_serial.receive_buffer.free());
-    usb_serial.receive_buffer.write(buffer, count);
+    auto count = input_file.readsome((char*)buffer, serial_stream_0.receive_buffer.free());
+    serial_stream_0.receive_buffer.write(buffer, count);
     if (count == 0) input_file.close();
   }
 

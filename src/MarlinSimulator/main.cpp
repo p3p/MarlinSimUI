@@ -58,7 +58,6 @@ void simulation_main() {
 // Main code
 int main(int, char**) {
   Application app;
-
   std::thread simulation_loop(simulation_main);
 
   while (app.active) {
