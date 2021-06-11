@@ -35,7 +35,12 @@ typedef pin_type pin_t;
 #define HAL_SENSITIVE_PINS
 
 // Get the digital pin for an analog index
-pin_t analogInputToDigitalPin(const int8_t p);
+constexpr uint8_t analog_offset = NUM_DIGITAL_PINS - NUM_ANALOG_INPUTS;
+
+// Get the digital pin for an analog index
+constexpr pin_t analogInputToDigitalPin(const int8_t p) {
+  return (WITHIN(p, 0, NUM_ANALOG_INPUTS) ? analog_offset + p : P_NC);
+}
 
 // Return the index of a pin number
 int16_t GET_PIN_MAP_INDEX(const pin_t pin);
