@@ -5,6 +5,9 @@
 #include "user_interface.h"
 #include "execution_control.h"
 
+#include "RawSocketSerial.h"
+extern RawSocketSerial net_serial;
+
 std::chrono::steady_clock Kernel::TimeControl::clock;
 std::chrono::steady_clock::time_point Kernel::TimeControl::last_clock_read(Kernel::TimeControl::clock.now());
 std::atomic_uint64_t Kernel::TimeControl::ticks{0};
@@ -58,12 +61,20 @@ bool Kernel::execute_loop( uint64_t max_end_ticks) {
     buffer[count] = '\0';
     std::dynamic_pointer_cast<SerialMonitor>(UserInterface::ui_elements["Serial Monitor(2)"])->insert_text(buffer);
   }
+
   if (serial_stream_3.transmit_buffer.available()) {
     char buffer[serial_stream_3.transmit_buffer_size];
     auto count = serial_stream_3.transmit_buffer.read((uint8_t *)buffer, serial_stream_3.transmit_buffer_size - 1);
+    net_serial.write((uint8_t*)buffer, count);
     buffer[count] = '\0';
     std::dynamic_pointer_cast<SerialMonitor>(UserInterface::ui_elements["Serial Monitor(3)"])->insert_text(buffer);
   }
+  if (net_serial.available()) {
+    char buffer[512];
+    auto count = net_serial.readBytes(buffer, 512);
+    serial_stream_3.receive_buffer.write((uint8_t *)buffer, count);
+  }
+
 
   uint64_t current_ticks = TimeControl::getTicks();
   uint64_t current_priority = std::numeric_limits<uint64_t>::max();

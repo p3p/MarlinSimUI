@@ -6,6 +6,9 @@
 
 #include "src/inc/MarlinConfig.h"
 
+#include "RawSocketSerial.h"
+
+RawSocketSerial net_serial{};
 
 std::atomic_bool main_finished = false;
 
@@ -60,6 +63,8 @@ int main(int, char**) {
   Application app;
   std::thread simulation_loop(simulation_main);
 
+  net_serial.listen_on_port(8099);
+
   while (app.active) {
     app.update();
     app.render();
@@ -69,6 +74,7 @@ int main(int, char**) {
   main_finished = true;
   Kernel::quit_requested = true;
   simulation_loop.join();
+  net_serial.stop();
 
   return 0;
 }
