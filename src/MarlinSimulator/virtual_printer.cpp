@@ -17,7 +17,7 @@
 
 #include "virtual_printer.h"
 
-#include "src/inc/MarlinConfig.h"
+#include <src/inc/MarlinConfig.h>
 
 std::function<void(glm::vec4)> VirtualPrinter::on_kinematic_update;
 std::map<std::string, std::shared_ptr<VirtualPrinter::Component>> VirtualPrinter::component_map;
@@ -65,7 +65,7 @@ void VirtualPrinter::build() {
   #endif
 
   #if ANY(TFT_COLOR_UI, TFT_CLASSIC_UI, TFT_LVGL_UI)
-    root->add_component<ST7796Device>("ST7796Device Display", SD_SCK_PIN, SD_MISO_PIN, SD_MOSI_PIN, TFT_CS_PIN, TOUCH_CS_PIN, TFT_DC_PIN, BEEPER_PIN, BTN_EN1, BTN_EN2, BTN_ENC, BTN_BACK, KILL_PIN);
+    root->add_component<ST7796Device>("ST7796Device Display", SD_SCK_PIN, TFT_MISO_PIN, TFT_MOSI_PIN, TFT_CS_PIN, TOUCH_CS_PIN, TFT_DC_PIN, BEEPER_PIN, BTN_EN1, BTN_EN2, BTN_ENC, BTN_BACK, KILL_PIN);
   #elif defined(HAS_MARLINUI_HD44780)
     root->add_component<HD44780Device>("HD44780Device Display", LCD_PINS_RS, LCD_PINS_ENABLE, LCD_PINS_D4, LCD_PINS_D5, LCD_PINS_D6, LCD_PINS_D7, BEEPER_PIN, BTN_EN1, BTN_EN2, BTN_ENC, BTN_BACK, KILL_PIN);
   #elif defined(HAS_MARLINUI_U8GLIB)

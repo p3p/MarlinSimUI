@@ -98,6 +98,7 @@ void TFT_SPI::DataTransferBegin(uint16_t DataSize) {
   TFT_CS_L;
 }
 
+// todo: pretty sure this only works because of a bug, successfully reads on the LCD_READ_ID4 command .. which isnt supported
 uint32_t TFT_SPI::GetID() {
   uint32_t id;
   id = ReadID(LCD_READ_ID);
@@ -111,19 +112,15 @@ uint32_t TFT_SPI::ReadID(uint16_t Reg) {
 
   #if PIN_EXISTS(TFT_MISO)
     uint8_t d = 0;
-    SPIx.setDataSize(DATASIZE_8BIT);
-    SPIx.setClock(SPI_CLOCK_DIV64);
-    SPIx.begin();
     TFT_CS_L;
     WriteReg(Reg);
 
     LOOP_L_N(i, 4) {
-      SPIx.read((uint8_t*)&d, 1);
+      spiRead(&d, 1);
       data = (data << 8) | d;
     }
 
     DataTransferEnd();
-    SPIx.setClock(SPI_CLOCK_MAX);
   #endif
 
   return data >> 7;
@@ -155,7 +152,11 @@ void TFT_SPI::TransmitDMA(uint32_t MemoryIncrease, uint16_t *Data, uint16_t Coun
 
 void TFT_SPI::DataTransferEnd() { OUT_WRITE(TFT_CS_PIN, HIGH); };
 void TFT_SPI::WriteData(uint16_t Data) { Transmit(Data); }
-void TFT_SPI::WriteReg(uint16_t Reg) { OUT_WRITE(TFT_A0_PIN, LOW); Transmit(Reg); OUT_WRITE(TFT_A0_PIN, HIGH); }
+void TFT_SPI::WriteReg(uint16_t Reg) {
+   OUT_WRITE(TFT_A0_PIN, LOW);
+   Transmit(Reg);
+   OUT_WRITE(TFT_A0_PIN, HIGH);
+}
 void TFT_SPI::WriteSequence(uint16_t *Data, uint16_t Count) { TransmitDMA(DMA_MINC_ENABLE, Data, Count); }
 // void TFT_SPI::WriteMultiple(uint16_t Color, uint16_t Count) { static uint16_t Data; Data = Color; TransmitDMA(DMA_MINC_DISABLE, &Data, Count); }
 void TFT_SPI::WriteMultiple(uint16_t Color, uint32_t Count) {

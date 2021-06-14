@@ -12,6 +12,7 @@
 #include "ST7796Device.h"
 
 #include <src/HAL/NATIVE_SIM/tft/xpt2046.h>
+#include <src/HAL/NATIVE_SIM/tft/tft_spi.h>
 
 #define ST7796S_CASET      0x2A // Column Address Set
 #define ST7796S_RASET      0x2B // Row Address Set
@@ -31,6 +32,7 @@ ST7796Device::ST7796Device(pin_type clk, pin_type miso, pin_type mosi, pin_type 
 
 ST7796Device::~ST7796Device() {}
 
+const uint32_t id_code = 0x00CB3B00;
 void ST7796Device::process_command(Command cmd) {
   if (cmd.cmd == ST7796S_CASET) {
     xMin = (cmd.data[0] << 8) + cmd.data[1];
@@ -46,22 +48,9 @@ void ST7796Device::process_command(Command cmd) {
     if (yMax >= height) yMax = height - 1;
     graphic_ram_index_y = yMin;
   }
-  // else if (cmd.cmd == ST7796S_RAMWR) {
-  //   for(int i = 0; i < cmd.data.size(); i += 2) {
-  //     auto pixel = (cmd.data[i] << 8) + cmd.data[i+1];
-  //     graphic_ram[graphic_ram_index_x + (graphic_ram_index_y * 480)] = pixel;
-  //     if (graphic_ram_index_x >= xMax) {
-  //       graphic_ram_index_x = xMin;
-  //       graphic_ram_index_y++;
-  //     }
-  //     else {
-  //       graphic_ram_index_x++;
-  //     }
-  //   }
-  //   if (graphic_ram_index_y >= yMax && graphic_ram_index_x >= xMax) {
-  //     dirty = true;
-  //   }
-  // }
+  else if (cmd.cmd == LCD_READ_ID) {
+    setResponse((uint8_t*)&id_code, 4);
+  }
 }
 
 void ST7796Device::update() {
@@ -101,6 +90,7 @@ void ST7796Device::onByteReceived(uint8_t _byte) {
   SPISlavePeripheral::onByteReceived(_byte);
   if (Gpio::get_pin_value(dc_pin)) {
     //data
+
     data.push_back(_byte);
     //direct write to memory, to optimize
     if (command == ST7796S_RAMWR && data.size() == 2) {
