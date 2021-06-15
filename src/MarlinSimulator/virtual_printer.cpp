@@ -13,6 +13,7 @@
 #include "hardware/SDCard.h"
 #include "hardware/W25QxxDevice.h"
 #include "hardware/FilamentRunoutSensor.h"
+#include "hardware/NeoPixelDevice.h"
 #include "hardware/KinematicSystem.h"
 
 #include "virtual_printer.h"
@@ -71,6 +72,8 @@ void VirtualPrinter::build() {
   #elif defined(HAS_MARLINUI_U8GLIB)
     root->add_component<ST7920Device>("ST7920Device Display", LCD_PINS_D4, LCD_PINS_ENABLE, LCD_PINS_RS, BEEPER_PIN, BTN_EN1, BTN_EN2, BTN_ENC, BTN_BACK, KILL_PIN);
   #endif
+
+  root->add_component<NeoPixelDevice>("NeoPixelDevice", NEOPIXEL_PIN, NEOPIXEL_TYPE, NEOPIXEL_PIXELS);
 
   for(auto const& component : components) component->ui_init();
 
