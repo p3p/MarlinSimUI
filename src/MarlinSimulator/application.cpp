@@ -52,9 +52,9 @@ Application::Application() {
     }
 
     ImGui::SameLine();
-    if (ImGui::Button("Realtime")) ui_realtime_scale = 1.0f;
+    if (ImGui::Button("Realtime")) { ui_realtime_scale = 1.0f; paused = false; }
     ImGui::SameLine();
-    if (ImGui::Button("Max")) ui_realtime_scale = 100.0f;
+    if (ImGui::Button("Max")) { ui_realtime_scale = 100.0f; paused = false; }
     ImGui::SameLine();
     if (ImGui::Button("Break")) Kernel::execution_break();
     Kernel::TimeControl::realtime_scale.store(ui_realtime_scale);
