@@ -10,6 +10,7 @@
 
 #include <gl.h>
 #include <imgui.h>
+#include "imgui_internal.h"
 #include "../ImGuiFileDialog/ImGuiFileDialog.h"
 
 #include "execution_control.h"
@@ -147,6 +148,13 @@ public:
   std::string name;
   //bool active = true;
   std::function<void(UiWindow*)> show_callback;
+
+  virtual void select() {
+    ImGuiWindow* window = ImGui::FindWindowByName(name.c_str());
+    if (window == NULL || window->DockNode == NULL || window->DockNode->TabBar == NULL)
+        return;
+    window->DockNode->TabBar->NextSelectedTabId = window->ID;;
+  }
 };
 
 class UserInterface {
@@ -165,6 +173,9 @@ public:
   void show();
   void render();
 
+  bool post_init_complete = false;
+  std::function<void(void)> post_init;
+
   //std::vector<std::shared_ptr<UiWindow>> ui_elements;
   static std::map<std::string, std::shared_ptr<UiWindow>> ui_elements;
 };
@@ -180,22 +191,11 @@ struct StatusWindow : public UiWindow {
 
     if (show_callback) show_callback(this);
 
-    ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-
-    ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-    ImGui::ColorEdit3("clear color", (float*)clear_color);  // Edit 3 floats representing a color
-
-    if (ImGui::Button("Button")) counter++;                 // Buttons return true when clicked (most widgets return true when edited/activated)
-
-    ImGui::SameLine();
-    ImGui::Text("counter = %d", counter);
-
-    ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+    ImGui::Text("Application average %.3f ms/frame", 1000.0f / ImGui::GetIO().Framerate);
+    ImGui::Text("%.1f FPS", ImGui::GetIO().Framerate);
     ImGui::End();
   }
   ImVec4* clear_color = nullptr;
-  float f = 0.0f;
-  int counter = 0;
 };
 
 #include <serial.h>
@@ -219,6 +219,7 @@ struct SerialMonitor : public UiWindow {
   bool scroll_follow = true;
   uint8_t scroll_follow_state = false;
   bool streaming = false;
+  std::size_t stream_sent = 0, stream_total = 0;
 
   MSerialT& serial_stream;
   std::ifstream input_file;
@@ -272,7 +273,13 @@ struct SerialMonitor : public UiWindow {
       uint8_t buffer[HalSerial::receive_buffer_size]{};
       auto count = input_file.readsome((char*)buffer, serial_stream.receive_buffer.free());
       serial_stream.receive_buffer.write(buffer, count);
-      if (count == 0) input_file.close();
+      stream_sent += count;
+      if (count == 0) {
+        input_file.close();
+        streaming = false;
+        stream_total = 0;
+        stream_sent = 0;
+      }
     }
 
     if (!ImGui::Begin((char *)name.c_str(), nullptr, ImGuiWindowFlags_MenuBar)) {
@@ -298,6 +305,8 @@ struct SerialMonitor : public UiWindow {
           if (ImGui::MenuItem("Cancel")) {
             input_file.close();
             streaming = false;
+            stream_total = 0;
+            stream_sent = 0;
           }
         }
         ImGui::EndMenu();
@@ -312,15 +321,18 @@ struct SerialMonitor : public UiWindow {
     if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey", ImGuiWindowFlags_NoDocking))  {
       if (ImGuiFileDialog::Instance()->IsOk()) {
         std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
-        printf("Streaming file: %s\n", filePathName.c_str());
+        //printf("Streaming file: %s\n", filePathName.c_str());
         input_file.open(filePathName);
+        input_file.seekg(0, std::ios::end);
+        stream_total = input_file.tellg();
+        input_file.seekg(0, std::ios::beg);
         streaming = true;
-      } else {
-        printf("Bad selection");
       }
       ImGuiFileDialog::Instance()->Close();
     }
-
+    if (stream_total) {
+      ImGui::ProgressBar((float)stream_sent / stream_total);
+    }
     ImGui::BeginGroup();
     const ImGuiWindowFlags child_flags = 0;
     const ImGuiID child_id = ImGui::GetID((void*)(intptr_t)0);

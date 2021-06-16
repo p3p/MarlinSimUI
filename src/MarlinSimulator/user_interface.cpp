@@ -50,8 +50,12 @@ void UserInterface::show() {
   for (auto element : ui_elements) {
     element.second->show();
   }
-
   ImGui::EndFrame();
+
+  if (!post_init_complete) {
+    if (post_init) post_init();
+    post_init_complete = true;
+  }
 }
 
 void UserInterface::render() {

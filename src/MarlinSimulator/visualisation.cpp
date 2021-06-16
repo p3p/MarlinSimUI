@@ -518,43 +518,16 @@ struct ScrollingData {
 
 void Visualisation::ui_info_callback(UiWindow* w) {
 
-  ImGui::Text("Marlin/Sim: X: %0.3f / %0.3f = %0.3f, Y: %0.3f / %0.3f = %0.3f, Z: %0.3f / %0.3f = %0.3f",
-              NATIVE_TO_LOGICAL(current_position[X_AXIS], X_AXIS),
-              effector_pos.x,
-              NATIVE_TO_LOGICAL(current_position[X_AXIS], X_AXIS) - effector_pos.x,
-              NATIVE_TO_LOGICAL(current_position[Y_AXIS], Y_AXIS),
-              effector_pos.z * -1.0f,
-              NATIVE_TO_LOGICAL(current_position[Y_AXIS], Y_AXIS) - (effector_pos.z * -1.0f),
-              NATIVE_TO_LOGICAL(current_position[Z_AXIS], Z_AXIS),
-              effector_pos.y,
-              NATIVE_TO_LOGICAL(current_position[Z_AXIS], Z_AXIS) - effector_pos.y);
+  // ImGui::Text("Marlin/Sim: X: %0.3f / %0.3f = %0.3f, Y: %0.3f / %0.3f = %0.3f, Z: %0.3f / %0.3f = %0.3f",
+  //             NATIVE_TO_LOGICAL(current_position[X_AXIS], X_AXIS),
+  //             effector_pos.x,
+  //             NATIVE_TO_LOGICAL(current_position[X_AXIS], X_AXIS) - effector_pos.x,
+  //             NATIVE_TO_LOGICAL(current_position[Y_AXIS], Y_AXIS),
+  //             effector_pos.z * -1.0f,
+  //             NATIVE_TO_LOGICAL(current_position[Y_AXIS], Y_AXIS) - (effector_pos.z * -1.0f),
+  //             NATIVE_TO_LOGICAL(current_position[Z_AXIS], Z_AXIS),
+  //             effector_pos.y,
+  //             NATIVE_TO_LOGICAL(current_position[Z_AXIS], Z_AXIS) - effector_pos.y);
 
   ImGui::Text("ISR timing error: %ldns", Kernel::isr_timing_error.load());
-
-  static bool paused = false;
-  static ScrollingData sdata1, sdata2;
-  //static RollingData   rdata1, rdata2;
-  static float t = 0.0;
-  if (!paused) {
-      t += ImGui::GetIO().DeltaTime;
-      sdata1.AddPoint(t, Kernel::isr_timing_error.load());
-      //rdata1.AddPoint(t, mouse.x * 0.0005f);
-      //sdata2.AddPoint(t, Kernel::realtime_scale.load());
-      //rdata2.AddPoint(t, mouse.y * 0.0005f);
-  }
-  static float history = 10.0f;
-  ImGui::SliderFloat("History",&history,1,30,"%.1f s");
-  // rdata1.Span = history;
-  // rdata2.Span = history;
-  // ImPlot::SetNextPlotLimitsX(t - history, t, paused ? ImGuiCond_Once : ImGuiCond_Always);
-  // ImPlot::SetNextPlotLimitsY(0.0f, 100.0f, ImGuiCond_Once);
-  // static int rt_axis = ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_LockMin;
-  // if (ImPlot::BeginPlot("##Scrolling", NULL, NULL, ImVec2(-1,150), ImPlotAxisFlags_NoTickLabels, rt_axis, rt_axis)) {
-  //     ImPlot::PlotLine("ISR Timing Error (ns)", &sdata1.Data[0].x, &sdata1.Data[0].y, sdata1.Data.size(), sdata1.Offset, sizeof(ImPlotPoint));
-  //     //ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, 0.25f);
-  //     //ImPlot::PlotShaded("Data 2", &sdata2.Data[0].x, &sdata2.Data[0].y, sdata2.Data.size(), 0, sdata2.Offset, sizeof(ImPlotPoint));
-  //     //ImPlot::PopStyleVar();
-  //     ImPlot::EndPlot();
-  // }
-  //ImGui::Text("Double left click to autoscale, double right click context menu");
 }
