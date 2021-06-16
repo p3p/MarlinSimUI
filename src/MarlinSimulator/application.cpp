@@ -150,7 +150,8 @@ void Application::update() {
     switch (event.type) {
       case SDL_DROPFILE: {
         char *dropped_filedir = event.drop.file;
-        input_file.open(dropped_filedir);
+        //todo: stream file to the selected serial port?
+        //input_file.open(dropped_filedir);
         SDL_free(dropped_filedir);    // Free dropped_filedir memory
       } break;
 
@@ -160,14 +161,6 @@ void Application::update() {
 
       case SDL_QUIT: active = false; break;
     }
-  }
-
-  // File read into serial port
-  if (input_file.is_open() && serial_stream_0.receive_buffer.free()) {
-    uint8_t buffer[HalSerial::receive_buffer_size]{};
-    auto count = input_file.readsome((char*)buffer, serial_stream_0.receive_buffer.free());
-    serial_stream_0.receive_buffer.write(buffer, count);
-    if (count == 0) input_file.close();
   }
 
   sim.update();

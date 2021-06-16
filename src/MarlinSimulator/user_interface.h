@@ -10,6 +10,7 @@
 
 #include <gl.h>
 #include <imgui.h>
+#include "../ImGuiFileDialog/ImGuiFileDialog.h"
 
 #include "execution_control.h"
 
@@ -198,7 +199,10 @@ struct SerialMonitor : public UiWindow {
   std::string input_buffer = {};
   bool scroll_follow = true;
   uint8_t scroll_follow_state = false;
+  bool streaming = false;
+
   MSerialT& serial_stream;
+  std::ifstream input_file;
 
   int input_callback(ImGuiInputTextCallbackData* data) {
     switch (data->EventFlag) {
@@ -244,9 +248,58 @@ struct SerialMonitor : public UiWindow {
   }
 
   void show() {
-    if (!ImGui::Begin((char *)name.c_str(), nullptr)) {
+      // File read into serial port
+    if (input_file.is_open() && serial_stream.receive_buffer.free() && streaming) {
+      uint8_t buffer[HalSerial::receive_buffer_size]{};
+      auto count = input_file.readsome((char*)buffer, serial_stream.receive_buffer.free());
+      serial_stream.receive_buffer.write(buffer, count);
+      if (count == 0) input_file.close();
+    }
+
+    if (!ImGui::Begin((char *)name.c_str(), nullptr, ImGuiWindowFlags_MenuBar)) {
       ImGui::End();
       return;
+    }
+
+    if (ImGui::BeginMenuBar()) {
+      if (ImGui::BeginMenu("Stream")) {
+        if (ImGui::MenuItem("Select GCode File")) {
+          ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".gcode,.gc,*", ".");
+        }
+        if (input_file.is_open() && streaming)
+          if (ImGui::MenuItem("Pause")) {
+            streaming = false;
+          }
+        if (input_file.is_open() && !streaming) {
+          if (ImGui::MenuItem("Resume")) {
+            streaming = true;
+          }
+        }
+        if (input_file.is_open()) {
+          if (ImGui::MenuItem("Cancel")) {
+            input_file.close();
+            streaming = false;
+          }
+        }
+        ImGui::EndMenu();
+      }
+      if (ImGui::BeginMenu("Edit")) {
+        if (ImGui::MenuItem("Copy Buffer")) {}
+        ImGui::EndMenu();
+      }
+      ImGui::EndMenuBar();
+    }
+
+    if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey"))  {
+      if (ImGuiFileDialog::Instance()->IsOk()) {
+        std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
+        printf("Streaming file: %s\n", filePathName.c_str());
+        input_file.open(filePathName);
+        streaming = true;
+      } else {
+        printf("Bad selection");
+      }
+      ImGuiFileDialog::Instance()->Close();
     }
 
     ImGui::BeginGroup();
