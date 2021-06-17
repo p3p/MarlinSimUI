@@ -15,7 +15,7 @@ void W25QxxDevice::onByteReceived(uint8_t _byte) {
     case W25X_WriteEnable:
       break;
     case W25X_ReadStatusReg:
-      fp = fopen(SPI_FLASH_IMAGE, "wb");
+      fp = fopen(SPI_FLASH_IMAGE, "wb+");
       fwrite(data, 1, flash_size, fp);
       fclose(fp);
       fp = nullptr;
