@@ -458,7 +458,10 @@ void Visualisation::ui_viewport_callback(UiWindow* window) {
     if (ImGui::IsKeyPressed(SDL_SCANCODE_F2)) {
       render_path_line = !render_path_line;
     }
-
+    if (ImGui::IsKeyPressed(SDL_SCANCODE_F4)) {
+      active_path_block = nullptr;
+      full_path.clear();
+    }
     if (ImGui::GetIO().MouseWheel != 0 && viewport.hovered) {
       camera.position += camera.speed * camera.direction * delta * ImGui::GetIO().MouseWheel;
     }
@@ -528,6 +531,9 @@ void Visualisation::ui_info_callback(UiWindow* w) {
   //             NATIVE_TO_LOGICAL(current_position[Z_AXIS], Z_AXIS),
   //             effector_pos.y,
   //             NATIVE_TO_LOGICAL(current_position[Z_AXIS], Z_AXIS) - effector_pos.y);
-
+  if (ImGui::Button("Clear Print Area")) {
+    active_path_block = nullptr;
+    full_path.clear();
+  }
   ImGui::Text("ISR timing error: %ldns", Kernel::isr_timing_error.load());
 }
