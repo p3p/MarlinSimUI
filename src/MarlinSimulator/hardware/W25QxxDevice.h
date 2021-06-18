@@ -16,14 +16,19 @@ class W25QxxDevice: public SPISlavePeripheral {
 public:
   W25QxxDevice(pin_type clk, pin_type mosi, pin_type miso, pin_type cs, size_t flash_size) : SPISlavePeripheral(clk, mosi, miso, cs), flash_size(flash_size) {
     // read current data
-    fp = fopen(SPI_FLASH_IMAGE, "rb+");
-    assert(fp);
     data = new uint8_t[flash_size];
     memset(data, 0xFF, flash_size);
-    fread(data, 1, flash_size, fp);
+
+    fp = fopen(SPI_FLASH_IMAGE, "rb");
+    if (fp == nullptr) {
+      fp = fopen(SPI_FLASH_IMAGE, "wb+");
+      assert(fp);
+      fwrite(data, 1, flash_size, fp);
+    } else fread(data, 1, flash_size, fp);
     fclose(fp);
   }
   virtual ~W25QxxDevice() {
+    delete[] data;
   };
 
   size_t flash_size;
