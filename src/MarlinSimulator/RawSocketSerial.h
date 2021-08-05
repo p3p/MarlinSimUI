@@ -37,6 +37,7 @@ public:
     }
     start_listen(ip);
     server_thread = std::thread(&RawSocketSerial::execute, this);
+    thread_active = true;
   }
 
   void stop() {
@@ -178,7 +179,7 @@ public:
   void write(const char* str)                    { while (*str) tx_buffer.write(*str++); }
   void write(const uint8_t* buffer, size_t size) { tx_buffer.write((uint8_t *)buffer, size); }
 
-  bool thread_active = true;
+  bool thread_active = false;
   ServerInfo server{};
   uint8_t receive_buffer[ServerInfo::max_packet_size];
   uint8_t transmit_buffer[ServerInfo::max_packet_size];
