@@ -60,10 +60,13 @@ void simulation_main() {
 
 // Main code
 int main(int, char**) {
+
+  // Listen before starting simulator loop to avoid
+  // thread synchronization issues if listen_on_port fails
+  net_serial.listen_on_port(8099);
+
   Application app;
   std::thread simulation_loop(simulation_main);
-
-  net_serial.listen_on_port(8099);
 
   while (app.active) {
     app.update();
