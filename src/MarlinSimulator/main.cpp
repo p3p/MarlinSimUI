@@ -60,6 +60,8 @@ void simulation_main() {
 
 // Main code
 int main(int, char**) {
+  SDL_Init(0);
+  SDLNet_Init();
 
   // Listen before starting simulator loop to avoid
   // thread synchronization issues if listen_on_port fails
@@ -78,6 +80,9 @@ int main(int, char**) {
   Kernel::quit_requested = true;
   simulation_loop.join();
   net_serial.stop();
+
+  SDLNet_Quit();
+  SDL_Quit();
 
   return 0;
 }
