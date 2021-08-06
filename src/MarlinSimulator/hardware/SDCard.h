@@ -7,7 +7,7 @@
 /**
   * Instructions for create a FAT image:
   * 1) Install mtools
-  * 2) Create the imagem file:
+  * 2) Create the image file:
   *    $ mformat -v "EMBEDDED FS" -t 1 -h 1 -s 10000 -S 2 -C -i fs.img -c 1 -r 1 -L 1
   *    -s NUM is the number of sectors
   * 3) Copy files to the image:
