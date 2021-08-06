@@ -15,10 +15,12 @@
   * 4) Set the path for SD_SIMULATOR_FAT_IMAGE
   */
  //#define SD_SIMULATOR_FAT_IMAGE "/full/path/to/fs.img"
- #ifndef SD_SIMULATOR_FAT_IMAGE
-   #warning "You need set SD_SIMULATOR_FAT_IMAGE with a path for a FAT filesystem image."
-   #define SD_SIMULATOR_FAT_IMAGE "fs.img"
- #endif
+#ifndef SD_SIMULATOR_FAT_IMAGE
+  #ifdef SDSUPPORT
+    #warning "You need to set SD_SIMULATOR_FAT_IMAGE with a path for a FAT filesystem image."
+  #endif
+  #define SD_SIMULATOR_FAT_IMAGE "fs.img"
+#endif
 
 class SDCard: public SPISlavePeripheral {
 public:
