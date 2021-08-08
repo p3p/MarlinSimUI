@@ -7,7 +7,7 @@
 /**
   * Instructions for create a FAT image:
   * 1) Install mtools
-  * 2) Create the imagem file:
+  * 2) Create the image file:
   *    $ mformat -v "EMBEDDED FS" -t 1 -h 1 -s 10000 -S 2 -C -i fs.img -c 1 -r 1 -L 1
   *    -s NUM is the number of sectors
   * 3) Copy files to the image:
@@ -15,10 +15,12 @@
   * 4) Set the path for SD_SIMULATOR_FAT_IMAGE
   */
  //#define SD_SIMULATOR_FAT_IMAGE "/full/path/to/fs.img"
- #ifndef SD_SIMULATOR_FAT_IMAGE
-   #warning "You need set SD_SIMULATOR_FAT_IMAGE with a path for a FAT filesystem image."
-   #define SD_SIMULATOR_FAT_IMAGE "fs.img"
- #endif
+#ifndef SD_SIMULATOR_FAT_IMAGE
+  #ifdef SDSUPPORT
+    #warning "You need to set SD_SIMULATOR_FAT_IMAGE with a path for a FAT filesystem image."
+  #endif
+  #define SD_SIMULATOR_FAT_IMAGE "fs.img"
+#endif
 
 class SDCard: public SPISlavePeripheral {
 public:
