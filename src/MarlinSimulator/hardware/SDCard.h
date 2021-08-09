@@ -55,6 +55,20 @@ public:
     if (Gpio::valid_pin(sd_detect)) {
       ImGui::Checkbox("SD Card Present ", (bool*)&sd_present);
     }
+
+    if (!sd_present) {
+      if (ImGui::Button("Generate Empty Image")) {
+        if (auto file = fopen(image_filename.c_str(), "rb+")) {
+          fclose(file);
+          printf("File exists unable to create new image!\n");
+          //confirm overwrite?
+        } else {
+          generate_empty_image(image_filename);
+          sd_present = true;
+          Gpio::set_pin_value(sd_detect, sd_present);
+        }
+      }
+    }
   }
 
   void onByteReceived(uint8_t _byte) override;
@@ -65,6 +79,8 @@ public:
       Gpio::set_pin_value(sd_detect, sd_present ? sd_detect_state : !sd_detect_state);
     }
   }
+
+  void generate_empty_image(std::string filename);
 
   int32_t currentArg = 0;
   uint8_t buf[1024];
