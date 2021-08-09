@@ -45,7 +45,7 @@ void SDCard::onRequestedDataReceived(uint8_t token, uint8_t* _data, size_t count
   switch (token) {
     case CMD0:
       if (fp) fclose(fp);
-      fp = fopen(SD_SIMULATOR_FAT_IMAGE, "rb+");
+      fp = fopen(image_filename.c_str(), "rb+");
       if (fp)
         setResponse(R1_IDLE_STATE);
       else

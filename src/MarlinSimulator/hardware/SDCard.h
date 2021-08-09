@@ -16,25 +16,42 @@
   */
  //#define SD_SIMULATOR_FAT_IMAGE "/full/path/to/fs.img"
 #ifndef SD_SIMULATOR_FAT_IMAGE
-  #ifdef SDSUPPORT
-    #warning "You need to set SD_SIMULATOR_FAT_IMAGE with a path for a FAT filesystem image."
-  #endif
   #define SD_SIMULATOR_FAT_IMAGE "fs.img"
 #endif
 
 class SDCard: public SPISlavePeripheral {
 public:
-  SDCard(pin_type clk, pin_type mosi, pin_type miso, pin_type cs, pin_type sd_detect = -1, bool sd_detect_state = true) : SPISlavePeripheral(clk, mosi, miso, cs), sd_detect(sd_detect), sd_detect_state(sd_detect_state) {
+  SDCard(pin_type clk, pin_type mosi, pin_type miso, pin_type cs, pin_type sd_detect = -1, bool sd_detect_state = true) : SPISlavePeripheral(clk, mosi, miso, cs), sd_detect(sd_detect), sd_detect_state(sd_detect_state), image_filename(SD_SIMULATOR_FAT_IMAGE) {
     if (Gpio::valid_pin(sd_detect)) {
       Gpio::attach(sd_detect, [this](GpioEvent& event){ this->interrupt(event); });
     }
+    auto image_fp = fopen(image_filename.c_str(), "rb+");
+    if (image_fp == nullptr) {
+      sd_present = false;
+    } else {
+      sd_present = true;
+      fclose(image_fp);
+    }
+    Gpio::set_pin_value(sd_detect, sd_present);
   }
   virtual ~SDCard() {};
 
   void update() {}
 
   void ui_widget() {
-    ImGui::Text("FileSystem image \"%s\" selected", SD_SIMULATOR_FAT_IMAGE);
+    if (ImGui::Button("Select Image (FAT32)")) {
+      ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", "FAT32 Disk Image(*.img){.img},.*", ".");
+    }
+    if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey", ImGuiWindowFlags_NoDocking))  {
+      if (ImGuiFileDialog::Instance()->IsOk()) {
+        image_filename = ImGuiFileDialog::Instance()->GetFilePathName();
+        sd_present = true;
+        Gpio::set_pin_value(sd_detect, sd_present);
+      }
+      ImGuiFileDialog::Instance()->Close();
+    }
+
+    ImGui::Text("FileSystem image \"%s\" selected", image_filename.c_str());
     if (Gpio::valid_pin(sd_detect)) {
       ImGui::Checkbox("SD Card Present ", (bool*)&sd_present);
     }
@@ -52,7 +69,8 @@ public:
   int32_t currentArg = 0;
   uint8_t buf[1024];
   FILE *fp = nullptr;
-  bool sd_present = true;
+  bool sd_present = false;
   pin_type sd_detect;
   bool sd_detect_state = true;
+  std::string image_filename;
 };
