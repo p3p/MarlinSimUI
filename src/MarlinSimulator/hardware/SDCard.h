@@ -25,13 +25,7 @@ public:
     if (Gpio::valid_pin(sd_detect)) {
       Gpio::attach(sd_detect, [this](GpioEvent& event){ this->interrupt(event); });
     }
-    auto image_fp = fopen(image_filename.c_str(), "rb+");
-    if (image_fp == nullptr) {
-      sd_present = false;
-    } else {
-      sd_present = true;
-      fclose(image_fp);
-    }
+    sd_present = image_exists();
     Gpio::set_pin_value(sd_detect, sd_present);
   }
   virtual ~SDCard() {};
@@ -45,7 +39,7 @@ public:
     if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey", ImGuiWindowFlags_NoDocking))  {
       if (ImGuiFileDialog::Instance()->IsOk()) {
         image_filename = ImGuiFileDialog::Instance()->GetFilePathName();
-        sd_present = true;
+        sd_present = image_exists();
         Gpio::set_pin_value(sd_detect, sd_present);
       }
       ImGuiFileDialog::Instance()->Close();
@@ -58,13 +52,12 @@ public:
 
     if (!sd_present) {
       if (ImGui::Button("Generate Empty Image")) {
-        if (auto file = fopen(image_filename.c_str(), "rb+")) {
-          fclose(file);
+        if (image_exists()) {
           printf("File exists unable to create new image!\n");
           //confirm overwrite?
         } else {
           generate_empty_image(image_filename);
-          sd_present = true;
+          sd_present = image_exists();
           Gpio::set_pin_value(sd_detect, sd_present);
         }
       }
@@ -80,6 +73,14 @@ public:
     }
   }
 
+  bool image_exists() {
+    auto image_fp = fopen(image_filename.c_str(), "rb+");
+    if (image_fp == nullptr) {
+      return false;
+    }
+    fclose(image_fp);
+    return true;
+  }
   void generate_empty_image(std::string filename);
 
   int32_t currentArg = 0;
