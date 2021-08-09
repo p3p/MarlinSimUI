@@ -39,8 +39,8 @@ void Visualisation::create() {
     out vec4 v_position;
 
     uniform mat4 u_mvp;
-    const float layer_thickness = 0.3;
-    const float layer_width = 0.4;
+    uniform float u_layer_thickness;// = 0.3;
+    uniform float u_layer_width;// = 0.4;
 
     vec4 mvp_vertices[9];
     vec4 vertices[9];
@@ -99,18 +99,18 @@ void Visualisation::create() {
 
       float start_join_scale = dot(start_lhs, left);
       float end_join_scale = dot(end_lhs, left);
-      start_lhs *= layer_width * 0.5;
-      end_lhs *= layer_width * 0.5;
+      start_lhs *= u_layer_width * 0.5;
+      end_lhs *= u_layer_width * 0.5;
 
-      float half_layer_width = layer_width / 2.0;
+      float half_layer_width = u_layer_width / 2.0;
       vertices[0] = vec4(start - start_lhs / start_join_scale, 1.0); // top_back_left
       vertices[1] = vec4(start + start_lhs / start_join_scale, 1.0); // top_back_right
       vertices[2] = vec4(end   - end_lhs / end_join_scale, 1.0);   // top_front_left
       vertices[3] = vec4(end   + end_lhs / end_join_scale, 1.0);   // top_front_right
-      vertices[4] = vec4(start - start_lhs / start_join_scale - (up * layer_thickness), 1.0); // bottom_back_left
-      vertices[5] = vec4(start + start_lhs / start_join_scale - (up * layer_thickness), 1.0); // bottom_back_right
-      vertices[6] = vec4(end   - end_lhs / end_join_scale - (up * layer_thickness), 1.0);   // bottom_front_left
-      vertices[7] = vec4(end   + end_lhs / end_join_scale - (up * layer_thickness), 1.0);   // bottom_front_right
+      vertices[4] = vec4(start - start_lhs / start_join_scale - (up * u_layer_thickness), 1.0); // bottom_back_left
+      vertices[5] = vec4(start + start_lhs / start_join_scale - (up * u_layer_thickness), 1.0); // bottom_back_right
+      vertices[6] = vec4(end   - end_lhs / end_join_scale - (up * u_layer_thickness), 1.0);   // bottom_front_left
+      vertices[7] = vec4(end   + end_lhs / end_join_scale - (up * u_layer_thickness), 1.0);   // bottom_front_right
 
       mvp_vertices[0] = u_mvp * vertices[0];
       mvp_vertices[1] = u_mvp * vertices[1];
@@ -327,6 +327,8 @@ void Visualisation::update() {
     }
 
     glUseProgram( path_program );
+    glUniform1f( glGetUniformLocation( path_program, "u_layer_thickness" ), extrude_thickness);
+    glUniform1f( glGetUniformLocation( path_program, "u_layer_width" ), extrude_width);
     glUniformMatrix4fv( glGetUniformLocation( path_program, "u_mvp" ), 1, GL_FALSE, glm::value_ptr(mvp));
     glUniform3fv( glGetUniformLocation( path_program, "u_view_position" ), 1, glm::value_ptr(camera.position));
 
@@ -535,5 +537,7 @@ void Visualisation::ui_info_callback(UiWindow* w) {
     active_path_block = nullptr;
     full_path.clear();
   }
-  ImGui::Text("ISR timing error: %ldns", Kernel::isr_timing_error.load());
+  ImGui::PushItemWidth(150); ImGui::Text("Extrude Width    ");  ImGui::PopItemWidth(); ImGui::PushItemWidth(50); ImGui::SameLine(); ImGui::InputFloat("##Extrude_Width", &extrude_width); ImGui::PopItemWidth();
+  ImGui::PushItemWidth(150); ImGui::Text("Extrude Thickness");  ImGui::PopItemWidth(); ImGui::PushItemWidth(50); ImGui::SameLine(); ImGui::InputFloat("##Extrude_Thickness", &extrude_thickness); ImGui::PopItemWidth();
+
 }

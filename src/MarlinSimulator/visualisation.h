@@ -237,6 +237,8 @@ public:
       build_plate_dimension.x, 0, 0, 0.0, 1.0, 0.0, 0.5, 0.5, 0.5, 1,
   };
 
+  float extrude_width = 0.4;
+  float extrude_thickness = 0.3;
 
 };
 
