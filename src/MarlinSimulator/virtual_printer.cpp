@@ -66,7 +66,7 @@ void VirtualPrinter::build() {
   root->add_component<Heater>("Hotend Heater", HEATER_0_PIN, TEMP_0_PIN, heater_data{12, 3.6}, hotend_data{13, 20, 0.897}, adc_data{4700, 12});
   root->add_component<Heater>("Bed Heater", HEATER_BED_PIN, TEMP_BED_PIN, heater_data{12, 1.2}, hotend_data{325, 824, 0.897}, adc_data{4700, 12});
   #if HAS_SPI_FLASH
-    root->add_component<W25QxxDevice>("SPI Flash", SD_SCK_PIN, SD_MISO_PIN, SD_MOSI_PIN, W25QXX_CS_PIN, SPI_FLASH_SIZE);
+    root->add_component<W25QxxDevice>("SPI Flash", SPI_FLASH_SCK_PIN, SPI_FLASH_MISO_PIN, SPI_FLASH_MOSI_PIN, SPI_FLASH_CS_PIN, SPI_FLASH_SIZE);
   #endif
   #ifdef SDSUPPORT
     root->add_component<SDCard>("SD Card", SD_SCK_PIN, SD_MISO_PIN, SD_MOSI_PIN, SDSS, SD_DETECT_PIN, SD_DETECT_STATE);
@@ -75,7 +75,7 @@ void VirtualPrinter::build() {
     root->add_component<FilamentRunoutSensor>("Filament Runout Sensor", FIL_RUNOUT1_PIN, FIL_RUNOUT_STATE);
   #endif
 
-  #if ANY(TFT_COLOR_UI, TFT_CLASSIC_UI, TFT_LVGL_UI)
+  #if ENABLED(TFT_INTERFACE_SPI)
     root->add_component<ST7796Device>("ST7796Device Display", SD_SCK_PIN, TFT_MISO_PIN, TFT_MOSI_PIN, TFT_CS_PIN, TOUCH_CS_PIN, TFT_DC_PIN, BEEPER_PIN, BTN_EN1, BTN_EN2, BTN_ENC, BTN_BACK, KILL_PIN);
   #elif defined(HAS_MARLINUI_HD44780)
     root->add_component<HD44780Device>("HD44780Device Display", LCD_PINS_RS, LCD_PINS_ENABLE, LCD_PINS_D4, LCD_PINS_D5, LCD_PINS_D6, LCD_PINS_D7, BEEPER_PIN, BTN_EN1, BTN_EN2, BTN_ENC, BTN_BACK, KILL_PIN);

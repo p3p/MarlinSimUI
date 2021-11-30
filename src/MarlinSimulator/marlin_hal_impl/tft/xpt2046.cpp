@@ -55,8 +55,8 @@ void XPT2046::Init() {
   // Read once to enable pendrive status pin
   getRawData(XPT2046_X);
   int a = getRawData(XPT2046_Z1);
-  SERIAL_ECHOLNPAIR("A: ", a);
-  SERIAL_ECHOLNPAIR("A: ", a);
+  SERIAL_ECHOLNPGM("A: ", a);
+  SERIAL_ECHOLNPGM("A: ", a);
 }
 
 bool XPT2046::isTouched() {
