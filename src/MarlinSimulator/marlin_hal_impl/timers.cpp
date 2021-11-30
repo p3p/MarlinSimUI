@@ -27,12 +27,12 @@
 extern Kernel kernel;
 
 void HAL_timer_init() {
-  Kernel::Timers::timerInit(STEP_TIMER_NUM, STEPPER_TIMER_RATE);
-  Kernel::Timers::timerInit(TEMP_TIMER_NUM, TEMP_TIMER_RATE);
+  Kernel::Timers::timerInit(MF_TIMER_STEP, STEPPER_TIMER_RATE);
+  Kernel::Timers::timerInit(MF_TIMER_TEMP, TEMP_TIMER_RATE);
   // Configure and start systick early
-  Kernel::Timers::timerInit(SYSTICK_TIMER_NUM, 1000000);
-  HAL_timer_enable_interrupt(SYSTICK_TIMER_NUM);
-  HAL_timer_start(SYSTICK_TIMER_NUM, SYSTICK_TIMER_FREQUENCY);
+  Kernel::Timers::timerInit(MF_TIMER_SYSTICK, 1000000);
+  HAL_timer_enable_interrupt(MF_TIMER_SYSTICK);
+  HAL_timer_start(MF_TIMER_SYSTICK, SYSTICK_TIMER_FREQUENCY);
 }
 
 void HAL_timer_start(const uint8_t timer_num, const uint32_t frequency) {
