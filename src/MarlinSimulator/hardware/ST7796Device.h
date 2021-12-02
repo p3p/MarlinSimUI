@@ -43,6 +43,7 @@ public:
   void onEndTransaction() override;
 
   static constexpr uint32_t width = TFT_WIDTH, height = TFT_HEIGHT;
+  bool render_integer_scaling = false, render_popout = false;
 
   pin_type dc_pin, beeper_pin, enc1_pin, enc2_pin, enc_but_pin, back_pin, kill_pin;
 

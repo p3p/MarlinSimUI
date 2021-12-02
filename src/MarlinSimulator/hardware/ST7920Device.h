@@ -33,6 +33,7 @@ public:
   void ui_widget() override;
 
   static constexpr uint32_t width = 128, height = 64;
+  bool render_integer_scaling = false, render_popout = false;
 
   pin_type clk_pin, mosi_pin, cs_pin, beeper_pin, enc1_pin, enc2_pin, enc_but_pin, back_pin, kill_pin;
 
