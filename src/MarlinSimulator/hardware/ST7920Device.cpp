@@ -154,29 +154,52 @@ void ST7920Device::ui_widget() {
   static long int call_count = 0;
   static uint8_t up_held = 0, down_held = 0;
   call_count++;
+  bool popout_begin = false;
 
   auto size = ImGui::GetContentRegionAvail();
-  size.y = size.x / (width / (float)height);
-  ImGui::BeginChild("ST7920Device", size);
-  ImGui::GetCurrentWindow()->ScrollMax.y = 1.0f; // disable window scroll
+  size.y = ((size.x / (width / (float)height)) * !render_popout) + 60;
 
-  ImGui::Image((ImTextureID)(intptr_t)texture_id, size, ImVec2(0,0), ImVec2(1,1));
+  if (ImGui::BeginChild("ST7920Device", size)) {
+    ImGui::GetCurrentWindow()->ScrollMax.y = 1.0f; // disable window scroll
+    ImGui::Checkbox("Integer Scaling", &render_integer_scaling);
+    ImGui::Checkbox("Popout", &render_popout);
 
-  if (ImGui::IsWindowFocused()) {
-    key_pressed[KeyName::KILL_BUTTON]    = ImGui::IsKeyDown(SDL_SCANCODE_K);
-    key_pressed[KeyName::ENCODER_BUTTON] = ImGui::IsKeyDown(SDL_SCANCODE_SPACE) || ImGui::IsKeyDown(SDL_SCANCODE_RETURN) || ImGui::IsKeyDown(SDL_SCANCODE_RIGHT);
-    key_pressed[KeyName::BACK_BUTTON]    = ImGui::IsKeyDown(SDL_SCANCODE_LEFT);
-
-    // Turn keypresses (and repeat) into encoder clicks
-    if (up_held) { up_held--; encoder_position--; }
-    else if (ImGui::IsKeyPressed(SDL_SCANCODE_UP)) up_held = 4;
-    if (down_held) { down_held--; encoder_position++; }
-    else if (ImGui::IsKeyPressed(SDL_SCANCODE_DOWN)) down_held = 4;
-
-    if (ImGui::IsItemHovered()) {
-      key_pressed[KeyName::ENCODER_BUTTON] |= ImGui::IsMouseClicked(0);
-      encoder_position += ImGui::GetIO().MouseWheel > 0 ? 1 : ImGui::GetIO().MouseWheel < 0 ? -1 : 0;
+    if (render_popout) {
+      ImGui::SetNextWindowSize(ImVec2(width + 10, height + 10), ImGuiCond_Once);
+      popout_begin = ImGui::Begin("ST7920DeviceRender", &render_popout);
+      if (!popout_begin) {
+        ImGui::End();
+        return;
+      }
+      size = ImGui::GetContentRegionAvail();
     }
+
+    double scale = size.x / width;
+    if (render_integer_scaling) {
+      scale = scale > 1.0 ? std::floor(scale) : scale;
+      size.x = width * scale;
+    }
+    size.y = height * scale;
+
+    ImGui::Image((ImTextureID)(intptr_t)texture_id, size, ImVec2(0,0), ImVec2(1,1));
+    if (ImGui::IsWindowFocused()) {
+      key_pressed[KeyName::KILL_BUTTON]    = ImGui::IsKeyDown(SDL_SCANCODE_K);
+      key_pressed[KeyName::ENCODER_BUTTON] = ImGui::IsKeyDown(SDL_SCANCODE_SPACE) || ImGui::IsKeyDown(SDL_SCANCODE_RETURN) || ImGui::IsKeyDown(SDL_SCANCODE_RIGHT);
+      key_pressed[KeyName::BACK_BUTTON]    = ImGui::IsKeyDown(SDL_SCANCODE_LEFT);
+
+      // Turn keypresses (and repeat) into encoder clicks
+      if (up_held) { up_held--; encoder_position--; }
+      else if (ImGui::IsKeyPressed(SDL_SCANCODE_UP)) up_held = 4;
+      if (down_held) { down_held--; encoder_position++; }
+      else if (ImGui::IsKeyPressed(SDL_SCANCODE_DOWN)) down_held = 4;
+
+      if (ImGui::IsItemHovered()) {
+        key_pressed[KeyName::ENCODER_BUTTON] |= ImGui::IsMouseClicked(0);
+        encoder_position += ImGui::GetIO().MouseWheel > 0 ? 1 : ImGui::GetIO().MouseWheel < 0 ? -1 : 0;
+      }
+    }
+
+    if (popout_begin) ImGui::End();
   }
   ImGui::EndChild();
 }

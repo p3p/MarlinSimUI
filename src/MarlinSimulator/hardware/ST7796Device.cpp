@@ -127,15 +127,36 @@ void ST7796Device::ui_init() {
 }
 
 void ST7796Device::ui_widget() {
+  bool popout_begin = false;
   auto size = ImGui::GetContentRegionAvail();
-  size.y = size.x / (width / (float)height);
-  ImGui::BeginChild("ST7796Device", size);
-  ImGui::GetCurrentWindow()->ScrollMax.y = 1.0f; // disable window scroll
+  size.y = ((size.x / (width / (float)height)) * !render_popout) + 60;
 
-  ImGui::Image((ImTextureID)(intptr_t)texture_id, size, ImVec2(0,0), ImVec2(1,1));
-  //if (ImGui::IsItemFocused()) {
+  if (ImGui::BeginChild("ST7796Device", size)) {
+    ImGui::GetCurrentWindow()->ScrollMax.y = 1.0f; // disable window scroll
+    ImGui::Checkbox("Integer Scaling", &render_integer_scaling);
+    ImGui::Checkbox("Popout", &render_popout);
+
+    if (render_popout) {
+      ImGui::SetNextWindowSize(ImVec2(width + 10, height + 10), ImGuiCond_Once);
+      popout_begin = ImGui::Begin("ST7796DeviceRender", &render_popout);
+      if (!popout_begin) {
+        ImGui::End();
+        return;
+      }
+      size = ImGui::GetContentRegionAvail();
+    }
+
+    double scale = size.x / width;
+    if (render_integer_scaling) {
+      scale = scale > 1.0 ? std::floor(scale) : scale;
+      size.x = width * scale;
+    }
+    size.y = height * scale;
+
+    ImGui::Image((ImTextureID)(intptr_t)texture_id, size, ImVec2(0,0), ImVec2(1,1));
     touch->ui_callback();
-  //}
 
+    if (popout_begin) ImGui::End();
+  }
   ImGui::EndChild();
 }

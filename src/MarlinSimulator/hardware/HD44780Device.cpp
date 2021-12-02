@@ -197,17 +197,36 @@ void HD44780Device::ui_init() {
 }
 
 void HD44780Device::ui_widget() {
+  bool popout_begin = false;
   static long int call_count = 0;
   static uint8_t up_held = 0, down_held = 0;
   call_count++;
 
   auto size = ImGui::GetContentRegionAvail();
-  size.y = size.x / (width / (float)height);
+  size.y = ((size.x / (width / (float)height)) * !render_popout) + 60;
+
   if (ImGui::BeginChild("HD44780Device", size)) {
     ImGui::GetCurrentWindow()->ScrollMax.y = 1.0f; // disable window scroll
+    ImGui::Checkbox("Integer Scaling", &render_integer_scaling);
+    ImGui::Checkbox("Popout", &render_popout);
+    if (render_popout) {
+      ImGui::SetNextWindowSize(ImVec2(width + 10, height + 10), ImGuiCond_Once);
+      popout_begin = ImGui::Begin("ST7796DeviceRender", &render_popout);
+      if (!popout_begin) {
+        ImGui::End();
+        return;
+      }
+      size = ImGui::GetContentRegionAvail();
+    }
+
+    double scale = size.x / width;
+    if (render_integer_scaling) {
+      scale = scale > 1.0 ? std::floor(scale) : scale;
+      size.x = width * scale;
+    }
+    size.y = height * scale;
 
     ImGui::Image((ImTextureID)(intptr_t)texture_id, size, ImVec2(0,0), ImVec2(1,1));
-
     if (ImGui::IsWindowFocused()) {
 
       key_pressed[KeyName::KILL_BUTTON]    = ImGui::IsKeyDown(SDL_SCANCODE_K);
@@ -225,6 +244,8 @@ void HD44780Device::ui_widget() {
         encoder_position += ImGui::GetIO().MouseWheel > 0 ? 1 : ImGui::GetIO().MouseWheel < 0 ? -1 : 0;
       }
     }
+
+    if (popout_begin) ImGui::End();
   }
   ImGui::EndChild();
 }

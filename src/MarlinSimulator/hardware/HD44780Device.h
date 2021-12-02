@@ -95,6 +95,7 @@ public:
   static constexpr uint32_t texture_x = 132;//((5 * display_x_char) + (display_margin * 2) + (19 * display_char_pad));
   static constexpr uint32_t texture_y = 48;//((8 * display_y_char) + (display_margin * 2) + (3 * display_char_pad));
   static constexpr uint32_t width = texture_x, height = texture_y;
+  bool render_integer_scaling = false, render_popout = false;
 
   glm::vec<3, uint8_t> texture_data[texture_x * texture_y] = {};
 
