@@ -8,6 +8,9 @@
 #include "../HAL.h"
 #include <src/MarlinCore.h>
 #include <src/pins/pinsDebug.h>
+#include <fstream>
+#include <vcd_writer.h>
+#include <regex>
 
 Application::Application() {
   sim.vis.create();
@@ -149,6 +152,79 @@ Application::Application() {
           ImPlot::PlotLine("pin", &sdata.Data[0].x, &sdata.Data[0].y, sdata.Data.size(), sdata.Offset, sizeof(ImPlotPoint));
           ImPlot::EndPlot();
         }
+      }
+
+      static bool export_single_pin = false;
+      if (ImGui::Button("Export selected pin to file")) {
+        export_single_pin = true;
+        ImGuiFileDialog::Instance()->OpenDialog("PulseExportDlgKey", "Choose File", "Value Change Dump (*.vcd){.vcd},.*", ".");
+      }
+
+
+      if (ImGui::Button("Export pins matching regex to file")) {
+        export_single_pin = false;
+        ImGuiFileDialog::Instance()->OpenDialog("PulseExportDlgKey", "Choose File", "Value Change Dump (*.vcd){.vcd},.*", ".");
+      }
+
+      static char export_regex[128] = "";
+      ImGui::SameLine();
+      ImGui::InputText("Pin regex", export_regex, sizeof(export_regex));
+
+      if (ImGuiFileDialog::Instance()->Display("PulseExportDlgKey", ImGuiWindowFlags_NoDocking))  {
+        try{
+        if (ImGuiFileDialog::Instance()->IsOk()) {
+          std::string image_filename = ImGuiFileDialog::Instance()->GetFilePathName();
+
+          using namespace vcd;
+
+          HeadPtr head = makeVCDHeader(static_cast<TimeScale>(50), TimeScaleUnit::ns, utils::now());
+          VCDWriter writer{image_filename, std::move(head)};
+
+          if (export_single_pin) {
+            std::string pin_name(active_label);
+            auto scope = pin_name.substr(0, pin_name.find_first_of('_'));
+            auto var = writer.register_var(scope, pin_name, VariableType::wire, 1);
+
+            if (Gpio::pin_map[monitor_pin].event_log.size() && pin_array[monitor_pin].is_digital) {
+              for (const auto &value : Gpio::pin_map[monitor_pin].event_log) {
+                writer.change(var, value.timestamp / 50, utils::format("%u", value.value));
+              }
+            }
+          }
+          else {
+            std::map<size_t, VarPtr> pin_to_var_map;
+            std::regex expression(export_regex);
+
+            for (auto pin : pin_array) {
+              std::string pin_name(pin.name);
+              bool regex_match = strlen(export_regex) == 0 || std::regex_search(pin_name, expression);
+              auto scope = pin_name.substr(0, pin_name.find_first_of('_'));
+              if (pin.is_digital && regex_match) // && Gpio::pin_map[pin.pin].event_log.size() > 1) // Questionable attempt to filter output for inactive lines
+                pin_to_var_map[pin.pin] = writer.register_var(scope, pin_name, VariableType::wire, 1);
+            }
+
+            std::multimap<uint64_t, std::pair<pin_t, uint16_t> > timestamp_pin_change_map;
+
+            for (auto pin : pin_array) {
+              if (pin.is_digital && pin_to_var_map.find(pin.pin) != pin_to_var_map.end())
+                for (const auto &data : Gpio::pin_map[pin.pin].event_log)
+                {
+                  timestamp_pin_change_map.emplace(std::make_pair(data.timestamp, std::make_pair(pin.pin, data.value)));
+                }
+            }
+
+            auto timestamp_offset = timestamp_pin_change_map.begin()->first;
+            for (const auto &timestamp : timestamp_pin_change_map) {
+              writer.change(pin_to_var_map[timestamp.second.first], (timestamp.first - timestamp_offset) / 50, utils::format("%u", timestamp.second.second));
+            }
+          }
+        }
+        }
+        catch (const std::exception& e)
+        {
+          auto test = e.what();
+        }
+        ImGuiFileDialog::Instance()->Close();
       }
     }
   });
