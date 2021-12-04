@@ -72,67 +72,84 @@ Application::Application() {
   });
 
   user_interface.addElement<UiWindow>("Signal Analyser", [this](UiWindow* window){
-    struct ScrollingData {
-      int MaxSize;
-      int Offset;
-      ImVector<ImPlotPoint> Data;
-      ScrollingData() {
-          MaxSize = 100000;
-          Offset  = 0;
-          Data.reserve(MaxSize);
+    if (!Gpio::isLoggingEnabled()) {
+      if (ImGui::Button("Enable Pin Logging")) {
+        Gpio::setLoggingEnabled(true);
       }
-      void AddPoint(double x, double y) {
-          if (Data.size() < MaxSize)
-              Data.push_back(ImPlotPoint(x,y));
-          else {
-              Data[Offset] = ImPlotPoint(x,y);
-              Offset =  (Offset + 1) % MaxSize;
-          }
-      }
-      void Erase() {
-          if (Data.size() > 0) {
-              Data.shrink(0);
-              Offset  = 0;
-          }
-      }
-    };
-
-    static pin_type monitor_pin = X_STEP_PIN;
-    static const char* label = "Select Pin";
-    static char* active_label = (char *)label;
-    if(ImGui::BeginCombo("##Select Pin", active_label)) {
-      for (auto p : pin_array) {
-        if (ImGui::Selectable(p.name, p.pin == monitor_pin)) {
-          monitor_pin = p.pin;
-          active_label = (char *)p.name;
-        }
-        if (p.pin == monitor_pin) ImGui::SetItemDefaultFocus();
-      }
-      ImGui::EndCombo();
     }
-
-    if (Gpio::pin_map[monitor_pin].event_log.size()) {
-      ScrollingData sdata;
-
-      pin_log_data last{};
-      for (auto v : Gpio::pin_map[monitor_pin].event_log) {
-        if (last.timestamp) sdata.AddPoint(v.timestamp, last.value);
-        sdata.AddPoint(v.timestamp, v.value);
-        last = v;
+    else {
+      if (ImGui::Button("Disable Pin Logging")) {
+        Gpio::setLoggingEnabled(false);
       }
-      sdata.AddPoint(Kernel::SimulationRuntime::nanos(),  last.value);
+      ImGui::SameLine();
+      if (ImGui::Button("Reset logs")) {
+        Gpio::resetLogs();
+      }
 
-      static float window = 10000000000.0f;
-      ImGui::SliderFloat("Window", &window, 10.f, 100000000000.f,"%.0f ns");
-      static float offset = 0.0f;
-      ImGui::SliderFloat("X offset", &offset, 0.f, 10000000000.f,"%.0f ns");
-      // ImPlot::SetNextPlotLimitsX(Kernel::SimulationRuntime::nanos() - window - offset, Kernel::SimulationRuntime::nanos() - offset, ImGuiCond_Always);
-      // ImPlot::SetNextPlotLimitsY(0.0f, 1.2f, ImGuiCond_Always);
-      // static int rt_axis = ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_LockMin;
-      // if (ImPlot::BeginPlot("##Scrolling", "Time (ns)", NULL, ImVec2(-1,150), ImPlotAxisFlags_NoTickLabels | ImPlotFlags_Query, rt_axis, rt_axis)) {
-      //   ImPlot::PlotLine("pin", &sdata.Data[0].x, &sdata.Data[0].y, sdata.Data.size(), sdata.Offset, sizeof(ImPlotPoint));
-      //   ImPlot::EndPlot();
-      // }
+      struct ScrollingData {
+        int MaxSize;
+        int Offset;
+        ImVector<ImPlotPoint> Data;
+        ScrollingData() {
+            MaxSize = 100000;
+            Offset  = 0;
+            Data.reserve(MaxSize);
+        }
+        void AddPoint(double x, double y) {
+            if (Data.size() < MaxSize)
+                Data.push_back(ImPlotPoint(x,y));
+            else {
+                Data[Offset] = ImPlotPoint(x,y);
+                Offset =  (Offset + 1) % MaxSize;
+            }
+        }
+        void Erase() {
+            if (Data.size() > 0) {
+                Data.shrink(0);
+                Offset  = 0;
+            }
+        }
+      };
+
+      static pin_type monitor_pin = X_STEP_PIN;
+      static const char* label = "Select Pin";
+      static char* active_label = (char *)label;
+      if(ImGui::BeginCombo("##Select Pin", active_label)) {
+        for (auto p : pin_array) {
+          if (ImGui::Selectable(p.name, p.pin == monitor_pin)) {
+            monitor_pin = p.pin;
+            active_label = (char *)p.name;
+          }
+          if (p.pin == monitor_pin) ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
+      }
+
+      if (Gpio::pin_map[monitor_pin].event_log.size()) {
+        ScrollingData sdata;
+
+        pin_log_data last{};
+        for (auto v : Gpio::pin_map[monitor_pin].event_log) {
+          if (last.timestamp) sdata.AddPoint(v.timestamp, last.value);
+          sdata.AddPoint(v.timestamp, v.value);
+          last = v;
+        }
+        sdata.AddPoint(Kernel::SimulationRuntime::nanos(),  last.value);
+
+        static float window = 10000000000.0f;
+        ImGui::SliderFloat("Window", &window, 10.f, 100000000000.f,"%.0f ns", ImGuiSliderFlags_Logarithmic);
+        static float offset = 0.0f;
+        ImGui::SliderFloat("X offset", &offset, 0.f, 10000000000.f,"%.0f ns");
+        ImGui::SliderFloat("X offset", &offset, 0.f, 100000000000.f,"%.0f ns");
+        if (!ImPlot::GetCurrentContext()) ImPlot::CreateContext();
+        ImPlot::SetNextPlotLimitsX(Kernel::SimulationRuntime::nanos() - window - offset, Kernel::SimulationRuntime::nanos() - offset, ImGuiCond_Always);
+        ImPlot::SetNextPlotLimitsY(0.0f, 1.2f, ImGuiCond_Always);
+        static int rt_axis = ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_LockMin;
+        if (ImPlot::BeginPlot("##Scrolling", "Time (ns)", NULL, ImVec2(-1,150), ImPlotAxisFlags_NoTickLabels | ImPlotFlags_Query, rt_axis, rt_axis)) {
+          ImPlot::PlotLine("pin", &sdata.Data[0].x, &sdata.Data[0].y, sdata.Data.size(), sdata.Offset, sizeof(ImPlotPoint));
+          ImPlot::EndPlot();
+        }
+      }
     }
   });
 
