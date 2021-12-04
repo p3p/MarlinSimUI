@@ -199,7 +199,7 @@ Application::Application() {
               std::string pin_name(pin.name);
               bool regex_match = strlen(export_regex) == 0 || std::regex_search(pin_name, expression);
               auto scope = pin_name.substr(0, pin_name.find_first_of('_'));
-              if (pin.is_digital && regex_match) // && Gpio::pin_map[pin.pin].event_log.size() > 1) // Questionable attempt to filter output for inactive lines
+              if (pin.is_digital && regex_match)
                 pin_to_var_map[pin.pin] = writer.register_var(scope, pin_name, VariableType::wire, 1);
             }
 
