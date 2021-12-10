@@ -271,10 +271,11 @@ struct SerialMonitor : public UiWindow {
       // File read into serial port
     if (input_file.is_open() && serial_stream.receive_buffer.free() && streaming) {
       uint8_t buffer[HalSerial::receive_buffer_size]{};
-      auto count = input_file.readsome((char*)buffer, serial_stream.receive_buffer.free());
-      serial_stream.receive_buffer.write(buffer, count);
-      stream_sent += count;
-      if (count == 0) {
+      size_t read_size = std::min(serial_stream.receive_buffer.free(), stream_total - stream_sent);
+      input_file.read((char*)buffer, read_size);
+      serial_stream.receive_buffer.write(buffer, read_size);
+      stream_sent += read_size;
+      if (stream_sent >= stream_total) {
         input_file.close();
         streaming = false;
         stream_total = 0;
