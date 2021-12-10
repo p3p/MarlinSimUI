@@ -72,7 +72,6 @@ struct pin_data {
   std::atomic_uint8_t mode;
   std::atomic_uint16_t value;
   std::vector<std::function<void(GpioEvent&)>> callbacks;
-  bool event_log_enabled = false;
   std::deque<pin_log_data> event_log;
 };
 
@@ -83,9 +82,13 @@ public:
 
   static void set_pin_value(const pin_type pin, const uint16_t value) {
     if (!valid_pin(pin)) return;
-    pin_map[pin].value = value;
-    //pin_map[pin].event_log.push_back(pin_log_data{Kernel::TimeControl::nanos(), pin_map[pin].value});
-    //if (pin_map[pin].event_log.size() > 100000) pin_map[pin].event_log.pop_front();
+    if (value != pin_map[pin].value) { // Optimizes for size, but misses "meaningless" sets
+      pin_map[pin].value = value;
+      if (logging_enabled) {
+        pin_map[pin].event_log.push_back(pin_log_data{Kernel::TimeControl::nanos(), pin_map[pin].value});
+        if (pin_map[pin].event_log.size() > 100000) pin_map[pin].event_log.pop_front();
+      }
+    }
   }
 
   static uint16_t get_pin_value(const pin_type pin) {
@@ -103,12 +106,16 @@ public:
 
   static void set(const pin_type pin, const uint16_t value) {
     if (!valid_pin(pin)) return;
-    GpioEvent::Type evt_type = value > 1 ? GpioEvent::SET_VALUE : value > pin_map[pin].value ? GpioEvent::RISE : value < pin_map[pin].value ? GpioEvent::FALL : GpioEvent::NOP;
-    pin_map[pin].value = value;
-    GpioEvent evt(Kernel::TimeControl::getTicks(), pin, evt_type);
-    //pin_map[pin].event_log.push_back(pin_log_data{Kernel::TimeControl::nanos(), pin_map[pin].value});
-    //if (pin_map[pin].event_log.size() > 100000) pin_map[pin].event_log.pop_front();
-    for (auto callback : pin_map[pin].callbacks) callback(evt);
+    if (value != pin_map[pin].value) { // Optimizes for size, but misses "meaningless" sets
+      GpioEvent::Type evt_type = value > 1 ? GpioEvent::SET_VALUE : value > pin_map[pin].value ? GpioEvent::RISE : value < pin_map[pin].value ? GpioEvent::FALL : GpioEvent::NOP;
+      pin_map[pin].value = value;
+      GpioEvent evt(Kernel::TimeControl::getTicks(), pin, evt_type);
+      if (logging_enabled) {
+        pin_map[pin].event_log.push_back(pin_log_data{Kernel::TimeControl::nanos(), pin_map[pin].value});
+        if (pin_map[pin].event_log.size() > 100000) pin_map[pin].event_log.pop_front();
+      }
+      for (auto callback : pin_map[pin].callbacks) callback(evt);
+    }
   }
 
   static uint16_t get(const pin_type pin) {
@@ -159,5 +166,27 @@ public:
     return pin_map[pin].attach(args...);
   }
 
+  static void resetLogs() {
+    for (auto &pin : pin_map) {
+      // Seed each pin with an initial value to ensure important edges are not the first sample.
+      pin.event_log.clear();
+      pin.event_log.push_back(pin_log_data{Kernel::TimeControl::nanos(), pin.value});
+    }
+  }
+
+  static void setLoggingEnabled(bool enable) {
+    if (!logging_enabled && enable) {
+      resetLogs();
+    }
+    logging_enabled = enable;
+  }
+
+  static bool isLoggingEnabled() {
+    return logging_enabled;
+  }
+
   static pin_data pin_map[pin_count];
+
+private:
+  static bool logging_enabled;
 };
