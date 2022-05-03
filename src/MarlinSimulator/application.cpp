@@ -178,7 +178,7 @@ Application::Application() {
           using namespace vcd;
 
           HeadPtr head = makeVCDHeader(static_cast<TimeScale>(50), TimeScaleUnit::ns, utils::now());
-          VCDWriter writer{image_filename, std::move(head)};
+          VCDWriter writer{image_filename, head};
 
           if (export_single_pin) {
             std::string pin_name(active_label);
