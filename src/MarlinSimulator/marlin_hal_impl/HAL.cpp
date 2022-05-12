@@ -74,7 +74,7 @@ uint16_t MarlinHAL::adc_value() {
 
 void MarlinHAL::reboot() { /* Reset the application state and GPIO */ }
 
-void MarlinHAL::idletask() {}
+void MarlinHAL::idletask() {  Kernel::yield(); };
 
 // Maple Compatibility
 volatile uint32_t systick_uptime_millis = 0;
