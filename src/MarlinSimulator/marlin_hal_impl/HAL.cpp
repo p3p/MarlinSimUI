@@ -76,6 +76,10 @@ void MarlinHAL::reboot() { /* Reset the application state and GPIO */ }
 
 void MarlinHAL::idletask() {}
 
+void MarlinHAL::watchdog_refresh() {}
+
+void MarlinHAL::watchdog_init() {}
+
 // Maple Compatibility
 volatile uint32_t systick_uptime_millis = 0;
 systickCallback_t systick_user_callback;
