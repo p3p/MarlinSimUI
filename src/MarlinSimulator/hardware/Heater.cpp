@@ -53,26 +53,22 @@ void Heater::ui_widget() {
   ImGui::Text("Temperature: %f", hotend_temperature);
 }
 
-// models energy transfer but not time lag as it tranfers through the medium.
 void Heater::interrupt(GpioEvent& ev) {
+  // always update the temperature
+  double time_delta = Kernel::TimeControl::ticksToNanos(ev.timestamp - pwm_last_update) / (double)Kernel::TimeControl::ONE_BILLION;
+  double energy_in = ((heater_volts * heater_volts) / heater_resistance) * time_delta * Gpio::get_pin_value(heater_pin);
+  double energy_out = ((hotend_convection_transfer * hotend_surface_area * ( hotend_energy / (hotend_specific_heat * hotend_mass) - hotend_ambient_temperature)) * time_delta);
+  hotend_energy += energy_in - energy_out;
+  pwm_last_update = ev.timestamp;
+  hotend_temperature = hotend_energy / (hotend_specific_heat * hotend_mass);
+
   if (ev.event == ev.RISE && ev.pin_id == heater_pin) {
     if (pwm_hightick) pwm_period = ev.timestamp - pwm_hightick;
     pwm_hightick = ev.timestamp;
 
-  } else if ((ev.event == ev.NOP || ev.event == ev.FALL) && ev.pin_id == heater_pin) {
-    double time_delta = Kernel::TimeControl::ticksToNanos(ev.timestamp - pwm_last_update) / (double)Kernel::TimeControl::ONE_BILLION;
-    double energy_in = pwm_lowtick < pwm_hightick ? ((heater_volts * heater_volts) / heater_resistance) * time_delta : 0;
-    double energy_out = ((hotend_convection_transfer * hotend_surface_area * ( hotend_energy / (hotend_specific_heat * hotend_mass) - hotend_ambient_temperature)) * time_delta);
-    hotend_energy += energy_in - energy_out;
-    pwm_last_update = ev.timestamp;
-
-    hotend_temperature = hotend_energy / (hotend_specific_heat * hotend_mass);
-
-    if (ev.event == ev.FALL) {
-      pwm_lowtick = ev.timestamp;
-      pwm_duty = ev.timestamp - pwm_hightick;
-    }
-
+  } else if ( ev.event == ev.FALL && ev.pin_id == heater_pin) {
+    pwm_lowtick = ev.timestamp;
+    pwm_duty = ev.timestamp - pwm_hightick;
   } else if (ev.event == ev.GET_VALUE && ev.pin_id == adc_pin) {
     double thermistor_resistance = temperature_to_resistance(hotend_temperature);
     uint32_t adc_reading = (uint32_t)((((1U << adc_resolution) -1)  * thermistor_resistance) / (adc_pullup_resistance + thermistor_resistance));
