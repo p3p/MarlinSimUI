@@ -21,7 +21,7 @@
   {
     "imgui": "https://github.com/p3p/imgui.git#pio_docking",
     "implot": "https://github.com/p3p/implot.git#pio_master",
-    "vcd-writer": "https://github.com/favorart/vcd-writer"
+    "vcd-writer": "https://github.com/favorart/vcd-writer.git#28e19a1bfe632535e69787a978ba9d001aee5987"
   },
   "build": {
     "libLDFMode": "deep"
