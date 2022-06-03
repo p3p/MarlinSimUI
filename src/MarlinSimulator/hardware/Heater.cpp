@@ -52,7 +52,8 @@ void Heater::update() {
 void Heater::ui_widget() {
   ImGui::Text("Temperature: %f", hotend_temperature);
 }
-
+#pragma GCC push_options
+#pragma GCC optimize ("O0")
 void Heater::interrupt(GpioEvent& ev) {
   // always update the temperature
   double time_delta = Kernel::TimeControl::ticksToNanos(ev.timestamp - pwm_last_update) / (double)Kernel::TimeControl::ONE_BILLION;
@@ -75,3 +76,4 @@ void Heater::interrupt(GpioEvent& ev) {
     Gpio::set_pin_value(adc_pin, adc_reading);
   }
 }
+#pragma GCC pop_options
