@@ -52,6 +52,7 @@ void Heater::update() {
 void Heater::ui_widget() {
   ImGui::Text("Temperature: %f", hotend_temperature);
 }
+
 #pragma GCC push_options
 #pragma GCC optimize ("O0")
 void Heater::interrupt(GpioEvent& ev) {
