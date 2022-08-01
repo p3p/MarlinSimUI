@@ -1,53 +1,34 @@
 #include "SPISlavePeripheral.h"
 
-SPISlavePeripheral::SPISlavePeripheral(pin_type clk, pin_type miso, pin_type mosi, pin_type cs, uint8_t CPOL, uint8_t CPHA) : VirtualPrinter::Component("SPISlavePeripheral"), clk_pin(clk), miso_pin(miso), mosi_pin(mosi), cs_pin(cs), CPOL(CPOL), CPHA(CPHA) {
-  Gpio::attach(clk_pin, [this](GpioEvent& event){ this->spiInterrupt(event); });
-  Gpio::attach(cs_pin, [this](GpioEvent& event){ this->spiInterrupt(event); });
+SPISlavePeripheral::SPISlavePeripheral(SpiBus& spi_bus, pin_type cs) : VirtualPrinter::Component("SPISlavePeripheral"), spi_bus(spi_bus), cs_pin(cs) {
+  Gpio::attach(cs_pin, [this](GpioEvent& event){ this->interrupt(event); });
+  spi_bus.attach([this](SpiEvent& event){ this->interrupt(event); });
 }
 
 SPISlavePeripheral::~SPISlavePeripheral() {};
 
 void SPISlavePeripheral::onBeginTransaction() {
-  // printf("SPISlavePeripheral::onBeginTransaction\n");
+  spi_bus.acquire();
+  //printf("BUS Acquired by %s (cs: %d)\n", name.c_str(), cs_pin);
   insideTransaction = true;
   outgoing_byte = 0xFF;
-  outgoing_bit_count = 0;
-  if (CPHA == 0) {
-    //when CPHA is 0: data must be available on MISO when CS fall
-    transmitCurrentBit();
-  }
 }
 
-void SPISlavePeripheral::transmitCurrentBit() {
-  // MSB
-  const uint8_t b = (outgoing_byte >> (7 - outgoing_bit_count)) & 1;
-  Gpio::set_pin_value(miso_pin,  b);
-  onBitSent(b);
-  if (++outgoing_bit_count == 8) {
-    onByteSent(outgoing_byte);
-  }
-}
 
 void SPISlavePeripheral::onEndTransaction() {
-  // printf("SPISlavePeripheral::onEndTransaction\n");
   // check for pending data to receive
   if (requestedDataSize > 0) {
     onRequestedDataReceived(currentToken, requestedData, requestedDataIndex);
   }
   setRequestedDataSize(0xFF, 0);
   insideTransaction = false;
+  spi_bus.release();
+  //printf("BUS Released by %s (cs: %d)\n", name.c_str(), cs_pin);
 }
 
-void SPISlavePeripheral::onBitReceived(uint8_t _bit) {
-  // printf("SPISlavePeripheral::onBitReceived: %d\n", _bit);
-}
-
-void SPISlavePeripheral::onBitSent(uint8_t _bit) {
-  // printf("SPISlavePeripheral::onBitSent: %d\n", _bit);
-}
 
 void SPISlavePeripheral::onByteReceived(uint8_t _byte) {
-  // printf("SPISlavePeripheral::onByteReceived: %d\n", _byte);
+  //printf("%s::onByteReceived: 0x%X\n", name.c_str(), _byte);
   if (requestedDataSize > 0) {
     requestedData[requestedDataIndex++] = _byte;
     if (requestedDataIndex == requestedDataSize) {
@@ -63,11 +44,11 @@ void SPISlavePeripheral::onResponseSent() {
 }
 
 void SPISlavePeripheral::onRequestedDataReceived(uint8_t token, uint8_t* _data, size_t count) {
-  // printf("SPISlavePeripheral::onRequestedDataReceived\n");
+  //printf("%s::onRequestedDataReceived\n", name.c_str());
 }
 
 void SPISlavePeripheral::onByteSent(uint8_t _byte) {
-  // printf("SPISlavePeripheral::onByteSent: %d\n", _byte);
+  //printf("%s::onByteSent: %d\n", name.c_str(), _byte);
   if (responseDataSize > 0) {
     outgoing_byte = *responseData;
     responseData++;
@@ -77,7 +58,6 @@ void SPISlavePeripheral::onByteSent(uint8_t _byte) {
     if (hasDataToSend) onResponseSent();
     outgoing_byte = 0xFF;
   }
-  outgoing_bit_count = 0;
 }
 
 void SPISlavePeripheral::setResponse(uint8_t _data) {
@@ -101,13 +81,9 @@ void SPISlavePeripheral::setResponse16(uint16_t _data, bool msb) {
 void SPISlavePeripheral::setResponse(uint8_t *_bytes, size_t count) {
   responseData = _bytes;
   responseDataSize = count;
-  // if ready, set the next byte to send
-  if (outgoing_bit_count == 0) {
-    outgoing_bit_count = 0;
-    outgoing_byte = *responseData;
-    responseData++;
-    responseDataSize--;
-  }
+  outgoing_byte = *responseData;
+  responseData++;
+  responseDataSize--;
   hasDataToSend = true;
 }
 
@@ -124,35 +100,28 @@ void SPISlavePeripheral::setRequestedDataSize(uint8_t token, size_t _count) {
   }
 }
 
-void SPISlavePeripheral::spiInterrupt(GpioEvent& ev) {
+void SPISlavePeripheral::interrupt(SpiEvent& ev) {
+  //printf("SPI(%s): interrupt\n", name.c_str());
+  if (Gpio::get_pin_value(cs_pin) != 0 || !insideTransaction) return;
+
+  for (size_t i = 0; i < ev.length; i++) {
+    if (ev.read_into != nullptr) {
+      ev.read_into[i] = outgoing_byte;
+      onByteSent(outgoing_byte);
+      //printf("SPI(%s): data out\n", name.c_str());
+    }
+    if (ev.write_from != nullptr) {
+      incoming_byte = ev.source_increment ? ev.write_from[i] : ev.write_from[i % ev.source_format] ;
+      onByteReceived(incoming_byte);
+      //printf("SPI(%s): data in\n", name.c_str());
+    }
+  }
+}
+
+void SPISlavePeripheral::interrupt(GpioEvent& ev) {
   if (ev.pin_id == cs_pin) {
     if (ev.event == GpioEvent::FALL) onBeginTransaction();
     else if (ev.event == GpioEvent::RISE && insideTransaction) onEndTransaction();
     return;
-  }
-
-  if (Gpio::get_pin_value(cs_pin) != 0 || !insideTransaction) return;
-
-  if (ev.pin_id == clk_pin) {
-    // == Read ==
-    // When CPOL is 0, data must be read when clock RISE
-    // When CPOL is 1, data must be read when clock FALL
-    if ((ev.event == GpioEvent::RISE && CPOL == 0) || (ev.event == GpioEvent::FALL && CPOL == 1)) {
-      const uint8_t currentBit = Gpio::get_pin_value(mosi_pin);
-      incoming_byte = (incoming_byte << 1) | currentBit;
-      onBitReceived(currentBit);
-      if (++incoming_bit_count == 8) {
-        onByteReceived(incoming_byte);
-        incoming_byte = 0;
-        incoming_bit_count = 0;
-        incoming_byte_count++;
-      }
-    }
-    // == WRITE ==
-    // When CPOL is 0, data must be avaliable when clock FALL
-    // When CPOL is 1, data must be avaliable when clock RISE
-    else if ((ev.event == GpioEvent::FALL && CPOL == 0) || (ev.event == GpioEvent::RISE && CPOL == 1)) {
-      transmitCurrentBit();
-    }
   }
 }

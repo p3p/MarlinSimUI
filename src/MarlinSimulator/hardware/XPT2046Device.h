@@ -9,7 +9,7 @@
 
 class XPT2046Device: public SPISlavePeripheral {
 public:
-  XPT2046Device(pin_type clk, pin_type mosi, pin_type miso, pin_type cs) : SPISlavePeripheral(clk, mosi, miso, cs) {}
+  XPT2046Device(SpiBus& spi_bus, pin_type cs) : SPISlavePeripheral(spi_bus, cs) {}
   virtual ~XPT2046Device() {};
 
   void update() {}

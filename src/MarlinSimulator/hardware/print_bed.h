@@ -10,7 +10,7 @@
 
 class PrintBed : public VirtualPrinter::Component {
 public:
-  PrintBed(glm::vec2 size) : VirtualPrinter::Component("PrintBed"), bed_size(size), bed_plane_center({size.x/2, size.y/2, 0}), bed_level_points{glm::vec3{bed_size.x / 2, bed_size.y, 0}, {0, 0, 0}, {bed_size.x, 0, 0}} {}
+  PrintBed(glm::vec2 size, glm::vec2 offset) : VirtualPrinter::Component("PrintBed"), bed_size(size), bed_plane_center({size.x/2, size.y/2, 0}), bed_offset(offset), bed_level_points{glm::vec3{bed_size.x / 2, bed_size.y, 0}, {0, 0, 0}, {bed_size.x, 0, 0}} {}
 
   void ui_widget() {
     int8_t updated = 0;
@@ -40,5 +40,6 @@ public:
   glm::vec2 bed_size{200, 200};
   glm::vec3 bed_plane_center{100, 100, 0};
   glm::vec3 bed_plane_normal{0, 0, 1};
+  glm::vec2 bed_offset{0, 0};
   std::array<glm::vec3, 3> bed_level_points;
 };

@@ -25,6 +25,9 @@
 #if HAS_SPI_TFT
 
 #include HAL_PATH(src/HAL, tft/tft_spi.h)
+#include "../../hardware/bus/spi.h"
+
+static SpiBus &spi_bus = spi_bus_by_pins<TFT_SCK_PIN, TFT_MOSI_PIN, TFT_MISO_PIN>();
 
 //TFT_SPI tft;
 
@@ -116,7 +119,8 @@ uint32_t TFT_SPI::ReadID(uint16_t Reg) {
     WriteReg(Reg);
 
     LOOP_L_N(i, 4) {
-      spiRead(&d, 1);
+      //spiRead(&d, 1);
+      spi_bus.transfer<uint8_t>(nullptr, &d, 1);
       data = (data << 8) | d;
     }
 
@@ -135,18 +139,14 @@ void TFT_SPI::Abort() {
 }
 
 void TFT_SPI::Transmit(uint16_t Data) {
-  spiSend(Data);
+  spi_bus.write(Data);
 }
 
 void TFT_SPI::TransmitDMA(uint32_t MemoryIncrease, uint16_t *Data, uint16_t Count) {
   DataTransferBegin();
   TFT_DC_H;
-  while (Count--)
-  {
-    Transmit(((*Data) >> 8) & 0xFF);
-    Transmit(((*Data) >> 0) & 0xFF);
-    if (MemoryIncrease == DMA_MINC_ENABLE) Data++;
-  }
+  if (MemoryIncrease == DMA_MINC_ENABLE) spi_bus.transfer<uint16_t>(Data, nullptr, Count);
+  else spi_bus.transfer<uint16_t>(Data, nullptr, Count, false);
   DataTransferEnd();
 }
 
@@ -158,16 +158,6 @@ void TFT_SPI::WriteReg(uint16_t Reg) {
    OUT_WRITE(TFT_A0_PIN, HIGH);
 }
 void TFT_SPI::WriteSequence(uint16_t *Data, uint16_t Count) { TransmitDMA(DMA_MINC_ENABLE, Data, Count); }
-// void TFT_SPI::WriteMultiple(uint16_t Color, uint16_t Count) { static uint16_t Data; Data = Color; TransmitDMA(DMA_MINC_DISABLE, &Data, Count); }
-void TFT_SPI::WriteMultiple(uint16_t Color, uint32_t Count) {
-  static uint16_t Data; Data = Color;
-  //LPC dma can only write 0xFFF bytes at once.
-  #define MAX_DMA_SIZE (0xFFF - 1)
-  while (Count > 0) {
-    TransmitDMA(DMA_MINC_DISABLE, &Data, Count > MAX_DMA_SIZE ? MAX_DMA_SIZE : Count);
-    Count = Count > MAX_DMA_SIZE ? Count - MAX_DMA_SIZE : 0;
-  }
-  #undef MAX_DMA_SIZE
-}
+void TFT_SPI::WriteMultiple(uint16_t Color, uint32_t Count) { static uint16_t Data; Data = Color; TransmitDMA(DMA_MINC_DISABLE, &Data, Count); }
 
 #endif // HAS_SPI_TFT

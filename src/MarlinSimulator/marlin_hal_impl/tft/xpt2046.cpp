@@ -22,6 +22,9 @@
 #if HAS_TFT_XPT2046 || HAS_TOUCH_XPT2046
 
 #include HAL_PATH(src/HAL, tft/xpt2046.h)
+#include "../../hardware/bus/spi.h"
+
+static SpiBus &spi_bus = spi_bus_by_pins<TOUCH_SCK_PIN, TOUCH_MOSI_PIN, TOUCH_MISO_PIN>();
 
 uint16_t delta(uint16_t a, uint16_t b) { return a > b ? a - b : b - a; }
 
@@ -105,8 +108,6 @@ uint16_t XPT2046::IO(uint16_t data) {
   return TERN(TOUCH_BUTTONS_HW_SPI, HardwareIO, SoftwareIO)(data);
 }
 
-extern uint8_t spiTransfer(uint8_t b);
-
 #if ENABLED(TOUCH_BUTTONS_HW_SPI)
   uint16_t XPT2046::HardwareIO(uint16_t data) {
     return SPIx.transfer(data & 0xFF);
@@ -114,25 +115,7 @@ extern uint8_t spiTransfer(uint8_t b);
 #endif
 
 uint16_t XPT2046::SoftwareIO(uint16_t data) {
-  uint16_t result = 0;
-
-  for (uint8_t j = 0x80; j; j >>= 1) {
-    WRITE(TOUCH_SCK_PIN, LOW);
-    WRITE(TOUCH_MOSI_PIN, data & j ? HIGH : LOW);
-    if (READ(TOUCH_MISO_PIN)) {
-      //printf("TOUCH_MISO_PIN = 1\n");
-      result |= j;
-    }
-    else {
-      //printf("TOUCH_MISO_PIN = 0\n");
-    }
-    WRITE(TOUCH_SCK_PIN, HIGH);
-  }
-  WRITE(TOUCH_SCK_PIN, LOW);
-
-  //printf("result: %d\n", result);
-
-  return result;
+  return spi_bus.transfer(data & 0xFF);
 }
 
 void XPT2046::DataTransferBegin() { WRITE(TOUCH_CS_PIN, LOW); };

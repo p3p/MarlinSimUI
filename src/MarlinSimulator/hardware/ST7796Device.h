@@ -6,6 +6,7 @@
 #include <list>
 #include <deque>
 #include "Gpio.h"
+#include "bus/spi.h"
 
 #include "SPISlavePeripheral.h"
 #include "XPT2046Device.h"
@@ -30,7 +31,7 @@ public:
     std::vector<uint8_t> data;
   };
 
-  ST7796Device(pin_type clk, pin_type miso, pin_type mosi, pin_type tft_cs, pin_type touch_cs, pin_type dc, pin_type beeper, pin_type enc1, pin_type enc2, pin_type enc_but, pin_type back, pin_type kill);
+  ST7796Device(SpiBus& spi_bus, pin_type tft_cs, SpiBus& touch_spi_bus, pin_type touch_cs, pin_type dc, pin_type beeper, pin_type enc1, pin_type enc2, pin_type enc_but, pin_type back, pin_type kill);
   virtual ~ST7796Device();
   void process_command(Command cmd);
   void update();

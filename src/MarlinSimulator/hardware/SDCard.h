@@ -21,7 +21,7 @@
 
 class SDCard: public SPISlavePeripheral {
 public:
-  SDCard(pin_type clk, pin_type mosi, pin_type miso, pin_type cs, pin_type sd_detect = -1, bool sd_detect_state = true) : SPISlavePeripheral(clk, mosi, miso, cs), sd_detect(sd_detect), sd_detect_state(sd_detect_state), image_filename(SD_SIMULATOR_FAT_IMAGE) {
+  SDCard(SpiBus& spi_bus, pin_type cs, pin_type sd_detect = -1, bool sd_detect_state = true) : SPISlavePeripheral(spi_bus, cs), sd_detect(sd_detect), sd_detect_state(sd_detect_state), image_filename(SD_SIMULATOR_FAT_IMAGE) {
     if (Gpio::valid_pin(sd_detect)) {
       Gpio::attach(sd_detect, [this](GpioEvent& event){ this->interrupt(event); });
     }
