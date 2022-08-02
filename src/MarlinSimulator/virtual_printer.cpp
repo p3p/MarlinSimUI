@@ -56,12 +56,12 @@ void VirtualPrinter::build() {
     root->add_component<EndStop>("Endstop(Tower C Max)", Z_MAX_PIN, Z_MAX_ENDSTOP_INVERTING, [kinematics](){ return kinematics->stepper_position.z >= Z_MAX_POS; });
   #else
     auto kinematics = root->add_component<KinematicSystem>("Cartesian Kinematic System", on_kinematic_update);
-    root->add_component<EndStop>("Endstop(X Min)", X_MIN_PIN, X_MIN_ENDSTOP_INVERTING, [kinematics](){ return kinematics->effector_position.x <= 0; });
-    root->add_component<EndStop>("Endstop(Y Min)", Y_MIN_PIN, Y_MIN_ENDSTOP_INVERTING, [kinematics](){ return kinematics->effector_position.y <= 0; });
-    root->add_component<EndStop>("Endstop(Z Min)", Z_MIN_PIN, Z_MIN_ENDSTOP_INVERTING, [kinematics](){ return kinematics->effector_position.z <= 0; });
+    root->add_component<EndStop>("Endstop(X Min)", X_MIN_PIN, X_MIN_ENDSTOP_INVERTING, [kinematics](){ return kinematics->effector_position.x <= X_MIN_POS; });
+    root->add_component<EndStop>("Endstop(Y Min)", Y_MIN_PIN, Y_MIN_ENDSTOP_INVERTING, [kinematics](){ return kinematics->effector_position.y <= Y_MIN_POS; });
+    root->add_component<EndStop>("Endstop(Z Min)", Z_MIN_PIN, Z_MIN_ENDSTOP_INVERTING, [kinematics](){ return kinematics->effector_position.z <= Z_MIN_POS; });
   #endif
 
-  auto print_bed = root->add_component<PrintBed>("Print Bed", glm::vec2{X_BED_SIZE, Y_BED_SIZE}, glm::vec2{-X_MAX_POS, -Y_MAX_POS});
+  auto print_bed = root->add_component<PrintBed>("Print Bed", glm::vec2{X_BED_SIZE, Y_BED_SIZE});
 
   #if HAS_BED_PROBE
     root->add_component<BedProbe>("Probe", Z_MIN_PROBE_PIN, glm::vec3 NOZZLE_TO_PROBE_OFFSET, kinematics->effector_position, *print_bed);

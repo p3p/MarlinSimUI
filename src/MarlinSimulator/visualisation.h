@@ -21,6 +21,7 @@
 #include "user_interface.h"
 
 constexpr glm::ivec2 build_plate_dimension{X_BED_SIZE, Y_BED_SIZE};
+constexpr glm::ivec2 build_plate_offset{X_MIN_POS, Y_MIN_POS};
 
 using millisec = std::chrono::duration<float, std::milli>;
 

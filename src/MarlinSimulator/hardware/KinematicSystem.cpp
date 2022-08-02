@@ -16,9 +16,9 @@ KinematicSystem::KinematicSystem(std::function<void(glm::vec4)> on_kinematic_upd
   steppers.push_back(add_component<StepperDriver>("Stepper3", E0_ENABLE_PIN, E0_DIR_PIN, E0_STEP_PIN, [this](){ this->kinematic_update(); }));
 
   srand(time(0));
-  origin.x = (rand() % (int)(X_MAX_POS - X_MIN_POS)) + X_MIN_POS;
-  origin.y = (rand() % (int)(Y_MAX_POS - Y_MIN_POS)) + Y_MIN_POS;
-  origin.z = (rand() % (int)(Z_MAX_POS - Z_MIN_POS)) + Z_MIN_POS;
+  origin.x = (rand() % (int)((X_MAX_POS / 4) - X_MIN_POS)) + X_MIN_POS;
+  origin.y = (rand() % (int)((Y_MAX_POS / 4) - Y_MIN_POS)) + Y_MIN_POS;
+  origin.z = (rand() % (int)((Z_MAX_POS / 8) - Z_MIN_POS)) + Z_MIN_POS;
 }
 
 void KinematicSystem::kinematic_update() {
