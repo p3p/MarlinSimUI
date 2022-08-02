@@ -18,9 +18,9 @@
 #define ST7796S_RASET      0x2B // Row Address Set
 #define ST7796S_RAMWR      0x2C // Memory Write
 
-ST7796Device::ST7796Device(pin_type clk, pin_type miso, pin_type mosi, pin_type tft_cs, pin_type touch_cs, pin_type dc, pin_type beeper, pin_type enc1, pin_type enc2, pin_type enc_but, pin_type back, pin_type kill)
-  : SPISlavePeripheral(clk, miso, mosi, tft_cs), dc_pin(dc), beeper_pin(beeper), enc1_pin(enc1), enc2_pin(enc2), enc_but_pin(enc_but), back_pin(back), kill_pin(kill) {
-  touch = add_component<XPT2046Device>("Touch", clk, miso, mosi, touch_cs);
+ST7796Device::ST7796Device(SpiBus& spi_bus, pin_type tft_cs, SpiBus& touch_spi_bus, pin_type touch_cs, pin_type dc, pin_type beeper, pin_type enc1, pin_type enc2, pin_type enc_but, pin_type back, pin_type kill)
+  : SPISlavePeripheral(spi_bus, tft_cs), dc_pin(dc), beeper_pin(beeper), enc1_pin(enc1), enc2_pin(enc2), enc_but_pin(enc_but), back_pin(back), kill_pin(kill) {
+  touch = add_component<XPT2046Device>("Touch", touch_spi_bus, touch_cs);
   Gpio::attach(dc_pin, [this](GpioEvent& event){ this->interrupt(event); });
   Gpio::attach(beeper_pin, [this](GpioEvent& event){ this->interrupt(event); });
   Gpio::attach(kill_pin, [this](GpioEvent& event){ this->interrupt(event); });
@@ -89,8 +89,6 @@ void ST7796Device::onEndTransaction() {
 void ST7796Device::onByteReceived(uint8_t _byte) {
   SPISlavePeripheral::onByteReceived(_byte);
   if (Gpio::get_pin_value(dc_pin)) {
-    //data
-
     data.push_back(_byte);
     //direct write to memory, to optimize
     if (command == ST7796S_RAMWR && data.size() == 2) {

@@ -20,6 +20,10 @@
 
 #include <src/inc/MarlinConfig.h>
 
+#if HAS_TFT_XPT2046 || HAS_TOUCH_XPT2046
+  #include HAL_PATH(src/HAL, tft/xpt2046.h)
+#endif
+
 #ifndef SD_DETECT_STATE
   #define SD_DETECT_STATE HIGH
 #endif
@@ -57,7 +61,7 @@ void VirtualPrinter::build() {
     root->add_component<EndStop>("Endstop(Z Min)", Z_MIN_PIN, Z_MIN_ENDSTOP_INVERTING, [kinematics](){ return kinematics->effector_position.z <= 0; });
   #endif
 
-  auto print_bed = root->add_component<PrintBed>("Print Bed", glm::vec2{X_BED_SIZE, Y_BED_SIZE});
+  auto print_bed = root->add_component<PrintBed>("Print Bed", glm::vec2{X_BED_SIZE, Y_BED_SIZE}, glm::vec2{-X_MAX_POS, -Y_MAX_POS});
 
   #if HAS_BED_PROBE
     root->add_component<BedProbe>("Probe", Z_MIN_PROBE_PIN, glm::vec3 NOZZLE_TO_PROBE_OFFSET, kinematics->effector_position, *print_bed);
@@ -66,17 +70,20 @@ void VirtualPrinter::build() {
   root->add_component<Heater>("Hotend Heater", HEATER_0_PIN, TEMP_0_PIN, heater_data{12, 3.6}, hotend_data{13, 20, 0.897}, adc_data{4700, 12});
   root->add_component<Heater>("Bed Heater", HEATER_BED_PIN, TEMP_BED_PIN, heater_data{12, 1.2}, hotend_data{325, 824, 0.897}, adc_data{4700, 12});
   #if HAS_SPI_FLASH
-    root->add_component<W25QxxDevice>("SPI Flash", SPI_FLASH_SCK_PIN, SPI_FLASH_MISO_PIN, SPI_FLASH_MOSI_PIN, SPI_FLASH_CS_PIN, SPI_FLASH_SIZE);
+    //root->add_component<W25QxxDevice>("SPI Flash", SPI_FLASH_SCK_PIN, SPI_FLASH_MISO_PIN, SPI_FLASH_MOSI_PIN, SPI_FLASH_CS_PIN, SPI_FLASH_SIZE);
+    root->add_component<W25QxxDevice>("SPI Flash", spi_bus_by_pins<SPI_FLASH_SCK_PIN, SPI_FLASH_MOSI_PIN, SPI_FLASH_MISO_PIN>(), SPI_FLASH_CS_PIN, SPI_FLASH_SIZE);
   #endif
   #ifdef SDSUPPORT
-    root->add_component<SDCard>("SD Card", SD_SCK_PIN, SD_MISO_PIN, SD_MOSI_PIN, SDSS, SD_DETECT_PIN, SD_DETECT_STATE);
+    //root->add_component<SDCard>("SD Card", SD_SCK_PIN, SD_MISO_PIN, SD_MOSI_PIN, SDSS, SD_DETECT_PIN, SD_DETECT_STATE);
+    root->add_component<SDCard>("SD Card", spi_bus_by_pins<SD_SCK_PIN, SD_MOSI_PIN, SD_MISO_PIN>(), SD_SS_PIN, SD_DETECT_PIN, SD_DETECT_STATE);
   #endif
   #if ENABLED(FILAMENT_RUNOUT_SENSOR)
     root->add_component<FilamentRunoutSensor>("Filament Runout Sensor", FIL_RUNOUT1_PIN, FIL_RUNOUT_STATE);
   #endif
 
   #if ENABLED(TFT_INTERFACE_SPI)
-    root->add_component<ST7796Device>("ST7796Device Display", SD_SCK_PIN, TFT_MISO_PIN, TFT_MOSI_PIN, TFT_CS_PIN, TOUCH_CS_PIN, TFT_DC_PIN, BEEPER_PIN, BTN_EN1, BTN_EN2, BTN_ENC, BTN_BACK, KILL_PIN);
+    //root->add_component<ST7796Device>("ST7796Device Display", TFT_SCK_PIN, TFT_MISO_PIN, TFT_MOSI_PIN, TFT_CS_PIN, TOUCH_CS_PIN, TFT_DC_PIN, BEEPER_PIN, BTN_EN1, BTN_EN2, BTN_ENC, BTN_BACK, KILL_PIN);
+    root->add_component<ST7796Device>("ST7796Device Display", spi_bus_by_pins<TFT_SCK_PIN, TFT_MOSI_PIN, TFT_MISO_PIN>(), TFT_CS_PIN, spi_bus_by_pins<TOUCH_SCK_PIN, TOUCH_MOSI_PIN, TOUCH_MISO_PIN>(), TOUCH_CS_PIN, TFT_DC_PIN, BEEPER_PIN, BTN_EN1, BTN_EN2, BTN_ENC, BTN_BACK, KILL_PIN);
   #elif defined(HAS_MARLINUI_HD44780)
     root->add_component<HD44780Device>("HD44780Device Display", LCD_PINS_RS, LCD_PINS_ENABLE, LCD_PINS_D4, LCD_PINS_D5, LCD_PINS_D6, LCD_PINS_D7, BEEPER_PIN, BTN_EN1, BTN_EN2, BTN_ENC, BTN_BACK, KILL_PIN);
   #elif defined(HAS_MARLINUI_U8GLIB)

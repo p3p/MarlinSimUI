@@ -19,8 +19,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
  */
-#ifdef __PLAT_NATIVE_SIM__
-
 #include <src/inc/MarlinConfig.h>
 
 #if ENABLED(EEPROM_SETTINGS)
@@ -108,4 +106,3 @@ bool PersistentStore::read_data(int &pos, uint8_t *value, const size_t size, uin
 }
 
 #endif // EEPROM_SETTINGS
-#endif // __PLAT_NATIVE_SIM__

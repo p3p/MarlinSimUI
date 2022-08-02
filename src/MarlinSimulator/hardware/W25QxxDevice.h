@@ -14,7 +14,7 @@
 
 class W25QxxDevice: public SPISlavePeripheral {
 public:
-  W25QxxDevice(pin_type clk, pin_type mosi, pin_type miso, pin_type cs, size_t flash_size) : SPISlavePeripheral(clk, mosi, miso, cs), flash_size(flash_size) {
+  W25QxxDevice(SpiBus& spi_bus, pin_type cs, size_t flash_size) : SPISlavePeripheral(spi_bus, cs), flash_size(flash_size) {
     // read current data
     data = new uint8_t[flash_size];
     memset(data, 0xFF, flash_size);
@@ -25,9 +25,9 @@ public:
       assert(fp);
       fwrite(data, 1, flash_size, fp);
     } else fread(data, 1, flash_size, fp);
-    fclose(fp);
   }
   virtual ~W25QxxDevice() {
+    fclose(fp);
     delete[] data;
   };
 

@@ -25,44 +25,16 @@
  * Copyright (c) 2009 by William Greiman
  */
 
-#ifdef __PLAT_NATIVE_SIM__
-
 #include <src/inc/MarlinConfig.h>
 #include <SPI.h>
 
-// Software SPI
+#include <pinmapping.h>
+#include "../hardware/bus/spi.h"
 
-static uint8_t SPI_speed = 0;
-uint8_t swSpiTransfer_mode_0(uint8_t b, const uint8_t spi_speed, const pin_t sck_pin, const pin_t miso_pin, const pin_t mosi_pin ) {
-  LOOP_L_N(i, 8) {
-    if (spi_speed == 0) {
-      WRITE_PIN(mosi_pin, !!(b & 0x80));
-      WRITE_PIN(sck_pin, HIGH);
-      b <<= 1;
-      if (miso_pin >= 0 && READ_PIN(miso_pin)) b |= 1;
-      WRITE_PIN(sck_pin, LOW);
-    }
-    else {
-      const uint8_t state = (b & 0x80) ? HIGH : LOW;
-      LOOP_L_N(j, spi_speed)
-        WRITE_PIN(mosi_pin, state);
+static SpiBus &spi_bus = spi_bus_by_pins<SD_SCK_PIN, SD_MOSI_PIN, SD_MISO_PIN>();
 
-      LOOP_L_N(j, spi_speed + (miso_pin >= 0 ? 0 : 1))
-        WRITE_PIN(sck_pin, HIGH);
-
-      b <<= 1;
-      if (miso_pin >= 0 && READ_PIN(miso_pin)) b |= 1;
-
-      LOOP_L_N(j, spi_speed)
-        WRITE_PIN(sck_pin, LOW);
-    }
-  }
-
-  return b;
-}
-
-static uint8_t spiTransfer(uint8_t b) {
-  return swSpiTransfer_mode_0(b, SPI_speed, SD_SCK_PIN, SD_MISO_PIN, SD_MOSI_PIN);
+uint8_t spiTransfer(uint8_t b) {
+  return spi_bus.transfer(b);
 }
 
 void spiBegin() {
@@ -81,21 +53,18 @@ void spiInit(uint8_t spiRate) {
 uint8_t spiRec() { return spiTransfer(0xFF); }
 
 void spiRead(uint8_t*buf, uint16_t nbyte) {
-  for (int i = 0; i < nbyte; i++)
-    buf[i] = spiTransfer(0xFF);
+  spi_bus.transfer<uint8_t>(nullptr, buf, nbyte);
 }
 
 void spiSend(uint8_t b) { (void)spiTransfer(b); }
 
 void spiSend(const uint8_t* buf, size_t nbyte) {
-  for (uint16_t i = 0; i < nbyte; i++)
-    (void)spiTransfer(buf[i]);
+  spi_bus.transfer<uint8_t>((uint8_t*)buf, nullptr, nbyte);
 }
 
 void spiSendBlock(uint8_t token, const uint8_t* buf) {
   (void)spiTransfer(token);
-  for (uint16_t i = 0; i < 512; i++)
-    (void)spiTransfer(buf[i]);
+  spi_bus.transfer<uint8_t>((uint8_t*)buf, nullptr, 512);
 }
 
 SPIClass::SPIClass(uint8_t spiPortNumber) {
@@ -182,5 +151,3 @@ void SPIClass::setDataSize(uint32_t ds) {
 }
 
 SPIClass SPI(1);
-
-#endif // __PLAT_NATIVE_SIM__

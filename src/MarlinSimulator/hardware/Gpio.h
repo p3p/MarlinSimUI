@@ -160,6 +160,20 @@ public:
     return pin_map[pin].dir;
   }
 
+  static void write(const pin_type pin, const uint16_t value) {
+    if (!valid_pin(pin)) return;
+    pin_map[pin].value = value;
+    GpioEvent evt(Kernel::TimeControl::getTicks(), pin, GpioEvent::SET_VALUE);
+    for (auto callback : pin_map[pin].callbacks) callback(evt);
+  }
+
+  static uint16_t read(const pin_type pin) {
+    if (!valid_pin(pin)) return 0;
+    GpioEvent evt(Kernel::TimeControl::getTicks(), pin, GpioEvent::GET_VALUE);
+    for (auto callback : pin_map[pin].callbacks) callback(evt);
+    return pin_map[pin].value;
+  }
+
   template<class... Args>
   static bool attach(const pin_type pin, Args... args) {
     if (!valid_pin(pin)) return false;

@@ -19,7 +19,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
  */
-#ifdef __PLAT_NATIVE_SIM__
 
 #include <src/inc/MarlinConfig.h>
 #include <src/HAL/shared/Delay.h>
@@ -88,5 +87,3 @@ void SYSTICK_IRQHandler() {
   systick_uptime_millis++;
   if (systick_user_callback) systick_user_callback();
 }
-
-#endif // __PLAT_NATIVE_SIM__
