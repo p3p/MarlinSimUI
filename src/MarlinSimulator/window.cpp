@@ -48,6 +48,12 @@ WindowReturnCode sdl_window_create(WindowConfig config = {}) {
   SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
   window = SDL_CreateWindow((char *)config.title.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1280, 720, window_flags);
   if (window == nullptr) {
+    fprintf(stderr, "SDL_CreateWindow: Failed to Create Window (%s), retrying without multisampling (fallback)\n", SDL_GetError());
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 0);
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 0);
+    window = SDL_CreateWindow((char *)config.title.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1280, 720, window_flags);
+  }
+  if (window == nullptr) {
     fprintf(stderr, "SDL_CreateWindow: Failed to Create Window (%s)\n", SDL_GetError());
     return WindowReturnCode::SDL_CREATE_WINDOW_FAILED;
   }
