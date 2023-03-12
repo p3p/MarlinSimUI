@@ -38,7 +38,7 @@ HD44780Device::HD44780Device(pin_type rs, pin_type en, pin_type d4, pin_type d5,
     active_rom = hd44780_a00_rom;
   #elif DISPLAY_CHARSET_HD44780 == WESTERN
     active_rom = hd44780_a02_rom;
-  #elif
+  #else
     #error Unavailable HD44780 Character ROM
   #endif
 }
