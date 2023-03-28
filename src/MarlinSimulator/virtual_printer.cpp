@@ -51,14 +51,14 @@ void VirtualPrinter::build() {
 
   #if ENABLED(DELTA)
     auto kinematics = root->add_component<DeltaKinematicSystem>("Delta Kinematic System", on_kinematic_update);
-    root->add_component<EndStop>("Endstop(Tower A Max)", X_MAX_PIN, !X_MAX_PROBE_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->stepper_position.x >= Z_MAX_POS; });
-    root->add_component<EndStop>("Endstop(Tower B Max)", Y_MAX_PIN, !Y_MAX_PROBE_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->stepper_position.y >= Z_MAX_POS; });
-    root->add_component<EndStop>("Endstop(Tower C Max)", Z_MAX_PIN, !Z_MAX_PROBE_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->stepper_position.z >= Z_MAX_POS; });
+    root->add_component<EndStop>("Endstop(Tower A Max)", X_MAX_PIN, !X_MAX_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->stepper_position.x >= Z_MAX_POS; });
+    root->add_component<EndStop>("Endstop(Tower B Max)", Y_MAX_PIN, !Y_MAX_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->stepper_position.y >= Z_MAX_POS; });
+    root->add_component<EndStop>("Endstop(Tower C Max)", Z_MAX_PIN, !Z_MAX_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->stepper_position.z >= Z_MAX_POS; });
   #else
     auto kinematics = root->add_component<KinematicSystem>("Cartesian Kinematic System", on_kinematic_update);
-    root->add_component<EndStop>("Endstop(X Min)", X_MIN_PIN, !X_MIN_PROBE_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->effector_position.x <= X_MIN_POS; });
-    root->add_component<EndStop>("Endstop(Y Min)", Y_MIN_PIN, !Y_MIN_PROBE_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->effector_position.y <= Y_MIN_POS; });
-    root->add_component<EndStop>("Endstop(Z Min)", Z_MIN_PIN, !Z_MIN_PROBE_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->effector_position.z <= Z_MIN_POS; });
+    root->add_component<EndStop>("Endstop(X Min)", X_MIN_PIN, !X_MIN_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->effector_position.x <= X_MIN_POS; });
+    root->add_component<EndStop>("Endstop(Y Min)", Y_MIN_PIN, !Y_MIN_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->effector_position.y <= Y_MIN_POS; });
+    root->add_component<EndStop>("Endstop(Z Min)", Z_MIN_PIN, !Z_MIN_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->effector_position.z <= Z_MIN_POS; });
   #endif
 
   auto print_bed = root->add_component<PrintBed>("Print Bed", glm::vec2{X_BED_SIZE, Y_BED_SIZE});
