@@ -160,6 +160,8 @@ void SDCard::onRequestedDataReceived(uint8_t token, uint8_t* _data, size_t count
       setRequestedDataSize(DATA_START_BLOCK, 512 + 1 + 2 + 1); //token + ff (from this response) + data + 2 crc
       break;
     case CMD13:
+      setResponse16(R1_READY_STATE);
+      break;
     case CMD55:
     case ACMD41:
       setResponse(R1_READY_STATE);
