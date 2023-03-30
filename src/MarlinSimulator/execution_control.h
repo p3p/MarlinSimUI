@@ -84,7 +84,7 @@ public:
       } else while (getTicks() > getRealtimeTicks()) {
         if (quit_requested) throw (std::runtime_error("Quit Requested"));  // quit program when stuck at 0 speed
         updateRealtime();
-        std::this_thread::yield();
+        realtime_scale > 20.0f ?  std::this_thread::yield() : std::this_thread::sleep_for(std::chrono::nanoseconds(1));
       }
     }
 

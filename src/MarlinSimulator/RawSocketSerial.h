@@ -138,31 +138,33 @@ public:
         for (auto i = 0; i < server.max_connections; ++i) {
           if (server.sockets[i] != nullptr) send(i);
         }
-      } else {
-        if (SDLNet_SocketReady(server.socket)) {
-          int got_socket = accept_socket(server.next_index);
-          if(!got_socket) {
-              num_rdy--;
-              continue;
-          }
-
-          int chk_count = 0;
-          for (; chk_count < ServerInfo::max_connections; ++chk_count) {
-              if (server.sockets[(server.next_index + chk_count) % ServerInfo::max_connections] == nullptr) break;
-          }
-
-          server.next_index = (server.next_index + chk_count) % ServerInfo::max_connections;
-          printf("RawSocketSerial::thread_main: new connection (server.next_index = %d)\n", server.next_index);
-          num_rdy --;
-        }
-
-        for (int ind=0; (ind<ServerInfo::max_connections) && num_rdy; ++ind) {
-          if (server.sockets[ind] == nullptr) continue;
-          if (!SDLNet_SocketReady(server.sockets[ind])) continue;
-          receive(ind--);
-        }
+        std::this_thread::sleep_for(std::chrono::nanoseconds(1));
+        continue;
       }
-      std::this_thread::yield();
+
+      if (SDLNet_SocketReady(server.socket)) {
+        int got_socket = accept_socket(server.next_index);
+        if(!got_socket) {
+            num_rdy--;
+            continue;
+        }
+
+        int chk_count = 0;
+        for (; chk_count < ServerInfo::max_connections; ++chk_count) {
+            if (server.sockets[(server.next_index + chk_count) % ServerInfo::max_connections] == nullptr) break;
+        }
+
+        server.next_index = (server.next_index + chk_count) % ServerInfo::max_connections;
+        printf("RawSocketSerial::thread_main: new connection (server.next_index = %d)\n", server.next_index);
+        num_rdy --;
+      }
+
+      for (int ind=0; (ind<ServerInfo::max_connections) && num_rdy; ++ind) {
+        if (server.sockets[ind] == nullptr) continue;
+        if (!SDLNet_SocketReady(server.sockets[ind])) continue;
+        receive(ind--);
+      }
+
     }
   }
 
