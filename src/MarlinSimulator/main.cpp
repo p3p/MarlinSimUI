@@ -54,7 +54,6 @@ void simulation_main() {
       printf("Marlin thread terminated\n");
       main_finished = true;
     }
-    std::this_thread::yield();
   }
 }
 
