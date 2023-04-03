@@ -300,7 +300,7 @@ void Visualisation::update() {
   // mvp = camera.proj * camera.view * bed_matrix;
   mvp = camera.proj * camera.view;
   glUniformMatrix4fv( glGetUniformLocation( program, "u_mvp" ), 1, GL_FALSE, glm::value_ptr(mvp));
-  glDrawArrays( GL_TRIANGLES, 18, 24);
+  glDrawArrays( GL_TRIANGLES, 18, 6);
 
   if (active_path_block != nullptr) {
     glm::mat4 print_path_matrix = glm::mat4(1.0f);
