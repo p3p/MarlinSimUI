@@ -202,6 +202,9 @@ public:
   bool input_state[6] = {};
   glm::vec<2, int> mouse_lock_pos;
 
+  #define BED_NORMAL 0.0, 1.0, 0.0
+  #define BED_COLOR 0.5, 0.5, 0.5, 1.0
+
   std::array<GLfloat, 24 * 10> g_vertex_buffer_data{
       //end effector
       0, 0, 0, 0.0, 0.0, 0.0, 1, 0, 0, 1,
@@ -229,13 +232,13 @@ public:
        0.5, 0.5, 0.5, 0.0, 0.0, 0.0, 0, 0, 1, 1,
 
       // bed
-      build_plate_dimension.x, 0, -build_plate_dimension.y, 0.0, 1.0, 0.0,  0.5, 0.5, 0.5, 1,
-      0, 0, -build_plate_dimension.y, 0.0, 1.0, 0.0,  0.5, 0.5, 0.5, 1,
-      0, 0, 0, 0.0, 1.0, 0.0,  0.5, 0.5, 0.5, 1,
+      build_plate_dimension.x, 0, -build_plate_dimension.y, BED_NORMAL, BED_COLOR,
+      0, 0, -build_plate_dimension.y, BED_NORMAL, BED_COLOR,
+      0, 0, 0, BED_NORMAL, BED_COLOR,
 
-      build_plate_dimension.x, 0, -build_plate_dimension.y, 0.0, 1.0, 0.0, 0.5, 0.5, 0.5, 1,
-      0, 0, 0, 0.0, 1.0, 0.0, 0.5, 0.5, 0.5, 1,
-      build_plate_dimension.x, 0, 0, 0.0, 1.0, 0.0, 0.5, 0.5, 0.5, 1,
+      build_plate_dimension.x, 0, -build_plate_dimension.y, BED_NORMAL, BED_COLOR,
+      0, 0, 0, BED_NORMAL, BED_COLOR,
+      build_plate_dimension.x, 0, 0, BED_NORMAL, BED_COLOR,
   };
 
   float extrude_width = 0.4;
