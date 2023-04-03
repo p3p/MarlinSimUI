@@ -281,12 +281,9 @@ void Visualisation::update() {
   auto print_bed = virtual_printer.get_component<PrintBed>("Print Bed");
 
   // todo: move vertex generation
-  g_vertex_buffer_data[(18 * 10) + 1] = print_bed->calculate_z({g_vertex_buffer_data[(18 * 10) + 0], -g_vertex_buffer_data[(18 * 10) + 2]}); // invert y (opengl Z) for opengl
-  g_vertex_buffer_data[(19 * 10) + 1] = print_bed->calculate_z({g_vertex_buffer_data[(19 * 10) + 0], -g_vertex_buffer_data[(19 * 10) + 2]});
-  g_vertex_buffer_data[(20 * 10) + 1] = print_bed->calculate_z({g_vertex_buffer_data[(20 * 10) + 0], -g_vertex_buffer_data[(20 * 10) + 2]});
-  g_vertex_buffer_data[(21 * 10) + 1] = print_bed->calculate_z({g_vertex_buffer_data[(21 * 10) + 0], -g_vertex_buffer_data[(21 * 10) + 2]});
-  g_vertex_buffer_data[(22 * 10) + 1] = print_bed->calculate_z({g_vertex_buffer_data[(22 * 10) + 0], -g_vertex_buffer_data[(22 * 10) + 2]});
-  g_vertex_buffer_data[(23 * 10) + 1] = print_bed->calculate_z({g_vertex_buffer_data[(23 * 10) + 0], -g_vertex_buffer_data[(23 * 10) + 2]});
+  for (int i = BED_VERTEX_OFFSET; i < NUM_VERTEXES; i++) {
+    g_vertex_buffer_data[(i * SIZEOF_VERTEX) + 1] = print_bed->calculate_z({g_vertex_buffer_data[(i * 10) + 0], -g_vertex_buffer_data[(i * 10) + 2]}); // invert y (opengl Z) for opengl
+  }
 
   glUseProgram( program );
   glUniformMatrix4fv( glGetUniformLocation( program, "u_mvp" ), 1, GL_FALSE, glm::value_ptr(mvp));

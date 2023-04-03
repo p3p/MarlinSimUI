@@ -205,40 +205,53 @@ public:
   #define BED_NORMAL 0.0, 1.0, 0.0
   #define BED_COLOR 0.5, 0.5, 0.5, 1.0
 
-  std::array<GLfloat, 24 * 10> g_vertex_buffer_data{
+  #define EFFECTOR_NORMAL 0.0, 0.0, 0.0
+  #define EFFECTOR_COLOR_1 1.0, 0.0, 0.0, 1.0
+  #define EFFECTOR_COLOR_2 0.0, 1.0, 0.0, 1.0
+  #define EFFECTOR_COLOR_3 0.0, 0.0, 1.0, 1.0
+
+  #define BED_VERTEX(X, Y) X, 0.0, Y, BED_NORMAL, BED_COLOR
+  #define EFFECTOR_VERTEX(X, Z, Y, COLOR) X, Z, Y, EFFECTOR_NORMAL, COLOR
+
+  #define SIZEOF_VERTEX 10
+  #define BED_VERTEX_OFFSET 18
+  #define BED_NUM_VERTEXES 6
+  #define NUM_VERTEXES (BED_VERTEX_OFFSET + BED_NUM_VERTEXES)
+
+  std::array<GLfloat, NUM_VERTEXES * SIZEOF_VERTEX> g_vertex_buffer_data{
       //end effector
-      0, 0, 0, 0.0, 0.0, 0.0, 1, 0, 0, 1,
-      -0.5, 0.5, 0.5, 0.0, 0.0, 0.0, 0, 1, 0, 1,
-      -0.5, 0.5, -0.5, 0.0, 0.0, 0.0, 0, 0, 1, 1,
+      EFFECTOR_VERTEX(0.0, 0.0, 0.0, EFFECTOR_COLOR_1),
+      EFFECTOR_VERTEX(-0.5, 0.5, 0.5, EFFECTOR_COLOR_2),
+      EFFECTOR_VERTEX(-0.5, 0.5, -0.5, EFFECTOR_COLOR_3),
 
-      0, 0, 0, 0.0, 0.0, 0.0, 1, 0, 0, 1,
-      -0.5, 0.5, -0.5, 0.0, 0.0, 0.0, 0, 0, 1, 1,
-       0.5, 0.5, -0.5, 0.0, 0.0, 0.0, 0, 1, 0, 1,
+      EFFECTOR_VERTEX(0.0, 0.0, 0.0, EFFECTOR_COLOR_1),
+      EFFECTOR_VERTEX(-0.5, 0.5, -0.5, EFFECTOR_COLOR_3),
+      EFFECTOR_VERTEX(0.5, 0.5, -0.5, EFFECTOR_COLOR_2),
 
-      0, 0, 0, 0.0, 0.0, 0.0, 1, 0, 0, 1,
-       0.5, 0.5, -0.5, 0.0, 0.0, 0.0, 0, 1, 0, 1,
-       0.5, 0.5, 0.5, 0.0, 0.0, 0.0, 0, 0, 1, 1,
+      EFFECTOR_VERTEX(0.0, 0.0, 0.0, EFFECTOR_COLOR_1),
+      EFFECTOR_VERTEX(0.5, 0.5, -0.5, EFFECTOR_COLOR_2),
+      EFFECTOR_VERTEX(0.5, 0.5, 0.5, EFFECTOR_COLOR_3),
 
-      0, 0, 0, 0.0, 0.0, 0.0, 1, 0, 0, 1,
-       0.5, 0.5, 0.5, 0.0, 0.0, 0.0, 0, 0, 1, 1,
-      -0.5, 0.5, 0.5, 0.0, 0.0, 0.0, 0, 1, 0, 1,
+      EFFECTOR_VERTEX(0.0, 0.0, 0.0, EFFECTOR_COLOR_1),
+      EFFECTOR_VERTEX(0.5, 0.5, 0.5, EFFECTOR_COLOR_3),
+      EFFECTOR_VERTEX(-0.5, 0.5, 0.5, EFFECTOR_COLOR_2),
 
-       0.5, 0.5, -0.5, 0.0, 0.0, 0.0, 0, 1, 0, 1,
-      -0.5, 0.5, -0.5, 0.0, 0.0, 0.0, 0, 0, 1, 1,
-      -0.5, 0.5, 0.5, 0.0, 0.0, 0.0, 0, 1, 0, 1,
+      EFFECTOR_VERTEX(0.5, 0.5, -0.5, EFFECTOR_COLOR_2),
+      EFFECTOR_VERTEX(-0.5, 0.5, -0.5, EFFECTOR_COLOR_3),
+      EFFECTOR_VERTEX(-0.5, 0.5, 0.5, EFFECTOR_COLOR_2),
 
-       0.5, 0.5, -0.5, 0.0, 0.0, 0.0, 0, 1, 0, 1,
-      -0.5, 0.5, 0.5, 0.0, 0.0, 0.0, 0, 1, 0, 1,
-       0.5, 0.5, 0.5, 0.0, 0.0, 0.0, 0, 0, 1, 1,
+      EFFECTOR_VERTEX(0.5, 0.5, -0.5, EFFECTOR_COLOR_2),
+      EFFECTOR_VERTEX(-0.5, 0.5, 0.5, EFFECTOR_COLOR_2),
+      EFFECTOR_VERTEX(0.5, 0.5, 0.5, EFFECTOR_COLOR_3),
 
       // bed
-      build_plate_dimension.x, 0, -build_plate_dimension.y, BED_NORMAL, BED_COLOR,
-      0, 0, -build_plate_dimension.y, BED_NORMAL, BED_COLOR,
-      0, 0, 0, BED_NORMAL, BED_COLOR,
+      BED_VERTEX(build_plate_dimension.x, -build_plate_dimension.y),
+      BED_VERTEX(0, -build_plate_dimension.y),
+      BED_VERTEX(0, 0),
 
-      build_plate_dimension.x, 0, -build_plate_dimension.y, BED_NORMAL, BED_COLOR,
-      0, 0, 0, BED_NORMAL, BED_COLOR,
-      build_plate_dimension.x, 0, 0, BED_NORMAL, BED_COLOR,
+      BED_VERTEX(build_plate_dimension.x, -build_plate_dimension.y),
+      BED_VERTEX(0, 0),
+      BED_VERTEX(build_plate_dimension.x, 0)
   };
 
   float extrude_width = 0.4;
