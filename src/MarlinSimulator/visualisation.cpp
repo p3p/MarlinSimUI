@@ -35,7 +35,7 @@ static GLfloat * SetVertexContents(GLfloat * dest, GLfloat x, GLfloat y) {
 Visualisation::Visualisation(VirtualPrinter& virtual_printer) : virtual_printer(virtual_printer) {
   virtual_printer.on_kinematic_update = [this](glm::vec4 pos){this->set_head_position(pos);};
 
-  GLfloat *vertex_dest = g_vertex_buffer_data.data();
+  GLfloat *vertex_dest = g_vertex_buffer_data.data() + BED_VERTEX_OFFSET * SIZEOF_VERTEX;
   const GLfloat x_div = GLfloat(build_plate_dimension.x) / (BED_NUM_VERTEXES_PER_AXIS - 1);
   const GLfloat y_div = GLfloat(-build_plate_dimension.y) / (BED_NUM_VERTEXES_PER_AXIS - 1);
 
@@ -326,10 +326,30 @@ void Visualisation::update() {
 
   auto print_bed = virtual_printer.get_component<PrintBed>("Print Bed");
 
+  GLfloat max_abs_z = 0.0f;
+
   // todo: move vertex generation
-  // for (int i = BED_VERTEX_OFFSET; i < NUM_VERTEXES; i++) {
-  //   g_vertex_buffer_data[(i * SIZEOF_VERTEX) + 1] = print_bed->calculate_z({g_vertex_buffer_data[(i * 10) + 0], -g_vertex_buffer_data[(i * 10) + 2]}); // invert y (opengl Z) for opengl
-  // }
+  for (int i = BED_VERTEX_OFFSET; i < NUM_VERTEXES; i++) {
+    GLfloat z = print_bed->calculate_z({g_vertex_buffer_data[(i * 10) + 0], -g_vertex_buffer_data[(i * 10) + 2]});
+    g_vertex_buffer_data[(i * SIZEOF_VERTEX) + 1] = z; // invert y (opengl Z) for opengl
+    max_abs_z = std::max(max_abs_z, abs(z));
+  }
+
+  for (int i = BED_VERTEX_OFFSET; i < NUM_VERTEXES; i++) {
+    GLfloat z = g_vertex_buffer_data[(i * SIZEOF_VERTEX) + 1];
+
+    GLfloat r = 0.0, g = 0.0, b = 0.0;
+    GLfloat *dest = z < 0.0 ? &r : &b;
+
+    GLfloat gradient_range = std::max(1.0f, max_abs_z);
+    *dest = std::min(1.0f, abs(z) / gradient_range);
+    g = 0.5f - *dest;
+
+    // 6 7 8 = R G B
+    g_vertex_buffer_data[(i * SIZEOF_VERTEX) + 6] = r;
+    g_vertex_buffer_data[(i * SIZEOF_VERTEX) + 7] = g;
+    g_vertex_buffer_data[(i * SIZEOF_VERTEX) + 8] = b;
+  }
 
   glUseProgram( program );
   glUniformMatrix4fv( glGetUniformLocation( program, "u_mvp" ), 1, GL_FALSE, glm::value_ptr(mvp));
