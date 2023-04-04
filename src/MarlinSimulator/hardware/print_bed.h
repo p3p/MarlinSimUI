@@ -17,6 +17,9 @@ public:
     updated |= ImGui::SliderFloat("bed level(back centre)", &bed_level_points[0].z, -5.0f, 5.0f);
     updated |= ImGui::SliderFloat("bed level(front left)", &bed_level_points[1].z, -5.0f, 5.0f);
     updated |= ImGui::SliderFloat("bed level(front right)", &bed_level_points[2].z, -5.0f, 5.0f);
+    // Add a checkbox to choose whether to show a bed gradient
+    updated |= ImGui::Checkbox("Z height gradient", &gradient_enabled);    
+
     if (updated) build_3point(bed_level_points[0], bed_level_points[1], bed_level_points[2]);
   }
 
@@ -41,4 +44,5 @@ public:
   glm::vec3 bed_plane_center{100, 100, 0};
   glm::vec3 bed_plane_normal{0, 0, 1};
   std::array<glm::vec3, 3> bed_level_points;
+  bool gradient_enabled = false;
 };

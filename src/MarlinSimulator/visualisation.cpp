@@ -336,14 +336,20 @@ void Visualisation::update() {
   }
 
   for (int i = BED_VERTEX_OFFSET; i < NUM_VERTEXES; i++) {
-    GLfloat z = g_vertex_buffer_data[(i * SIZEOF_VERTEX) + 1];
-
     GLfloat r = 0.0, g = 0.0, b = 0.0;
-    GLfloat *dest = z < 0.0 ? &r : &b;
 
-    GLfloat gradient_range = std::max(1.0f, max_abs_z);
-    *dest = std::min(1.0f, abs(z) / gradient_range);
-    g = 0.5f - *dest;
+    if (print_bed->gradient_enabled) {
+      GLfloat z = g_vertex_buffer_data[(i * SIZEOF_VERTEX) + 1];
+
+      GLfloat *dest = z < 0.0 ? &r : &b;
+
+      GLfloat gradient_range = std::max(1.0f, max_abs_z);
+      *dest = std::min(1.0f, abs(z) / gradient_range);
+      g = 0.5f - *dest;
+    } else {
+      // default color
+      r = g = b = 0.5f;
+    }
 
     // 6 7 8 = R G B
     g_vertex_buffer_data[(i * SIZEOF_VERTEX) + 6] = r;
