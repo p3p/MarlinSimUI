@@ -215,8 +215,9 @@ public:
 
   #define SIZEOF_VERTEX 10
   #define BED_VERTEX_OFFSET 18
-  #define BED_NUM_VERTEXES 6
-  #define NUM_VERTEXES (BED_VERTEX_OFFSET + BED_NUM_VERTEXES)
+  #define BED_NUM_VERTEXES_PER_AXIS 2
+  #define BED_NUM_TRIANGES ((BED_NUM_VERTEXES_PER_AXIS - 1) * (BED_NUM_VERTEXES_PER_AXIS - 1) * 2)
+  #define NUM_VERTEXES (BED_VERTEX_OFFSET + BED_NUM_TRIANGES * 3)
 
   std::array<GLfloat, NUM_VERTEXES * SIZEOF_VERTEX> g_vertex_buffer_data{
       //end effector
@@ -244,14 +245,9 @@ public:
       EFFECTOR_VERTEX(-0.5, 0.5, 0.5, EFFECTOR_COLOR_2),
       EFFECTOR_VERTEX(0.5, 0.5, 0.5, EFFECTOR_COLOR_3),
 
-      // bed
-      BED_VERTEX(build_plate_dimension.x, -build_plate_dimension.y),
-      BED_VERTEX(0, -build_plate_dimension.y),
-      BED_VERTEX(0, 0),
+      
+      // bed will be populated elsewhere
 
-      BED_VERTEX(build_plate_dimension.x, -build_plate_dimension.y),
-      BED_VERTEX(0, 0),
-      BED_VERTEX(build_plate_dimension.x, 0)
   };
 
   float extrude_width = 0.4;
