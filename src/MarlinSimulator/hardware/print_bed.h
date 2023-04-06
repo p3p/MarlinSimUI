@@ -53,40 +53,39 @@ public:
   }
 
   float calculate_z(glm::vec2 xy) {
-    // bed_plane_normal.x * (x - p1.x) + bed_plane_normal.y * (y - p1.y) + bed_plane_normal.z * (z - p1.z) = 0
-    // bed_plane_normal.x * (x - p1.x) + bed_plane_normal.y * (y - p1.y) = - bed_plane_normal.z * (z - p1.z)
-    // ((bed_plane_normal.x * (x - p1.x) + bed_plane_normal.y * (y - p1.y)) / (- bed_plane_normal.z)) + p1.z  =  z
-    float flat_z = ((bed_plane_normal.x * (xy.x - bed_plane_center.x) + bed_plane_normal.y * (xy.y - bed_plane_center.y)) / (- bed_plane_normal.z)) + bed_plane_center.z;
+    float planar_z = ((bed_plane_normal.x * (xy.x - bed_plane_center.x) + bed_plane_normal.y * (xy.y - bed_plane_center.y)) / (- bed_plane_normal.z)) + bed_plane_center.z;
 
     // Optionally offset the calculated "flat" z value based on the bed shape
-    glm::vec2 normalized_xy = glm::vec2{xy.x - bed_size.x / 2, xy.y - bed_size.y / 2};
+    // Overlays are geometric patterns starting from the center of the bed, so
+    // we need to translate the xy coordinates to be relative to the center
+    glm::vec2 center_origin_xy = glm::vec2{xy.x - bed_size.x / 2, xy.y - bed_size.y / 2};
 
-    float z_offset = 0.0f;
+    float shape_overlay_z = 0.0f;
     switch (bed_shape) {
       case flat:
-        z_offset = 0.0f;
+        // No change
         break;
       case bowl:
-        z_offset = bed_shape_amplitude * glm::sin(glm::length(normalized_xy) / glm::length(bed_size) * glm::pi<float>());
+        shape_overlay_z = bed_shape_amplitude * glm::sin(glm::length(center_origin_xy) / glm::length(bed_size) * glm::pi<float>());
         break;
       case chip:
-        z_offset = bed_shape_amplitude * (normalized_xy.x / bed_size.x) * (normalized_xy.y / bed_size.y);
+        shape_overlay_z = bed_shape_amplitude * (center_origin_xy.x / bed_size.x) * (center_origin_xy.y / bed_size.y);
         break;
       case ripple:
-        z_offset = bed_shape_amplitude * glm::sin(glm::length(normalized_xy) / bed_size.x * 3 * glm::pi<float>());
+        shape_overlay_z = bed_shape_amplitude * glm::sin(glm::length(center_origin_xy) / bed_size.x * 3 * glm::pi<float>());
         break;
       case x_ripple:
-        z_offset = bed_shape_amplitude * glm::sin(normalized_xy.x / bed_size.x * 3 * glm::pi<float>());
+        shape_overlay_z = bed_shape_amplitude * glm::sin(center_origin_xy.x / bed_size.x * 3 * glm::pi<float>());
         break;
       case y_ripple:
-        z_offset = bed_shape_amplitude * glm::sin(normalized_xy.y / bed_size.y * 3 * glm::pi<float>());
+        shape_overlay_z = bed_shape_amplitude * glm::sin(center_origin_xy.y / bed_size.y * 3 * glm::pi<float>());
         break;
       case xy_ripple:
-        z_offset = bed_shape_amplitude * glm::sin(normalized_xy.x / bed_size.x * 3 * glm::pi<float>()) * glm::sin(normalized_xy.y / bed_size.y * 3 * glm::pi<float>());
+        shape_overlay_z = bed_shape_amplitude * glm::sin(center_origin_xy.x / bed_size.x * 3 * glm::pi<float>()) * glm::sin(center_origin_xy.y / bed_size.y * 3 * glm::pi<float>());
         break;
     }
 
-    return flat_z + z_offset;
+    return planar_z + shape_overlay_z;
   }
 
   glm::vec2 bed_size{200, 200};
