@@ -16,52 +16,44 @@
 #include "src/inc/MarlinConfig.h"
 #include "src/module/motion.h"
 
-static GLfloat * SetVertexContents(GLfloat * dest, GLfloat x, GLfloat y) {
-  static int i = 0;
-  GLfloat green = ++i * (1.0f / (NUM_VERTEXES - BED_VERTEX_OFFSET));
-  *dest++ = x;
-  *dest++ = 0.0; // Z
-  *dest++ = y;
-  *dest++ = 0.0; // Normal X
-  *dest++ = 1.0; // Normal Z
-  *dest++ = 0.0; // Normal Y
-  *dest++ = 0.5; // R
-  *dest++ = green; // G
-  *dest++ = 0.5; // B
-  *dest++ = 1.0; // Gamma
-  return dest;
+static GLfloat * SetBedVertexAndAdvance(GLfloat * dest, GLfloat x, GLfloat y) {
+  const GLfloat new_vertex[VERTEX_FLOAT_COUNT] = { BED_VERTEX(x, y) };
+  memcpy(dest, new_vertex, sizeof(new_vertex));
+  return dest + VERTEX_FLOAT_COUNT;
 }
 
 Visualisation::Visualisation(VirtualPrinter& virtual_printer) : virtual_printer(virtual_printer) {
   virtual_printer.on_kinematic_update = [this](glm::vec4 pos){this->set_head_position(pos);};
 
-  GLfloat *vertex_dest = g_vertex_buffer_data.data() + BED_VERTEX_OFFSET * SIZEOF_VERTEX;
+  GLfloat *vertex_dest = g_vertex_buffer_data.data() + BED_VERTEX_OFFSET * VERTEX_FLOAT_COUNT;
+
+  // Calculate the number of divisions (line segments) along each axis.
   const GLfloat x_div = GLfloat(build_plate_dimension.x) / (BED_NUM_VERTEXES_PER_AXIS - 1);
   const GLfloat y_div = GLfloat(-build_plate_dimension.y) / (BED_NUM_VERTEXES_PER_AXIS - 1);
 
   for (int row = 0; row < BED_NUM_VERTEXES_PER_AXIS - 1; ++row) {
     for (int col = 0; col < BED_NUM_VERTEXES_PER_AXIS - 1; ++col) {
-      // TODO: This is a bit of a hack. We should be able to use the same vertexes for both triangles.
-      //       But I'm not sure how to do that with the current vertex format.
+      // For each division, calculate the coordinates of the four corners.
       GLfloat x1 = col * x_div;
       GLfloat x2 = (col + 1) * x_div;
       GLfloat y1 = row * y_div;
       GLfloat y2 = (row + 1) * y_div;
 
+      // Create two triangles from the four corners.
+
       // |--/
       // | /
       // |/
-      // Doh! This isn't going to work, because that is a float array, not a vertex array!
-      vertex_dest = SetVertexContents(vertex_dest, x2, y2);
-      vertex_dest = SetVertexContents(vertex_dest, x1, y2);
-      vertex_dest = SetVertexContents(vertex_dest, x1, y1);
+      vertex_dest = SetBedVertexAndAdvance(vertex_dest, x2, y2);
+      vertex_dest = SetBedVertexAndAdvance(vertex_dest, x1, y2);
+      vertex_dest = SetBedVertexAndAdvance(vertex_dest, x1, y1);
 
       //    /|
       //   / |
       //  /--|
-      vertex_dest = SetVertexContents(vertex_dest, x2, y2);
-      vertex_dest = SetVertexContents(vertex_dest, x1, y1);
-      vertex_dest = SetVertexContents(vertex_dest, x2, y1);
+      vertex_dest = SetBedVertexAndAdvance(vertex_dest, x2, y2);
+      vertex_dest = SetBedVertexAndAdvance(vertex_dest, x1, y1);
+      vertex_dest = SetBedVertexAndAdvance(vertex_dest, x2, y1);
     }
   }
 }
@@ -331,7 +323,7 @@ void Visualisation::update() {
   // todo: move vertex generation
   for (int i = BED_VERTEX_OFFSET; i < NUM_VERTEXES; i++) {
     GLfloat z = print_bed->calculate_z({g_vertex_buffer_data[(i * 10) + 0], -g_vertex_buffer_data[(i * 10) + 2]});
-    g_vertex_buffer_data[(i * SIZEOF_VERTEX) + 1] = z; // invert y (opengl Z) for opengl
+    g_vertex_buffer_data[(i * VERTEX_FLOAT_COUNT) + 1] = z; // invert y (opengl Z) for opengl
     max_abs_z = std::max(max_abs_z, abs(z));
   }
 
@@ -339,7 +331,7 @@ void Visualisation::update() {
     GLfloat r = 0.0, g = 0.0, b = 0.0;
 
     if (print_bed->gradient_enabled) {
-      GLfloat z = g_vertex_buffer_data[(i * SIZEOF_VERTEX) + 1];
+      GLfloat z = g_vertex_buffer_data[(i * VERTEX_FLOAT_COUNT) + 1];
 
       GLfloat *dest = z < 0.0 ? &r : &b;
 
@@ -352,9 +344,9 @@ void Visualisation::update() {
     }
 
     // 6 7 8 = R G B
-    g_vertex_buffer_data[(i * SIZEOF_VERTEX) + 6] = r;
-    g_vertex_buffer_data[(i * SIZEOF_VERTEX) + 7] = g;
-    g_vertex_buffer_data[(i * SIZEOF_VERTEX) + 8] = b;
+    g_vertex_buffer_data[(i * VERTEX_FLOAT_COUNT) + 6] = r;
+    g_vertex_buffer_data[(i * VERTEX_FLOAT_COUNT) + 7] = g;
+    g_vertex_buffer_data[(i * VERTEX_FLOAT_COUNT) + 8] = b;
   }
 
   glUseProgram( program );

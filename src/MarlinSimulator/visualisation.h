@@ -213,13 +213,13 @@ public:
   #define BED_VERTEX(X, Y) X, 0.0, Y, BED_NORMAL, BED_COLOR
   #define EFFECTOR_VERTEX(X, Z, Y, COLOR) X, Z, Y, EFFECTOR_NORMAL, COLOR
 
-  #define SIZEOF_VERTEX 10
+  #define VERTEX_FLOAT_COUNT 10
   #define BED_VERTEX_OFFSET 18
   #define BED_NUM_VERTEXES_PER_AXIS 10
   #define BED_NUM_TRIANGES ((BED_NUM_VERTEXES_PER_AXIS - 1) * (BED_NUM_VERTEXES_PER_AXIS - 1) * 2)
   #define NUM_VERTEXES (BED_VERTEX_OFFSET + BED_NUM_TRIANGES * 3)
 
-  std::array<GLfloat, NUM_VERTEXES * SIZEOF_VERTEX> g_vertex_buffer_data{
+  std::array<GLfloat, NUM_VERTEXES * VERTEX_FLOAT_COUNT> g_vertex_buffer_data{
       //end effector
       EFFECTOR_VERTEX(0.0, 0.0, 0.0, EFFECTOR_COLOR_1),
       EFFECTOR_VERTEX(-0.5, 0.5, 0.5, EFFECTOR_COLOR_2),
