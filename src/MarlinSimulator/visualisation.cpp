@@ -16,8 +16,46 @@
 #include "src/inc/MarlinConfig.h"
 #include "src/module/motion.h"
 
+static GLfloat * SetBedVertexAndAdvance(GLfloat * dest, GLfloat x, GLfloat y) {
+  const GLfloat new_vertex[VERTEX_FLOAT_COUNT] = { BED_VERTEX(x, y) };
+  memcpy(dest, new_vertex, sizeof(new_vertex));
+  return dest + VERTEX_FLOAT_COUNT;
+}
+
 Visualisation::Visualisation(VirtualPrinter& virtual_printer) : virtual_printer(virtual_printer) {
   virtual_printer.on_kinematic_update = [this](glm::vec4 pos){this->set_head_position(pos);};
+
+  GLfloat *vertex_dest = g_vertex_buffer_data.data() + BED_VERTEX_OFFSET * VERTEX_FLOAT_COUNT;
+
+  // Calculate the number of divisions (line segments) along each axis.
+  const GLfloat x_div = GLfloat(build_plate_dimension.x) / (BED_NUM_VERTEXES_PER_AXIS - 1);
+  const GLfloat y_div = GLfloat(-build_plate_dimension.y) / (BED_NUM_VERTEXES_PER_AXIS - 1);
+
+  for (int row = 0; row < BED_NUM_VERTEXES_PER_AXIS - 1; ++row) {
+    for (int col = 0; col < BED_NUM_VERTEXES_PER_AXIS - 1; ++col) {
+      // For each division, calculate the coordinates of the four corners.
+      GLfloat x1 = col * x_div;
+      GLfloat x2 = (col + 1) * x_div;
+      GLfloat y1 = row * y_div;
+      GLfloat y2 = (row + 1) * y_div;
+
+      // Create two triangles from the four corners.
+
+      // |--/
+      // | /
+      // |/
+      vertex_dest = SetBedVertexAndAdvance(vertex_dest, x2, y2);
+      vertex_dest = SetBedVertexAndAdvance(vertex_dest, x1, y2);
+      vertex_dest = SetBedVertexAndAdvance(vertex_dest, x1, y1);
+
+      //    /|
+      //   / |
+      //  /--|
+      vertex_dest = SetBedVertexAndAdvance(vertex_dest, x2, y2);
+      vertex_dest = SetBedVertexAndAdvance(vertex_dest, x1, y1);
+      vertex_dest = SetBedVertexAndAdvance(vertex_dest, x2, y1);
+    }
+  }
 }
 
 Visualisation::~Visualisation() {
@@ -280,13 +318,36 @@ void Visualisation::update() {
 
   auto print_bed = virtual_printer.get_component<PrintBed>("Print Bed");
 
+  GLfloat max_abs_z = 0.0f;
+
   // todo: move vertex generation
-  g_vertex_buffer_data[(18 * 10) + 1] = print_bed->calculate_z({g_vertex_buffer_data[(18 * 10) + 0], -g_vertex_buffer_data[(18 * 10) + 2]}); // invert y (opengl Z) for opengl
-  g_vertex_buffer_data[(19 * 10) + 1] = print_bed->calculate_z({g_vertex_buffer_data[(19 * 10) + 0], -g_vertex_buffer_data[(19 * 10) + 2]});
-  g_vertex_buffer_data[(20 * 10) + 1] = print_bed->calculate_z({g_vertex_buffer_data[(20 * 10) + 0], -g_vertex_buffer_data[(20 * 10) + 2]});
-  g_vertex_buffer_data[(21 * 10) + 1] = print_bed->calculate_z({g_vertex_buffer_data[(21 * 10) + 0], -g_vertex_buffer_data[(21 * 10) + 2]});
-  g_vertex_buffer_data[(22 * 10) + 1] = print_bed->calculate_z({g_vertex_buffer_data[(22 * 10) + 0], -g_vertex_buffer_data[(22 * 10) + 2]});
-  g_vertex_buffer_data[(23 * 10) + 1] = print_bed->calculate_z({g_vertex_buffer_data[(23 * 10) + 0], -g_vertex_buffer_data[(23 * 10) + 2]});
+  for (int i = BED_VERTEX_OFFSET; i < NUM_VERTEXES; i++) {
+    GLfloat z = print_bed->calculate_z({g_vertex_buffer_data[(i * 10) + 0], -g_vertex_buffer_data[(i * 10) + 2]});
+    g_vertex_buffer_data[(i * VERTEX_FLOAT_COUNT) + 1] = z; // invert y (opengl Z) for opengl
+    max_abs_z = std::max(max_abs_z, abs(z));
+  }
+
+  for (int i = BED_VERTEX_OFFSET; i < NUM_VERTEXES; i++) {
+    GLfloat r = 0.0, g = 0.0, b = 0.0;
+
+    if (print_bed->gradient_enabled) {
+      GLfloat z = g_vertex_buffer_data[(i * VERTEX_FLOAT_COUNT) + 1];
+
+      GLfloat *dest = z < 0.0 ? &r : &b;
+
+      GLfloat gradient_range = std::max(1.0f, max_abs_z);
+      *dest = std::min(1.0f, abs(z) / gradient_range);
+      g = 0.5f - *dest;
+    } else {
+      // default color
+      r = g = b = 0.5f;
+    }
+
+    // 6 7 8 = R G B
+    g_vertex_buffer_data[(i * VERTEX_FLOAT_COUNT) + 6] = r;
+    g_vertex_buffer_data[(i * VERTEX_FLOAT_COUNT) + 7] = g;
+    g_vertex_buffer_data[(i * VERTEX_FLOAT_COUNT) + 8] = b;
+  }
 
   glUseProgram( program );
   glUniformMatrix4fv( glGetUniformLocation( program, "u_mvp" ), 1, GL_FALSE, glm::value_ptr(mvp));
@@ -300,7 +361,7 @@ void Visualisation::update() {
   // mvp = camera.proj * camera.view * bed_matrix;
   mvp = camera.proj * camera.view;
   glUniformMatrix4fv( glGetUniformLocation( program, "u_mvp" ), 1, GL_FALSE, glm::value_ptr(mvp));
-  glDrawArrays( GL_TRIANGLES, 18, 24);
+  glDrawArrays( GL_TRIANGLES, BED_VERTEX_OFFSET, NUM_VERTEXES - BED_VERTEX_OFFSET);
 
   if (active_path_block != nullptr) {
     glm::mat4 print_path_matrix = glm::mat4(1.0f);
