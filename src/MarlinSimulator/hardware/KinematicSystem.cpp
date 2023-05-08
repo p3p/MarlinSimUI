@@ -5,6 +5,7 @@
 #include "KinematicSystem.h"
 
 #include <src/inc/MarlinConfig.h>
+#include <src/module/planner.h>
 
 constexpr float steps_per_unit[] = DEFAULT_AXIS_STEPS_PER_UNIT;
 
@@ -23,10 +24,10 @@ KinematicSystem::KinematicSystem(std::function<void(glm::vec4)> on_kinematic_upd
 
 void KinematicSystem::kinematic_update() {
   stepper_position = glm::vec4{
-    std::static_pointer_cast<StepperDriver>(steppers[0])->steps() / steps_per_unit[0] * (((INVERT_X_DIR * 2) - 1) * -1.0),
-    std::static_pointer_cast<StepperDriver>(steppers[1])->steps() / steps_per_unit[1] * (((INVERT_Y_DIR * 2) - 1) * -1.0),
-    std::static_pointer_cast<StepperDriver>(steppers[2])->steps() / steps_per_unit[2] * (((INVERT_Z_DIR * 2) - 1) * -1.0),
-    std::static_pointer_cast<StepperDriver>(steppers[3])->steps() / steps_per_unit[3] * (((INVERT_E0_DIR * 2) - 1) * -1.0)
+    std::static_pointer_cast<StepperDriver>(steppers[X_AXIS])->steps() / planner.settings.axis_steps_per_mm[X_AXIS] * (((INVERT_X_DIR * 2) - 1) * -1.0),
+    std::static_pointer_cast<StepperDriver>(steppers[Y_AXIS])->steps() / planner.settings.axis_steps_per_mm[Y_AXIS] * (((INVERT_Y_DIR * 2) - 1) * -1.0),
+    std::static_pointer_cast<StepperDriver>(steppers[Z_AXIS])->steps() / planner.settings.axis_steps_per_mm[Z_AXIS] * (((INVERT_Z_DIR * 2) - 1) * -1.0),
+    std::static_pointer_cast<StepperDriver>(steppers[E_AXIS])->steps() / planner.settings.axis_steps_per_mm[E_AXIS] * (((INVERT_E0_DIR * 2) - 1) * -1.0)
   };
 
   effector_position = glm::vec4(origin, 0.0f) + stepper_position;
@@ -145,17 +146,15 @@ DeltaKinematicSystem::DeltaKinematicSystem(std::function<void(glm::vec4)> on_kin
   recalc_delta_settings();
 
   // Add an offset as on deltas the linear rails are offset from the bed
-  origin.x = 207.124;//215.0 + DELTA_HEIGHT;
-  origin.y = 207.124;//215.0 + DELTA_HEIGHT;
-  origin.z = 207.124;//215.0 + DELTA_HEIGHT;
+  origin = { 207.124, 207.124, 207.124 }; // 215.0 + DELTA_HEIGHT
 }
 
 void DeltaKinematicSystem::kinematic_update() {
   stepper_position = glm::vec4{
-    std::static_pointer_cast<StepperDriver>(steppers[0])->steps() / steps_per_unit[0] * (((INVERT_X_DIR * 2) - 1) * -1.0),
-    std::static_pointer_cast<StepperDriver>(steppers[1])->steps() / steps_per_unit[1] * (((INVERT_Y_DIR * 2) - 1) * -1.0),
-    std::static_pointer_cast<StepperDriver>(steppers[2])->steps() / steps_per_unit[2] * (((INVERT_Z_DIR * 2) - 1) * -1.0),
-    std::static_pointer_cast<StepperDriver>(steppers[3])->steps() / steps_per_unit[3] * (((INVERT_E0_DIR * 2) - 1) * -1.0)
+    std::static_pointer_cast<StepperDriver>(steppers[X_AXIS])->steps() / planner.settings.axis_steps_per_mm[X_AXIS] * (((INVERT_X_DIR * 2) - 1) * -1.0),
+    std::static_pointer_cast<StepperDriver>(steppers[Y_AXIS])->steps() / planner.settings.axis_steps_per_mm[Y_AXIS] * (((INVERT_Y_DIR * 2) - 1) * -1.0),
+    std::static_pointer_cast<StepperDriver>(steppers[Z_AXIS])->steps() / planner.settings.axis_steps_per_mm[Z_AXIS] * (((INVERT_Z_DIR * 2) - 1) * -1.0),
+    std::static_pointer_cast<StepperDriver>(steppers[E_AXIS])->steps() / planner.settings.axis_steps_per_mm[E_AXIS] * (((INVERT_E0_DIR * 2) - 1) * -1.0)
   };
 
   // Add an offset to fudge the coordinate system onto the bed
