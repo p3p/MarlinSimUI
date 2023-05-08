@@ -309,10 +309,12 @@ void Visualisation::update() {
   }
   camera.update_view();
 
+  // Get the Translate * Scale transform for the Effector
   glm::mat4 model_tmatrix = glm::translate(glm::mat4(1.0f), glm::vec3(effector_pos.x, effector_pos.y, effector_pos.z));
   glm::mat4 model_smatrix = glm::scale(glm::mat4(1.0f), effector_scale );
   glm::mat4 model_matrix = model_tmatrix * model_smatrix;
 
+  // Apply the Camera Projection and View to the Model Matrix
   glm::mat4 mvp = camera.proj * camera.view * model_matrix;
 
   auto print_bed = virtual_printer.get_component<PrintBed>("Print Bed");
@@ -348,18 +350,34 @@ void Visualisation::update() {
     g_vertex_buffer_data[(i * VERTEX_FLOAT_COUNT) + 8] = b;
   }
 
+  // Get the Shader program
   glUseProgram( program );
+
+  // Modify program.u_mvp with the Camera Projection, View, and Model Matrix
   glUniformMatrix4fv( glGetUniformLocation( program, "u_mvp" ), 1, GL_FALSE, glm::value_ptr(mvp));
+
+  // Bind our Vertex Array for use by GL
   glBindVertexArray( vao );
+
+  // Bind our Vertex Buffer as the current GL array buffer
   glBindBuffer( GL_ARRAY_BUFFER, vbo );
+
+  // Create and init the Buffer Object's data store
   glBufferData( GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), &g_vertex_buffer_data[0], GL_STATIC_DRAW );
 
+  // Draw the first part of the buffer data as triangles
   if (follow_mode != FOLLOW_Z) glDrawArrays( GL_TRIANGLES, 0, 18 );
 
-  // glm::mat4 bed_matrix = glm::translate(glm::scale(glm::mat4(1.0f), {200.0f, 0.0f, 200.0f}), {0.5f, 0.0, -0.5f});
-  // mvp = camera.proj * camera.view * bed_matrix;
+  //glm::mat4 bed_matrix = glm::translate(glm::scale(glm::mat4(1.0f), {200.0f, 0.0f, 200.0f}), {0.5f, 0.0, -0.5f});
+  //mvp = camera.proj * camera.view * bed_matrix;
+
+  // Get the Camera Projection and View
   mvp = camera.proj * camera.view;
+
+  // Modify program.u_mvp with the Camera Projection and View
   glUniformMatrix4fv( glGetUniformLocation( program, "u_mvp" ), 1, GL_FALSE, glm::value_ptr(mvp));
+
+  // Draw the second part of the buffer data as triangles
   glDrawArrays( GL_TRIANGLES, BED_VERTEX_OFFSET, NUM_VERTEXES - BED_VERTEX_OFFSET);
 
   if (active_path_block != nullptr) {
