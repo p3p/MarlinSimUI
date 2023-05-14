@@ -7,7 +7,9 @@
 #include <gl.h>
 
 #include "XPT2046Device.h"
-#include <src/HAL/NATIVE_SIM/tft/xpt2046.h>
+
+#include "../paths.h"
+#include MARLIN_HAL_PATH(tft/xpt2046.h)
 #if ENABLED(TOUCH_SCREEN)
   #include <src/lcd/tft/touch.h>
 #else

@@ -302,11 +302,10 @@ void Visualisation::update() {
   // float delta = std::chrono::duration_cast<std::chrono::duration<float>>(now - last_update).count();
   // last_update = now;
 
-  if (follow_mode == 1) {
-    camera.position = glm::vec3(effector_pos.x, camera.position.y, effector_pos.z);
-  }
-  if (follow_mode == 2) {
-    camera.position = glm::vec3(camera.position.x, effector_pos.y + follow_offset.y, camera.position.z);
+  switch (follow_mode) {
+    case FOLLOW_Z:  camera.position = glm::vec3(effector_pos.x, camera.position.y, effector_pos.z); break;
+    case FOLLOW_XY: camera.position = glm::vec3(camera.position.x, effector_pos.y + follow_offset.y, camera.position.z); break;
+    default: break;
   }
   camera.update_view();
 
@@ -354,9 +353,9 @@ void Visualisation::update() {
   glBindVertexArray( vao );
   glBindBuffer( GL_ARRAY_BUFFER, vbo );
   glBufferData( GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), &g_vertex_buffer_data[0], GL_STATIC_DRAW );
-  if(follow_mode != 1) {
-    glDrawArrays( GL_TRIANGLES, 0, 18 );
-  }
+
+  if (follow_mode != FOLLOW_Z) glDrawArrays( GL_TRIANGLES, 0, 18 );
+
   // glm::mat4 bed_matrix = glm::translate(glm::scale(glm::mat4(1.0f), {200.0f, 0.0f, 200.0f}), {0.5f, 0.0, -0.5f});
   // mvp = camera.proj * camera.view * bed_matrix;
   mvp = camera.proj * camera.view;
@@ -503,17 +502,16 @@ void Visualisation::ui_viewport_callback(UiWindow* window) {
       camera.position -= camera.world_up * camera.speed * delta;
     }
     if (ImGui::IsKeyPressed(SDL_SCANCODE_F)) {
-      follow_mode = follow_mode == 1? 0 : 1;
-      if (follow_mode) {
+      follow_mode = follow_mode == FOLLOW_Z ? FOLLOW_NONE : FOLLOW_Z;
+      if (follow_mode != FOLLOW_NONE) {
         camera.position = glm::vec3(effector_pos.x, effector_pos.y + 10.0, effector_pos.z);
         camera.rotation.y = -89.99999;
       }
     }
     if (ImGui::IsKeyPressed(SDL_SCANCODE_G)) {
-      follow_mode = follow_mode == 2? 0 : 2;
-      if (follow_mode) {
+      follow_mode = follow_mode == FOLLOW_XY ? FOLLOW_NONE : FOLLOW_XY;
+      if (follow_mode != FOLLOW_NONE)
         follow_offset = camera.position - glm::vec3(effector_pos);
-      }
     }
     if (ImGui::IsKeyPressed(SDL_SCANCODE_F1)) {
       render_full_path = !render_full_path;

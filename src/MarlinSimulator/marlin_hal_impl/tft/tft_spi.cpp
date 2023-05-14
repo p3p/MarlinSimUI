@@ -24,7 +24,8 @@
 
 #if HAS_SPI_TFT
 
-#include HAL_PATH(src, tft/tft_spi.h)
+#include "../../paths.h"
+#include MARLIN_HAL_PATH(tft/tft_spi.h)
 #include "../../hardware/bus/spi.h"
 
 static SpiBus &spi_bus = spi_bus_by_pins<TFT_SCK_PIN, TFT_MOSI_PIN, TFT_MISO_PIN>();

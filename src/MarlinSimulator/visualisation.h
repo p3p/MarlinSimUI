@@ -157,6 +157,8 @@ public:
   }
 };
 
+enum FollowMode : uint8_t { FOLLOW_NONE, FOLLOW_Z, FOLLOW_XY };
+
 class Visualisation {
 public:
   Visualisation(VirtualPrinter& virtual_printer);
@@ -182,7 +184,7 @@ public:
   void set_head_position(glm::vec4 position);
   bool points_are_collinear(glm::vec3 a, glm::vec3 b, glm::vec3 c);
 
-  uint8_t follow_mode = 0;
+  FollowMode follow_mode = FOLLOW_NONE;
   bool render_full_path = true;
   bool render_path_line = false;
   glm::vec3 follow_offset = {0.0f, 0.0f, 0.0f};

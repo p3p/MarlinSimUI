@@ -11,8 +11,9 @@
 
 #include "ST7796Device.h"
 
-#include <src/HAL/NATIVE_SIM/tft/xpt2046.h>
-#include <src/HAL/NATIVE_SIM/tft/tft_spi.h>
+#include "../paths.h"
+#include MARLIN_HAL_PATH(tft/xpt2046.h)
+#include MARLIN_HAL_PATH(tft/tft_spi.h)
 
 #define ST7796S_CASET      0x2A // Column Address Set
 #define ST7796S_RASET      0x2B // Row Address Set

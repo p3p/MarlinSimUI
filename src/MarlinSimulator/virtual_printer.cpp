@@ -21,7 +21,8 @@
 #include <src/inc/MarlinConfig.h>
 
 #if HAS_TFT_XPT2046 || HAS_TOUCH_XPT2046
-  #include HAL_PATH(src, tft/xpt2046.h)
+  #include "paths.h"
+  #include MARLIN_HAL_PATH(tft/xpt2046.h)
 #endif
 
 #ifndef SD_DETECT_STATE

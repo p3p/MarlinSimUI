@@ -21,7 +21,8 @@
 
 #if HAS_TFT_XPT2046 || HAS_TOUCH_XPT2046
 
-#include HAL_PATH(src, tft/xpt2046.h)
+#include "../../paths.h"
+#include MARLIN_HAL_PATH(tft/xpt2046.h)
 #include "../../hardware/bus/spi.h"
 
 static SpiBus &spi_bus = spi_bus_by_pins<TOUCH_SCK_PIN, TOUCH_MOSI_PIN, TOUCH_MISO_PIN>();
