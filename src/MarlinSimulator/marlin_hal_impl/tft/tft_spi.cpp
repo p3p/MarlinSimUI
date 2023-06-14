@@ -118,7 +118,7 @@ uint32_t TFT_SPI::ReadID(uint16_t Reg) {
     TFT_CS_L;
     WriteReg(Reg);
 
-    LOOP_L_N(i, 4) {
+    for (uint8_t i = 0; i < 4; ++i) {
       //spiRead(&d, 1);
       spi_bus.transfer<uint8_t>(nullptr, &d, 1);
       data = (data << 8) | d;
