@@ -43,7 +43,7 @@ static SpiBus &spi_bus = spi_bus_by_pins<TFT_SCK_PIN, TFT_MOSI_PIN, TFT_MISO_PIN
 #define TFT_BLK_H WRITE(TFT_BACKLIGHT_PIN, HIGH)
 #define TFT_BLK_L WRITE(TFT_BACKLIGHT_PIN, LOW)
 
-void TFT_SPI::Init() {
+void TFT_SPI::init() {
   #if PIN_EXISTS(TFT_RESET)
     SET_OUTPUT(TFT_RESET_PIN);
     TFT_RST_H;
@@ -95,28 +95,28 @@ void TFT_SPI::Init() {
   // SPIx.setDataMode(SPI_MODE0);
 }
 
-void TFT_SPI::DataTransferBegin(uint16_t DataSize) {
-  // SPIx.setDataSize(DataSize);
+void TFT_SPI::dataTransferBegin(uint16_t dataSize) {
+  // SPIx.setDataSize(dataSize);
   // SPIx.begin();
   TFT_CS_L;
 }
 
 // todo: pretty sure this only works because of a bug, successfully reads on the LCD_READ_ID4 command .. which isnt supported
-uint32_t TFT_SPI::GetID() {
+uint32_t TFT_SPI::getID() {
   uint32_t id;
-  id = ReadID(LCD_READ_ID);
+  id = readID(LCD_READ_ID);
   if ((id & 0xFFFF) == 0 || (id & 0xFFFF) == 0xFFFF)
-    id = ReadID(LCD_READ_ID4);
+    id = readID(LCD_READ_ID4);
   return id;
 }
 
-uint32_t TFT_SPI::ReadID(uint16_t Reg) {
+uint32_t TFT_SPI::readID(uint16_t Reg) {
   uint32_t data = 0;
 
   #if PIN_EXISTS(TFT_MISO)
     uint8_t d = 0;
     TFT_CS_L;
-    WriteReg(Reg);
+    writeReg(Reg);
 
     for (uint8_t i = 0; i < 4; ++i) {
       //spiRead(&d, 1);
@@ -124,7 +124,7 @@ uint32_t TFT_SPI::ReadID(uint16_t Reg) {
       data = (data << 8) | d;
     }
 
-    DataTransferEnd();
+    dataTransferEnd();
   #endif
 
   return data >> 7;
@@ -134,30 +134,30 @@ bool TFT_SPI::isBusy() {
   return false;
 }
 
-void TFT_SPI::Abort() {
-  DataTransferEnd();
+void TFT_SPI::abort() {
+  dataTransferEnd();
 }
 
-void TFT_SPI::Transmit(uint16_t Data) {
-  spi_bus.write(Data);
+void TFT_SPI::transmit(uint16_t data) {
+  spi_bus.write(data);
 }
 
-void TFT_SPI::TransmitDMA(uint32_t MemoryIncrease, uint16_t *Data, uint16_t Count) {
-  DataTransferBegin();
+void TFT_SPI::transmitDMA(uint32_t memoryIncrease, uint16_t *data, uint16_t count) {
+  dataTransferBegin();
   TFT_DC_H;
-  if (MemoryIncrease == DMA_MINC_ENABLE) spi_bus.transfer<uint16_t>(Data, nullptr, Count);
-  else spi_bus.transfer<uint16_t>(Data, nullptr, Count, false);
-  DataTransferEnd();
+  if (memoryIncrease == DMA_MINC_ENABLE) spi_bus.transfer<uint16_t>(data, nullptr, count);
+  else spi_bus.transfer<uint16_t>(data, nullptr, count, false);
+  dataTransferEnd();
 }
 
-void TFT_SPI::DataTransferEnd() { OUT_WRITE(TFT_CS_PIN, HIGH); };
-void TFT_SPI::WriteData(uint16_t Data) { Transmit(Data); }
-void TFT_SPI::WriteReg(uint16_t Reg) {
+void TFT_SPI::dataTransferEnd() { OUT_WRITE(TFT_CS_PIN, HIGH); };
+void TFT_SPI::writeData(uint16_t data) { transmit(data); }
+void TFT_SPI::writeReg(uint16_t Reg) {
    OUT_WRITE(TFT_A0_PIN, LOW);
-   Transmit(Reg);
+   transmit(Reg);
    OUT_WRITE(TFT_A0_PIN, HIGH);
 }
-void TFT_SPI::WriteSequence(uint16_t *Data, uint16_t Count) { TransmitDMA(DMA_MINC_ENABLE, Data, Count); }
-void TFT_SPI::WriteMultiple(uint16_t Color, uint32_t Count) { static uint16_t Data; Data = Color; TransmitDMA(DMA_MINC_DISABLE, &Data, Count); }
+void TFT_SPI::writeSequence(uint16_t *data, uint16_t count) { transmitDMA(DMA_MINC_ENABLE, data, count); }
+void TFT_SPI::writeMultiple(uint16_t color, uint32_t count) { static uint16_t data; data = color; transmitDMA(DMA_MINC_DISABLE, &data, count); }
 
 #endif // HAS_SPI_TFT
