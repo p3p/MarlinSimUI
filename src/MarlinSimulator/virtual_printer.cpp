@@ -85,6 +85,9 @@ void VirtualPrinter::build() {
     root->add_component<FilamentRunoutSensor>("Filament Runout Sensor", FIL_RUNOUT1_PIN, FIL_RUNOUT_STATE);
   #endif
 
+  #ifndef LCD_PINS_EN
+    #define LCD_PINS_EN LCD_PINS_ENABLE
+  #endif
   #if ENABLED(TFT_INTERFACE_SPI)
     root->add_component<ST7796Device>("ST7796Device Display", spi_bus_by_pins<TFT_SCK_PIN, TFT_MOSI_PIN, TFT_MISO_PIN>(), TFT_CS_PIN, spi_bus_by_pins<TOUCH_SCK_PIN, TOUCH_MOSI_PIN, TOUCH_MISO_PIN>(), TOUCH_CS_PIN, TFT_DC_PIN, BEEPER_PIN, BTN_EN1, BTN_EN2, BTN_ENC, BTN_BACK, KILL_PIN);
   #elif defined(HAS_MARLINUI_HD44780)

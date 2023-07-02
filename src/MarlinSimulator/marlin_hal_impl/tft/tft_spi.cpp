@@ -110,13 +110,13 @@ uint32_t TFT_SPI::getID() {
   return id;
 }
 
-uint32_t TFT_SPI::readID(uint16_t Reg) {
+uint32_t TFT_SPI::readID(uint16_t inReg) {
   uint32_t data = 0;
 
   #if PIN_EXISTS(TFT_MISO)
     uint8_t d = 0;
     TFT_CS_L;
-    writeReg(Reg);
+    writeReg(inReg);
 
     for (uint8_t i = 0; i < 4; ++i) {
       //spiRead(&d, 1);
@@ -152,9 +152,9 @@ void TFT_SPI::transmitDMA(uint32_t memoryIncrease, uint16_t *data, uint16_t coun
 
 void TFT_SPI::dataTransferEnd() { OUT_WRITE(TFT_CS_PIN, HIGH); };
 void TFT_SPI::writeData(uint16_t data) { transmit(data); }
-void TFT_SPI::writeReg(uint16_t Reg) {
+void TFT_SPI::writeReg(uint16_t inReg) {
    OUT_WRITE(TFT_A0_PIN, LOW);
-   transmit(Reg);
+   transmit(inReg);
    OUT_WRITE(TFT_A0_PIN, HIGH);
 }
 void TFT_SPI::writeSequence(uint16_t *data, uint16_t count) { transmitDMA(DMA_MINC_ENABLE, data, count); }
