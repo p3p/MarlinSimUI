@@ -209,8 +209,11 @@ void HD44780Device::ui_widget() {
     ImGui::GetCurrentWindow()->ScrollMax.y = 1.0f; // disable window scroll
     ImGui::Checkbox("Integer Scaling", &render_integer_scaling);
     ImGui::Checkbox("Popout", &render_popout);
+
     if (render_popout) {
-      ImGui::SetNextWindowSize(ImVec2(width + 10, height + 10), ImGuiCond_Once);
+      constexpr uint32_t hfeat = 1 + 7 + 7 + 1, vfeat = 1 + 18 + 1 + 7 + 7 + 1;
+      ImGui::SetNextWindowSize(ImVec2(width + hfeat, height + vfeat), ImGuiCond_Once);
+
       popout_begin = ImGui::Begin("ST7796DeviceRender", &render_popout);
       if (!popout_begin) {
         ImGui::End();

@@ -165,7 +165,9 @@ void ST7920Device::ui_widget() {
     ImGui::Checkbox("Popout", &render_popout);
 
     if (render_popout) {
-      ImGui::SetNextWindowSize(ImVec2(width + 10, height + 10), ImGuiCond_Once);
+      constexpr uint32_t hfeat = 1 + 7 + 7 + 1, vfeat = 1 + 18 + 1 + 7 + 7 + 1;
+      ImGui::SetNextWindowSize(ImVec2(width + hfeat, height + vfeat), ImGuiCond_Once);
+
       popout_begin = ImGui::Begin("ST7920DeviceRender", &render_popout);
       if (!popout_begin) {
         ImGui::End();
