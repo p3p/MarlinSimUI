@@ -147,12 +147,22 @@ void ST7796Device::ui_widget() {
       size = ImGui::GetContentRegionAvail();
     }
 
-    double scale = size.x / width;
-    if (render_integer_scaling) {
-      scale = scale > 1.0 ? std::floor(scale) : scale;
-      size.x = width * scale;
+    // Apply the smallest scale that fits the window. Maintain proportions.
+    double scalex = size.x / width, scaley = size.y / height;
+    if (scalex < scaley) {
+      if (render_integer_scaling) {
+        if (scalex > 1.0) scalex = std::floor(scalex);
+        size.x = width * scalex;
+      }
+      size.y = height * scalex;
     }
-    size.y = height * scale;
+    else {
+      if (render_integer_scaling) {
+        if (scaley > 1.0) scaley = std::floor(scaley);
+        size.y = height * scaley;
+      }
+      size.x = width * scaley;
+    }
 
     ImGui::Image((ImTextureID)(intptr_t)texture_id, size, ImVec2(0,0), ImVec2(1,1));
     touch->ui_callback();
