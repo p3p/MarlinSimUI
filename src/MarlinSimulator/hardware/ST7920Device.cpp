@@ -166,7 +166,28 @@ void ST7920Device::ui_widget() {
 
     if (render_popout) {
       constexpr uint32_t hfeat = 1 + 7 + 7 + 1, vfeat = 1 + 18 + 1 + 7 + 7 + 1;
-      ImGui::SetNextWindowSize(ImVec2(width + hfeat, height + vfeat), ImGuiCond_Once);
+      typedef struct { uint32_t minw, minh; float ratio; } constraint_t;
+      const constraint_t constraint { width + hfeat, height + vfeat, (width) / (float)(height) };
+
+      // Init the window size to contain the 2x scaled screen, margin, and window features
+      ImGui::SetNextWindowSize(ImVec2(constraint.minw + width, constraint.minh + height), ImGuiCond_Once);
+
+      struct CustomConstraints {
+        static void AspectRatio(ImGuiSizeCallbackData *data) {
+          constraint_t c = *(constraint_t*)data->UserData;
+          uint32_t x = std::max((uint32_t)data->DesiredSize.x, c.minw),
+                   y = std::max((uint32_t)data->DesiredSize.y, c.minh);
+          // For Portrait, Y takes precedence, else X takes precedence
+          if (c.ratio < 1.0f)
+            x = std::floor((y - vfeat) * c.ratio) + hfeat;
+          else
+            y = std::floor((x - hfeat) / c.ratio) + vfeat;
+          data->DesiredSize.x = x;
+          data->DesiredSize.y = y;
+        }
+      };
+
+      ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0), ImVec2(FLT_MAX, FLT_MAX), CustomConstraints::AspectRatio, (void*)&constraint);
 
       popout_begin = ImGui::Begin("ST7920DeviceRender", &render_popout);
       if (!popout_begin) {
