@@ -268,7 +268,7 @@ struct SerialMonitor : public UiWindow {
   }
 
   void show() {
-      // File read into serial port
+    // File read into serial port
     if (input_file.is_open() && serial_stream.receive_buffer.free() && streaming) {
       uint8_t buffer[HalSerial::receive_buffer_size]{};
       size_t read_size = std::min(serial_stream.receive_buffer.free(), stream_total - stream_sent);

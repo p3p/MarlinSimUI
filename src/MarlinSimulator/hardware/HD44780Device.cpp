@@ -129,7 +129,7 @@ void HD44780Device::update() {
 
           for (std::size_t ty = 0; ty < 8; ty++ ) {
             for (std::size_t tx = 0; tx < 5; tx++ ) {
-              texture_data[((texture_index_y + ty) * texture_x) + texture_index_x - tx + 5] = TEST(charset[charset_base + ty], tx) ? forground_color : background_color;
+              texture_data[((texture_index_y + ty) * texture_x) + texture_index_x - tx + 5] = TEST(charset[charset_base + ty], tx) ? foreground_color : background_color;
             }
           }
         }

@@ -95,7 +95,7 @@ void ST7920Device::update() {
         std::size_t texture_index = (y * 128) + x;             // indexed by pixel coordinate
         std::size_t graphic_ram_index = (y * 32) + (x / 8);    // indexed by byte (8 horizontal pixels), 32 byte (256 pixel) stride per row
         for (std::size_t j = 0; j < 8; j++) {
-          texture_data[texture_index + j] = TEST(graphic_ram[graphic_ram_index], 7 - j) ? forground_color :  background_color;
+          texture_data[texture_index + j] = TEST(graphic_ram[graphic_ram_index], 7 - j) ? foreground_color :  background_color;
         }
       }
     }
