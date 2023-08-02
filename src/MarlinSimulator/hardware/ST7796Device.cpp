@@ -6,8 +6,7 @@
 
 #include <gl.h>
 
-#include "imgui.h"
-#include "imgui_internal.h"
+#include "../imgui_custom.h"
 
 #include "ST7796Device.h"
 
@@ -136,29 +135,11 @@ void ST7796Device::ui_widget() {
     ImGui::Checkbox("Popout", &render_popout);
 
     if (render_popout) {
-      constexpr uint32_t hfeat = 1 + 7 + 7 + 1, vfeat = 1 + 18 + 1 + 7 + 7 + 1;
-      typedef struct { uint32_t minw, minh; float ratio; } constraint_t;
-      const constraint_t constraint { width + hfeat, height + vfeat, (width) / (float)(height) };
+      const imgui_custom::constraint_t constraint { width + imgui_custom::hfeat, height + imgui_custom::vfeat, (width) / (float)(height) };
 
       // Init the window size to contain the 1x scaled screen, margin, and window features
       ImGui::SetNextWindowSize(ImVec2(constraint.minw, constraint.minh), ImGuiCond_Once);
-
-      struct CustomConstraints {
-        static void AspectRatio(ImGuiSizeCallbackData *data) {
-          constraint_t c = *(constraint_t*)data->UserData;
-          uint32_t x = std::max((uint32_t)data->DesiredSize.x, c.minw),
-                   y = std::max((uint32_t)data->DesiredSize.y, c.minh);
-          // For Portrait, Y takes precedence, else X takes precedence
-          if (c.ratio < 1.0f)
-            x = std::floor((y - vfeat) * c.ratio) + hfeat;
-          else
-            y = std::floor((x - hfeat) / c.ratio) + vfeat;
-          data->DesiredSize.x = x;
-          data->DesiredSize.y = y;
-        }
-      };
-
-      ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0), ImVec2(FLT_MAX, FLT_MAX), CustomConstraints::AspectRatio, (void*)&constraint);
+      ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0), ImVec2(FLT_MAX, FLT_MAX), imgui_custom::CustomConstraints::AspectRatio, (void*)&constraint);
 
       popout_begin = ImGui::Begin("ST7796DeviceRender", &render_popout);
       if (!popout_begin) {
@@ -169,21 +150,7 @@ void ST7796Device::ui_widget() {
     }
 
     // Apply the smallest scale that fits the window. Maintain proportions.
-    double scalex = size.x / width, scaley = size.y / height;
-    if (scalex < scaley) {
-      if (render_integer_scaling) {
-        if (scalex > 1.0) scalex = std::floor(scalex);
-        size.x = width * scalex;
-      }
-      size.y = height * scalex;
-    }
-    else {
-      if (render_integer_scaling) {
-        if (scaley > 1.0) scaley = std::floor(scaley);
-        size.y = height * scaley;
-      }
-      size.x = width * scaley;
-    }
+    size = imgui_custom::scale_proportionally(size, width, height, render_integer_scaling);
 
     ImGui::Image((ImTextureID)(intptr_t)texture_id, size, ImVec2(0,0), ImVec2(1,1));
     touch->ui_callback();
