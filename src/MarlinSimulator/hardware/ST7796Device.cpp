@@ -6,8 +6,7 @@
 
 #include <gl.h>
 
-#include "imgui.h"
-#include "imgui_internal.h"
+#include "../imgui_custom.h"
 
 #include "ST7796Device.h"
 
@@ -136,7 +135,12 @@ void ST7796Device::ui_widget() {
     ImGui::Checkbox("Popout", &render_popout);
 
     if (render_popout) {
-      ImGui::SetNextWindowSize(ImVec2(width + 10, height + 10), ImGuiCond_Once);
+      const imgui_custom::constraint_t constraint { width + imgui_custom::hfeat, height + imgui_custom::vfeat, (width) / (float)(height) };
+
+      // Init the window size to contain the 1x scaled screen, margin, and window features
+      ImGui::SetNextWindowSize(ImVec2(constraint.minw, constraint.minh), ImGuiCond_Once);
+      ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0), ImVec2(FLT_MAX, FLT_MAX), imgui_custom::CustomConstraints::AspectRatio, (void*)&constraint);
+
       popout_begin = ImGui::Begin("ST7796DeviceRender", &render_popout);
       if (!popout_begin) {
         ImGui::End();
@@ -145,12 +149,8 @@ void ST7796Device::ui_widget() {
       size = ImGui::GetContentRegionAvail();
     }
 
-    double scale = size.x / width;
-    if (render_integer_scaling) {
-      scale = scale > 1.0 ? std::floor(scale) : scale;
-      size.x = width * scale;
-    }
-    size.y = height * scale;
+    // Apply the smallest scale that fits the window. Maintain proportions.
+    size = imgui_custom::scale_proportionally(size, width, height, render_integer_scaling);
 
     ImGui::Image((ImTextureID)(intptr_t)texture_id, size, ImVec2(0,0), ImVec2(1,1));
     touch->ui_callback();

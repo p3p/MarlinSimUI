@@ -6,8 +6,7 @@
 
 #include <gl.h>
 
-#include <imgui.h>
-#include <imgui_internal.h>
+#include "../imgui_custom.h"
 
 #include "HD44780Device.h"
 #include "HD44780DeviceROM.h"
@@ -129,7 +128,7 @@ void HD44780Device::update() {
 
           for (std::size_t ty = 0; ty < 8; ty++ ) {
             for (std::size_t tx = 0; tx < 5; tx++ ) {
-              texture_data[((texture_index_y + ty) * texture_x) + texture_index_x - tx + 5] = TEST(charset[charset_base + ty], tx) ? forground_color : background_color;
+              texture_data[((texture_index_y + ty) * texture_x) + texture_index_x - tx + 5] = TEST(charset[charset_base + ty], tx) ? foreground_color : background_color;
             }
           }
         }
@@ -209,9 +208,14 @@ void HD44780Device::ui_widget() {
     ImGui::GetCurrentWindow()->ScrollMax.y = 1.0f; // disable window scroll
     ImGui::Checkbox("Integer Scaling", &render_integer_scaling);
     ImGui::Checkbox("Popout", &render_popout);
+
     if (render_popout) {
-      ImGui::SetNextWindowSize(ImVec2(width + 10, height + 10), ImGuiCond_Once);
-      popout_begin = ImGui::Begin("ST7796DeviceRender", &render_popout);
+      const imgui_custom::constraint_t constraint { width + imgui_custom::hfeat, height + imgui_custom::vfeat, (width) / (float)(height) };
+      // Init the window size to contain the 2x scaled screen, margin, and window features
+      ImGui::SetNextWindowSize(ImVec2(constraint.minw + width, constraint.minh + height), ImGuiCond_Once);
+      ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0), ImVec2(FLT_MAX, FLT_MAX), imgui_custom::CustomConstraints::AspectRatio, (void*)&constraint);
+
+      popout_begin = ImGui::Begin("HD44780DeviceRender", &render_popout);
       if (!popout_begin) {
         ImGui::End();
         return;
@@ -219,12 +223,8 @@ void HD44780Device::ui_widget() {
       size = ImGui::GetContentRegionAvail();
     }
 
-    double scale = size.x / width;
-    if (render_integer_scaling) {
-      scale = scale > 1.0 ? std::floor(scale) : scale;
-      size.x = width * scale;
-    }
-    size.y = height * scale;
+    // Apply the smallest scale that fits the window. Maintain proportions.
+    size = imgui_custom::scale_proportionally(size, width, height, render_integer_scaling);
 
     ImGui::Image((ImTextureID)(intptr_t)texture_id, size, ImVec2(0,0), ImVec2(1,1));
     if (ImGui::IsWindowFocused()) {

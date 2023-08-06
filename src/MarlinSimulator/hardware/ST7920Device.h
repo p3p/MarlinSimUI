@@ -71,6 +71,6 @@ public:
   GLuint texture_id;
   glm::vec<3, uint8_t> texture_data[128*64] = {};
 
-  glm::ivec3 forground_color = {0x81, 0xF2, 0xFF};
+  glm::ivec3 foreground_color = {0x81, 0xF2, 0xFF};
   glm::ivec3 background_color = {0x33, 0x01, 0xFC};
 };

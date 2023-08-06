@@ -6,8 +6,7 @@
 
 #include <gl.h>
 
-#include "imgui.h"
-#include "imgui_internal.h"
+#include "../imgui_custom.h"
 
 #include "ST7920Device.h"
 
@@ -95,7 +94,7 @@ void ST7920Device::update() {
         std::size_t texture_index = (y * 128) + x;             // indexed by pixel coordinate
         std::size_t graphic_ram_index = (y * 32) + (x / 8);    // indexed by byte (8 horizontal pixels), 32 byte (256 pixel) stride per row
         for (std::size_t j = 0; j < 8; j++) {
-          texture_data[texture_index + j] = TEST(graphic_ram[graphic_ram_index], 7 - j) ? forground_color :  background_color;
+          texture_data[texture_index + j] = TEST(graphic_ram[graphic_ram_index], 7 - j) ? foreground_color :  background_color;
         }
       }
     }
@@ -165,7 +164,12 @@ void ST7920Device::ui_widget() {
     ImGui::Checkbox("Popout", &render_popout);
 
     if (render_popout) {
-      ImGui::SetNextWindowSize(ImVec2(width + 10, height + 10), ImGuiCond_Once);
+      const imgui_custom::constraint_t constraint { width + imgui_custom::hfeat, height + imgui_custom::vfeat, (width) / (float)(height) };
+
+      // Init the window size to contain the 2x scaled screen, margin, and window features
+      ImGui::SetNextWindowSize(ImVec2(constraint.minw + width, constraint.minh + height), ImGuiCond_Once);
+      ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0), ImVec2(FLT_MAX, FLT_MAX), imgui_custom::CustomConstraints::AspectRatio, (void*)&constraint);
+
       popout_begin = ImGui::Begin("ST7920DeviceRender", &render_popout);
       if (!popout_begin) {
         ImGui::End();
@@ -174,12 +178,8 @@ void ST7920Device::ui_widget() {
       size = ImGui::GetContentRegionAvail();
     }
 
-    double scale = size.x / width;
-    if (render_integer_scaling) {
-      scale = scale > 1.0 ? std::floor(scale) : scale;
-      size.x = width * scale;
-    }
-    size.y = height * scale;
+    // Apply the smallest scale that fits the window. Maintain proportions.
+    size = imgui_custom::scale_proportionally(size, width, height, render_integer_scaling);
 
     ImGui::Image((ImTextureID)(intptr_t)texture_id, size, ImVec2(0,0), ImVec2(1,1));
     if (ImGui::IsWindowFocused()) {
