@@ -377,7 +377,7 @@ void Visualisation::update() {
     glm::mat4 print_path_matrix = glm::mat4(1.0f);
     mvp = camera.proj * camera.view * print_path_matrix;
     glUniformMatrix4fv( glGetUniformLocation( program, "u_mvp" ), 1, GL_FALSE, glm::value_ptr(mvp));
-    auto active_path = active_path_block; // a new active path block can be added at any time, so back up the active block ptr;
+    auto active_path = active_path_block; // a new active path block can be added at any time, so back up the active block ptr
     std::size_t data_length = active_path->size();
 
     if (render_path_line) {
@@ -389,7 +389,7 @@ void Visualisation::update() {
       if (render_full_path) {
         for (auto& path : full_path) {
           if (&path[0] == &(*active_path)[0]) break;
-          // these are no longer dynamic buffers and could have the geometry baked rather than continue using the geometery shader
+          // these are no longer dynamic buffers and could have the geometry baked rather than continue using the geometry shader
           std::size_t data_length = path.size();
           glBufferData( GL_ARRAY_BUFFER, data_length * sizeof(std::remove_reference<decltype(path)>::type::value_type), &path[0], GL_STATIC_DRAW );
           glDrawArrays( GL_LINE_STRIP_ADJACENCY, 0, data_length);
@@ -478,7 +478,6 @@ void Visualisation::set_head_position(glm::vec4 sim_pos) {
 bool Visualisation::points_are_collinear(glm::vec3 a, glm::vec3 b, glm::vec3 c) {
   return glm::length(glm::dot(b - a, c - a) - (glm::length(b - a) * glm::length(c - a))) < 0.0002; // could be increased to further reduce rendered geometry
 }
-
 
 void Visualisation::ui_viewport_callback(UiWindow* window) {
   static bool invert_pan = false;
