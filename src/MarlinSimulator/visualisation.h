@@ -201,7 +201,6 @@ public:
   GLuint program, path_program;
   GLuint vao, vbo;
   bool mouse_captured = false;
-  bool input_state[6] = {};
   glm::vec<2, int> mouse_lock_pos;
 
   #define BED_NORMAL 0.0, 1.0, 0.0
@@ -247,9 +246,7 @@ public:
       EFFECTOR_VERTEX(-0.5, 0.5, 0.5, EFFECTOR_COLOR_2),
       EFFECTOR_VERTEX(0.5, 0.5, 0.5, EFFECTOR_COLOR_3),
 
-      
       // bed will be populated elsewhere
-
   };
 
   float extrude_width = 0.4;

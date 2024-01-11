@@ -16,6 +16,14 @@
 #include "src/inc/MarlinConfig.h"
 #include "src/module/motion.h"
 
+static PerspectiveCamera initCamera = {
+  { 37.0f, 121.0f, 129.0f }, // Position
+  { -192.0f, -25.0, 0.0f },  // Rotation
+  { 0.0f, 1.0f, 0.0f },      // Up
+  float(100) / float(100),   // Aspect Ratio
+  glm::radians(45.0f), 0.1f, 2000.0f // FOV, Near, Far
+};
+
 static GLfloat * SetBedVertexAndAdvance(GLfloat * dest, GLfloat x, GLfloat y) {
   const GLfloat new_vertex[VERTEX_FLOAT_COUNT] = { BED_VERTEX(x, y) };
   memcpy(dest, new_vertex, sizeof(new_vertex));
@@ -56,6 +64,8 @@ Visualisation::Visualisation(VirtualPrinter& virtual_printer) : virtual_printer(
       vertex_dest = SetBedVertexAndAdvance(vertex_dest, x2, y1);
     }
   }
+
+  SERIAL_ECHOLNPGM("\nCamera Controls:\n  WASD : Pan\n  EQ   : Zoom In/Out\n  I    : Invert Pan\n  R    : Reset View\n");
 }
 
 Visualisation::~Visualisation() {
@@ -286,7 +296,8 @@ void Visualisation::create() {
     }
   }
 
-  camera = { {37.0f, 121.0f, 129.0f}, {-192.0f, -25.0, 0.0f}, {0.0f, 1.0f, 0.0f}, float(100) / float(100), glm::radians(45.0f), 0.1f, 2000.0f};
+  // Initialise the Camera at the origin pointing at the simulated printer
+  camera = initCamera;
   camera.generate();
 
   //print_bed.build_3point(bed_level_point[0], bed_level_point[1], bed_level_point[2]);
@@ -366,7 +377,7 @@ void Visualisation::update() {
     glm::mat4 print_path_matrix = glm::mat4(1.0f);
     mvp = camera.proj * camera.view * print_path_matrix;
     glUniformMatrix4fv( glGetUniformLocation( program, "u_mvp" ), 1, GL_FALSE, glm::value_ptr(mvp));
-    auto active_path = active_path_block; // a new active path block can be added at any time, so back up the active block ptr;
+    auto active_path = active_path_block; // a new active path block can be added at any time, so back up the active block ptr
     std::size_t data_length = active_path->size();
 
     if (render_path_line) {
@@ -378,7 +389,7 @@ void Visualisation::update() {
       if (render_full_path) {
         for (auto& path : full_path) {
           if (&path[0] == &(*active_path)[0]) break;
-          // these are no longer dynamic buffers and could have the geometry baked rather than continue using the geometery shader
+          // these are no longer dynamic buffers and could have the geometry baked rather than continue using the geometry shader
           std::size_t data_length = path.size();
           glBufferData( GL_ARRAY_BUFFER, data_length * sizeof(std::remove_reference<decltype(path)>::type::value_type), &path[0], GL_STATIC_DRAW );
           glDrawArrays( GL_LINE_STRIP_ADJACENCY, 0, data_length);
@@ -468,8 +479,9 @@ bool Visualisation::points_are_collinear(glm::vec3 a, glm::vec3 b, glm::vec3 c) 
   return glm::length(glm::dot(b - a, c - a) - (glm::length(b - a) * glm::length(c - a))) < 0.0002; // could be increased to further reduce rendered geometry
 }
 
-
 void Visualisation::ui_viewport_callback(UiWindow* window) {
+  static bool invert_pan = false;
+
   auto now = clock.now();
   float delta = std::chrono::duration_cast<std::chrono::duration<float>>(now- last_update).count();
   last_update = now;
@@ -483,23 +495,37 @@ void Visualisation::ui_viewport_callback(UiWindow* window) {
   }
 
   if (viewport.focused) {
-    if (ImGui::IsKeyDown(SDL_SCANCODE_W)) {
-      camera.position += camera.speed * camera.direction * delta;
+    if (ImGui::IsKeyDown(SDL_SCANCODE_R)) {
+      // Unfollow
+      follow_mode = FOLLOW_NONE;
+      // Reset camera
+      camera = initCamera;
+      camera.generate();
     }
-    if (ImGui::IsKeyDown(SDL_SCANCODE_S)) {
+    if (ImGui::IsKeyDown(SDL_SCANCODE_Q)) {
       camera.position -= camera.speed * camera.direction * delta;
     }
+    if (ImGui::IsKeyDown(SDL_SCANCODE_E)) {
+      camera.position += camera.speed * camera.direction * delta;
+    }
+    if (ImGui::IsKeyDown(SDL_SCANCODE_W)) {
+      const glm::vec3 dist = camera.world_up * camera.speed * delta;
+      camera.position += invert_pan ? -dist : dist;
+    }
+    if (ImGui::IsKeyDown(SDL_SCANCODE_S)) {
+      const glm::vec3 dist = camera.world_up * camera.speed * delta;
+      camera.position -= invert_pan ? -dist : dist;
+    }
     if (ImGui::IsKeyDown(SDL_SCANCODE_A)) {
-      camera.position -= glm::normalize(glm::cross(camera.direction, camera.up)) * camera.speed * delta;
+      const glm::vec3 dist = glm::normalize(glm::cross(camera.direction, camera.up)) * camera.speed * delta;
+      camera.position -= invert_pan ? -dist : dist;
     }
     if (ImGui::IsKeyDown(SDL_SCANCODE_D)) {
-      camera.position += glm::normalize(glm::cross(camera.direction, camera.up)) * camera.speed * delta;
+      const glm::vec3 dist = glm::normalize(glm::cross(camera.direction, camera.up)) * camera.speed * delta;
+      camera.position += invert_pan ? -dist : dist;
     }
-    if (ImGui::IsKeyDown(SDL_SCANCODE_SPACE)) {
-      camera.position += camera.world_up * camera.speed * delta;
-    }
-    if (ImGui::IsKeyDown(SDL_SCANCODE_LSHIFT)) {
-      camera.position -= camera.world_up * camera.speed * delta;
+    if (ImGui::IsKeyPressed(SDL_SCANCODE_I)) {
+      invert_pan ^= true;
     }
     if (ImGui::IsKeyPressed(SDL_SCANCODE_F)) {
       follow_mode = follow_mode == FOLLOW_Z ? FOLLOW_NONE : FOLLOW_Z;
