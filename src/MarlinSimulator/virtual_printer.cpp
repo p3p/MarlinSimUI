@@ -1,6 +1,6 @@
 #include <imgui.h>
 
-
+#include "hardware/Button.h"
 #include "hardware/StepperDriver.h"
 #include "hardware/EndStop.h"
 #include "hardware/Heater.h"
@@ -89,6 +89,7 @@ void VirtualPrinter::build() {
   #ifndef LCD_PINS_EN
     #define LCD_PINS_EN LCD_PINS_ENABLE
   #endif
+
   #if ENABLED(TFT_INTERFACE_SPI)
     root->add_component<ST7796Device>("ST7796Device Display", spi_bus_by_pins<TFT_SCK_PIN, TFT_MOSI_PIN, TFT_MISO_PIN>(), TFT_CS_PIN, spi_bus_by_pins<TOUCH_SCK_PIN, TOUCH_MOSI_PIN, TOUCH_MISO_PIN>(), TOUCH_CS_PIN, TFT_DC_PIN, BEEPER_PIN, BTN_EN1, BTN_EN2, BTN_ENC, BTN_BACK, KILL_PIN);
   #elif defined(HAS_MARLINUI_HD44780)
@@ -96,6 +97,11 @@ void VirtualPrinter::build() {
   #elif defined(HAS_MARLINUI_U8GLIB)
     root->add_component<ST7920Device>("ST7920Device Display", LCD_PINS_D4, LCD_PINS_EN, LCD_PINS_RS, BEEPER_PIN, BTN_EN1, BTN_EN2, BTN_ENC, BTN_BACK, KILL_PIN);
   #endif
+
+  #if HAS_KILL
+    root->add_component<Button>("Kill Button", KILL_PIN, false);
+  #endif
+
   #ifdef NEOPIXEL_LED
     root->add_component<NeoPixelDevice>("NeoPixelDevice", NEOPIXEL_PIN, NEOPIXEL_TYPE, NEOPIXEL_PIXELS);
   #endif
