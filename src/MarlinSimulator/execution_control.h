@@ -223,6 +223,11 @@ public:
   // this was neede for when marlin loops idle waiting for an event with no delays
   static void yield();
 
+  static void shutdown() {
+    quit_requested = true;
+    yield();
+  }
+
   static void execution_break() { debug_break_flag = true; }
 
   //Timers

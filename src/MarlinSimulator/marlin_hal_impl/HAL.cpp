@@ -71,11 +71,15 @@ uint16_t MarlinHAL::adc_value() {
   return data;    // return 10bit value as Marlin expects
 }
 
-void MarlinHAL::reboot() { /* Reset the application state and GPIO */ }
+void MarlinHAL::reboot() {
+  Kernel::shutdown();
+}
 
 void MarlinHAL::idletask() {  Kernel::yield(); };
 
-void MarlinHAL::watchdog_refresh() {}
+void MarlinHAL::watchdog_refresh() {
+  Kernel::yield();
+}
 
 void MarlinHAL::watchdog_init() {}
 
