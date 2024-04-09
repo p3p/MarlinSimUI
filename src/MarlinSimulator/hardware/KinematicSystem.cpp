@@ -5,8 +5,12 @@
 #include "KinematicSystem.h"
 
 #include <src/inc/MarlinConfig.h>
+#include <src/module/planner.h>
 
-constexpr float steps_per_unit[] = DEFAULT_AXIS_STEPS_PER_UNIT;
+#ifdef SHOW_MARLIN_STEPPER_COUNTS
+  #include <src/module/motion.h>
+  #include <src/module/stepper.h>
+#endif
 
 KinematicSystem::KinematicSystem(std::function<void(glm::vec4)> on_kinematic_update) : VirtualPrinter::Component("Kinematic System"), on_kinematic_update(on_kinematic_update) {
 
@@ -15,41 +19,69 @@ KinematicSystem::KinematicSystem(std::function<void(glm::vec4)> on_kinematic_upd
   steppers.push_back(add_component<StepperDriver>("Stepper2", Z_ENABLE_PIN, Z_DIR_PIN, Z_STEP_PIN, [this](){ this->kinematic_update(); }));
   steppers.push_back(add_component<StepperDriver>("Stepper3", E0_ENABLE_PIN, E0_DIR_PIN, E0_STEP_PIN, [this](){ this->kinematic_update(); }));
 
-  srand(time(0));
-  origin.x = (rand() % (int)((X_MAX_POS / 4) - X_MIN_POS)) + X_MIN_POS;
-  origin.y = (rand() % (int)((Y_MAX_POS / 4) - Y_MIN_POS)) + Y_MIN_POS;
-  origin.z = (rand() % (int)((Z_MAX_POS / 8) - Z_MIN_POS)) + Z_MIN_POS;
+  origin = { X_HOME_POS, Y_HOME_POS, Z_HOME_POS };
 }
 
 void KinematicSystem::kinematic_update() {
-  stepper_position = glm::vec4{
-    std::static_pointer_cast<StepperDriver>(steppers[0])->steps() / steps_per_unit[0] * (((INVERT_X_DIR * 2) - 1) * -1.0),
-    std::static_pointer_cast<StepperDriver>(steppers[1])->steps() / steps_per_unit[1] * (((INVERT_Y_DIR * 2) - 1) * -1.0),
-    std::static_pointer_cast<StepperDriver>(steppers[2])->steps() / steps_per_unit[2] * (((INVERT_Z_DIR * 2) - 1) * -1.0),
-    std::static_pointer_cast<StepperDriver>(steppers[3])->steps() / steps_per_unit[3] * (((INVERT_E0_DIR * 2) - 1) * -1.0)
-  };
+  #ifdef SHOW_MARLIN_STEPPER_COUNTS
+    std::static_pointer_cast<StepperDriver>(steppers[X_AXIS])->m_steps(stepper.count_position.x);
+    std::static_pointer_cast<StepperDriver>(steppers[Y_AXIS])->m_steps(stepper.count_position.y);
+    std::static_pointer_cast<StepperDriver>(steppers[Z_AXIS])->m_steps(stepper.count_position.z);
+    std::static_pointer_cast<StepperDriver>(steppers[E_AXIS])->m_steps(stepper.count_position.e);
 
-  effector_position = glm::vec4(origin, 0.0f) + stepper_position;
+    abce_pos_t pos = planner.get_axis_positions_mm();
+    effector_position = glm::vec4{ pos.x - origin.x, pos.y - origin.y, pos.z - origin.z, pos.e };
+  #else
+    stepper_position = glm::vec4{
+      std::static_pointer_cast<StepperDriver>(steppers[X_AXIS])->steps() / planner.settings.axis_steps_per_mm[X_AXIS] * (((INVERT_X_DIR * 2) - 1) * -1.0),
+      std::static_pointer_cast<StepperDriver>(steppers[Y_AXIS])->steps() / planner.settings.axis_steps_per_mm[Y_AXIS] * (((INVERT_Y_DIR * 2) - 1) * -1.0),
+      std::static_pointer_cast<StepperDriver>(steppers[Z_AXIS])->steps() / planner.settings.axis_steps_per_mm[Z_AXIS] * (((INVERT_Z_DIR * 2) - 1) * -1.0),
+      std::static_pointer_cast<StepperDriver>(steppers[E_AXIS])->steps() / planner.settings.axis_steps_per_mm[E_AXIS] * (((INVERT_E0_DIR * 2) - 1) * -1.0)
+    };
+    effector_position = glm::vec4(origin, 0.0f) + stepper_position;
+  #endif
+
   on_kinematic_update(effector_position);
 }
 
 void KinematicSystem::ui_widget() {
-  auto pos = (glm::vec4(origin, 0) + stepper_position);
-  auto value = pos.x;
-  if (ImGui::SliderFloat("X Position(mm)", &value, X_MIN_POS, X_MAX_POS)) {
-    origin.x = value - stepper_position.x;
-    kinematic_update();
-  }
-  value = pos.y;
-  if (ImGui::SliderFloat("Y Position(mm)",  &value, Y_MIN_POS, Y_MAX_POS)) {
-    origin.y = value - stepper_position.y;
-    kinematic_update();
-  }
-  value = pos.z;
-  if (ImGui::SliderFloat("Z Position(mm)",  &value, Z_MIN_POS, Z_MAX_POS)) {
-    origin.z = value - stepper_position.z;
-    kinematic_update();
-  }
+  #ifdef SHOW_MARLIN_STEPPER_COUNTS
+    auto value = current_position.x;
+    if (ImGui::SliderFloat("X (mm)", &value, X_MIN_POS, X_MAX_POS)) {
+      current_position.x = value;
+      planner.set_position_mm(current_position);
+      kinematic_update();
+    }
+    value = current_position.y;
+    if (ImGui::SliderFloat("Y (mm)", &value, Y_MIN_POS, Y_MAX_POS)) {
+      current_position.y = value;
+      planner.set_position_mm(current_position);
+      kinematic_update();
+    }
+    value = current_position.z;
+    if (ImGui::SliderFloat("Z (mm)", &value, Z_MIN_POS, Z_MAX_POS)) {
+      current_position.z = value;
+      planner.set_position_mm(current_position);
+      kinematic_update();
+    }
+  #else
+    auto pos = (glm::vec4(origin, 0) + stepper_position);
+    auto value = pos.x;
+    if (ImGui::SliderFloat("X Position(mm)", &value, X_MIN_POS, X_MAX_POS)) {
+      origin.x = value - stepper_position.x;
+      kinematic_update();
+    }
+    value = pos.y;
+    if (ImGui::SliderFloat("Y Position(mm)",  &value, Y_MIN_POS, Y_MAX_POS)) {
+      origin.y = value - stepper_position.y;
+      kinematic_update();
+    }
+    value = pos.z;
+    if (ImGui::SliderFloat("Z Position(mm)",  &value, Z_MIN_POS, Z_MAX_POS)) {
+      origin.z = value - stepper_position.z;
+      kinematic_update();
+    }
+  #endif
 }
 
 #if ENABLED(DELTA)
@@ -145,17 +177,22 @@ DeltaKinematicSystem::DeltaKinematicSystem(std::function<void(glm::vec4)> on_kin
   recalc_delta_settings();
 
   // Add an offset as on deltas the linear rails are offset from the bed
-  origin.x = 207.124;//215.0 + DELTA_HEIGHT;
-  origin.y = 207.124;//215.0 + DELTA_HEIGHT;
-  origin.z = 207.124;//215.0 + DELTA_HEIGHT;
+  origin = { 207.124, 207.124, 207.124 }; // 215.0 + DELTA_HEIGHT
 }
 
 void DeltaKinematicSystem::kinematic_update() {
   stepper_position = glm::vec4{
-    std::static_pointer_cast<StepperDriver>(steppers[0])->steps() / steps_per_unit[0] * (((INVERT_X_DIR * 2) - 1) * -1.0),
-    std::static_pointer_cast<StepperDriver>(steppers[1])->steps() / steps_per_unit[1] * (((INVERT_Y_DIR * 2) - 1) * -1.0),
-    std::static_pointer_cast<StepperDriver>(steppers[2])->steps() / steps_per_unit[2] * (((INVERT_Z_DIR * 2) - 1) * -1.0),
-    std::static_pointer_cast<StepperDriver>(steppers[3])->steps() / steps_per_unit[3] * (((INVERT_E0_DIR * 2) - 1) * -1.0)
+    #ifdef SHOW_MARLIN_STEPPER_COUNTS
+      stepper.count_position.x,
+      stepper.count_position.y,
+      stepper.count_position.z,
+      stepper.count_position.e
+    #else
+      std::static_pointer_cast<StepperDriver>(steppers[X_AXIS])->steps() / planner.settings.axis_steps_per_mm[X_AXIS] * (((INVERT_X_DIR * 2) - 1) * -1.0),
+      std::static_pointer_cast<StepperDriver>(steppers[Y_AXIS])->steps() / planner.settings.axis_steps_per_mm[Y_AXIS] * (((INVERT_Y_DIR * 2) - 1) * -1.0),
+      std::static_pointer_cast<StepperDriver>(steppers[Z_AXIS])->steps() / planner.settings.axis_steps_per_mm[Z_AXIS] * (((INVERT_Z_DIR * 2) - 1) * -1.0),
+      std::static_pointer_cast<StepperDriver>(steppers[E_AXIS])->steps() / planner.settings.axis_steps_per_mm[E_AXIS] * (((INVERT_E0_DIR * 2) - 1) * -1.0)
+    #endif
   };
 
   // Add an offset to fudge the coordinate system onto the bed
@@ -164,18 +201,27 @@ void DeltaKinematicSystem::kinematic_update() {
 }
 
 void DeltaKinematicSystem::ui_widget() {
+  #ifdef SHOW_MARLIN_STEPPER_COUNTS
+    #define LABELA "A (mm)"
+    #define LABELB "B (mm)"
+    #define LABELC "C (mm)"
+  #else
+    #define LABELA "Stepper(A) Position (mm)"
+    #define LABELB "Stepper(B) Position (mm)"
+    #define LABELC "Stepper(C) Position (mm)"
+  #endif
   auto value = stepper_position.x + origin.x;
-  if (ImGui::SliderFloat("Stepper(A) Position (mm)", &value, -100, DELTA_HEIGHT + 100)) {
+  if (ImGui::SliderFloat(LABELA, &value, -100, DELTA_HEIGHT + 100)) {
     origin.x = value - stepper_position.x;
     kinematic_update();
   }
   value = stepper_position.y + origin.y;
-  if (ImGui::SliderFloat("Stepper(B) Position (mm)",  &value, -100, DELTA_HEIGHT + 100)) {
+  if (ImGui::SliderFloat(LABELB,  &value, -100, DELTA_HEIGHT + 100)) {
     origin.y = value - stepper_position.y;
     kinematic_update();
   }
   value = stepper_position.z + origin.z;
-  if (ImGui::SliderFloat("Stepper(C) Position (mm)",  &value, -100, DELTA_HEIGHT + 100)) {
+  if (ImGui::SliderFloat(LABELC,  &value, -100, DELTA_HEIGHT + 100)) {
     origin.z = value - stepper_position.z;
     kinematic_update();
   }

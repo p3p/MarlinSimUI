@@ -309,10 +309,12 @@ void Visualisation::update() {
   }
   camera.update_view();
 
+  // Get the Translate * Scale transform for the Effector
   glm::mat4 model_tmatrix = glm::translate(glm::mat4(1.0f), glm::vec3(effector_pos.x, effector_pos.y, effector_pos.z));
   glm::mat4 model_smatrix = glm::scale(glm::mat4(1.0f), effector_scale );
   glm::mat4 model_matrix = model_tmatrix * model_smatrix;
 
+  // Apply the Camera Projection and View to the Model Matrix
   glm::mat4 mvp = camera.proj * camera.view * model_matrix;
 
   auto print_bed = virtual_printer.get_component<PrintBed>("Print Bed");
@@ -348,25 +350,43 @@ void Visualisation::update() {
     g_vertex_buffer_data[(i * VERTEX_FLOAT_COUNT) + 8] = b;
   }
 
+  // Get the Shader program
   glUseProgram( program );
-  glUniformMatrix4fv( glGetUniformLocation( program, "u_mvp" ), 1, GL_FALSE, glm::value_ptr(mvp));
+
+  GLint mvp_loc = glGetUniformLocation( program, "u_mvp" );
+
+  // Modify program.u_mvp with the Camera Projection, View, and Model Matrix
+  glUniformMatrix4fv( mvp_loc, 1, GL_FALSE, glm::value_ptr(mvp));
+
+  // Bind our Vertex Array for use by GL
   glBindVertexArray( vao );
+
+  // Bind our Vertex Buffer as the current GL array buffer
   glBindBuffer( GL_ARRAY_BUFFER, vbo );
+
+  // Create and init the Buffer Object's data store
   glBufferData( GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), &g_vertex_buffer_data[0], GL_STATIC_DRAW );
 
+  // Draw the first part of the buffer data as triangles
   if (follow_mode != FOLLOW_Z) glDrawArrays( GL_TRIANGLES, 0, 18 );
 
-  // glm::mat4 bed_matrix = glm::translate(glm::scale(glm::mat4(1.0f), {200.0f, 0.0f, 200.0f}), {0.5f, 0.0, -0.5f});
-  // mvp = camera.proj * camera.view * bed_matrix;
+  //glm::mat4 bed_matrix = glm::translate(glm::scale(glm::mat4(1.0f), {200.0f, 0.0f, 200.0f}), {0.5f, 0.0, -0.5f});
+  //mvp = camera.proj * camera.view * bed_matrix;
+
+  // Get the Camera Projection and View
   mvp = camera.proj * camera.view;
-  glUniformMatrix4fv( glGetUniformLocation( program, "u_mvp" ), 1, GL_FALSE, glm::value_ptr(mvp));
+
+  // Modify program.u_mvp with the Camera Projection and View
+  glUniformMatrix4fv( mvp_loc, 1, GL_FALSE, glm::value_ptr(mvp));
+
+  // Draw the second part of the buffer data as triangles
   glDrawArrays( GL_TRIANGLES, BED_VERTEX_OFFSET, NUM_VERTEXES - BED_VERTEX_OFFSET);
 
   if (active_path_block != nullptr) {
     glm::mat4 print_path_matrix = glm::mat4(1.0f);
     mvp = camera.proj * camera.view * print_path_matrix;
-    glUniformMatrix4fv( glGetUniformLocation( program, "u_mvp" ), 1, GL_FALSE, glm::value_ptr(mvp));
-    auto active_path = active_path_block; // a new active path block can be added at any time, so back up the active block ptr;
+    glUniformMatrix4fv( mvp_loc, 1, GL_FALSE, glm::value_ptr(mvp));
+    auto active_path = active_path_block; // a new active path block can be added at any time, so back up the active block ptr
     std::size_t data_length = active_path->size();
 
     if (render_path_line) {
@@ -378,7 +398,7 @@ void Visualisation::update() {
       if (render_full_path) {
         for (auto& path : full_path) {
           if (&path[0] == &(*active_path)[0]) break;
-          // these are no longer dynamic buffers and could have the geometry baked rather than continue using the geometery shader
+          // these are no longer dynamic buffers and could have the geometry baked rather than continue using the geometry shader
           std::size_t data_length = path.size();
           glBufferData( GL_ARRAY_BUFFER, data_length * sizeof(std::remove_reference<decltype(path)>::type::value_type), &path[0], GL_STATIC_DRAW );
           glDrawArrays( GL_LINE_STRIP_ADJACENCY, 0, data_length);
@@ -411,14 +431,14 @@ void Visualisation::update() {
 }
 
 void Visualisation::destroy() {
-  if(framebuffer != nullptr) {
+  if (framebuffer != nullptr) {
     framebuffer->release();
     delete framebuffer;
   }
 }
 
 void Visualisation::set_head_position(glm::vec4 sim_pos) {
-  glm::vec4 position = {sim_pos.x, sim_pos.z, sim_pos.y * -1.0, sim_pos.w}; // correct for opengl coordinate system
+  glm::vec4 position = {sim_pos.x, sim_pos.z, -sim_pos.y, sim_pos.w}; // correct for opengl coordinate system
   if (position != effector_pos) {
 
     if (glm::length(glm::vec3(position) - glm::vec3(last_extrusion_check)) > 0.5f) { // smooths out extrusion over a minimum length to fill in gaps todo: implement an simulation to do this better
