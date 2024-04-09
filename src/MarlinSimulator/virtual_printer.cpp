@@ -76,7 +76,7 @@ void VirtualPrinter::build() {
 
   root->add_component<Heater>("Hotend Heater", HEATER_0_PIN, TEMP_0_PIN, heater_data{12, 3.6}, hotend_data{13, 20, 0.897}, adc_data{4700, 12});
   root->add_component<Heater>("Bed Heater", HEATER_BED_PIN, TEMP_BED_PIN, heater_data{12, 1.2}, hotend_data{325, 824, 0.897}, adc_data{4700, 12});
-  #if HAS_SPI_FLASH
+  #if ENABLED(SPI_FLASH)
     root->add_component<W25QxxDevice>("SPI Flash", spi_bus_by_pins<SPI_FLASH_SCK_PIN, SPI_FLASH_MOSI_PIN, SPI_FLASH_MISO_PIN>(), SPI_FLASH_CS_PIN, SPI_FLASH_SIZE);
   #endif
   #ifdef SDSUPPORT
