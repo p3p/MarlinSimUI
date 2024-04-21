@@ -17,7 +17,7 @@ public:
   void ui_widget() {
     auto has_triggered = triggered();
     ImGui::Checkbox("Triggered State", &has_triggered);
-    ImGui::Text("Nozel Distance Above Bed: %f", position.z - bed.calculate_z({position.x + offset.x, position.y + offset.y}));
+    ImGui::Text("Nozzle Distance Above Bed: %f", position.z - bed.calculate_z({position.x + offset.x, position.y + offset.y}));
   }
 
   bool triggered() {
