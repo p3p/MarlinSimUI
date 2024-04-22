@@ -23,7 +23,7 @@ static GLfloat * SetBedVertexAndAdvance(GLfloat * dest, GLfloat x, GLfloat y) {
 }
 
 Visualisation::Visualisation(VirtualPrinter& virtual_printer) : virtual_printer(virtual_printer) {
-  virtual_printer.on_kinematic_update = [this](glm::vec4 pos){this->set_head_position(pos);};
+  virtual_printer.on_kinematic_update = [this](kinematic_state state){this->set_head_position(state.effector_position[0]);};
 
   GLfloat *vertex_dest = g_vertex_buffer_data.data() + BED_VERTEX_OFFSET * VERTEX_FLOAT_COUNT;
 

@@ -8,29 +8,85 @@
 
 constexpr float steps_per_unit[] = DEFAULT_AXIS_STEPS_PER_UNIT;
 
-KinematicSystem::KinematicSystem(std::function<void(glm::vec4)> on_kinematic_update) : VirtualPrinter::Component("Kinematic System"), on_kinematic_update(on_kinematic_update) {
+KinematicSystem::KinematicSystem(std::function<void(kinematic_state)> on_kinematic_update) : VirtualPrinter::Component("Kinematic System"), on_kinematic_update(on_kinematic_update) {
 
-  steppers.push_back(add_component<StepperDriver>("Stepper0", X_ENABLE_PIN, X_DIR_PIN, X_STEP_PIN, [this](){ this->kinematic_update(); }));
-  steppers.push_back(add_component<StepperDriver>("Stepper1", Y_ENABLE_PIN, Y_DIR_PIN, Y_STEP_PIN, [this](){ this->kinematic_update(); }));
-  steppers.push_back(add_component<StepperDriver>("Stepper2", Z_ENABLE_PIN, Z_DIR_PIN, Z_STEP_PIN, [this](){ this->kinematic_update(); }));
-  steppers.push_back(add_component<StepperDriver>("Stepper3", E0_ENABLE_PIN, E0_DIR_PIN, E0_STEP_PIN, [this](){ this->kinematic_update(); }));
+  steppers.push_back(add_component<StepperDriver>("StepperX", X_ENABLE_PIN, X_DIR_PIN, X_STEP_PIN, [this](){ this->kinematic_update(); }));
+  #if HAS_X2_STEPPER
+    steppers.push_back(add_component<StepperDriver>("StepperX2", X2_ENABLE_PIN, X2_DIR_PIN, X2_STEP_PIN, [this](){ this->kinematic_update(); }));
+  #endif
+
+  steppers.push_back(add_component<StepperDriver>("StepperY", Y_ENABLE_PIN, Y_DIR_PIN, Y_STEP_PIN, [this](){ this->kinematic_update(); }));
+  #if HAS_Y2_STEPPER
+    steppers.push_back(add_component<StepperDriver>("StepperY2", Y2_ENABLE_PIN, Y2_DIR_PIN, Y2_STEP_PIN, [this](){ this->kinematic_update(); }));
+  #endif
+  #if NUM_Z_STEPPERS > 0
+    steppers.push_back(add_component<StepperDriver>("StepperZ", Z_ENABLE_PIN, Z_DIR_PIN, Z_STEP_PIN, [this](){ this->kinematic_update(); }));
+  #endif
+  #if NUM_Z_STEPPERS > 1
+    steppers.push_back(add_component<StepperDriver>("StepperZ2", Z2_ENABLE_PIN, Z2_DIR_PIN, Z2_STEP_PIN, [this](){ this->kinematic_update(); }));
+  #endif
+  #if NUM_Z_STEPPERS > 2
+    steppers.push_back(add_component<StepperDriver>("StepperZ3", Z3_ENABLE_PIN, Z3_DIR_PIN, Z3_STEP_PIN, [this](){ this->kinematic_update(); }));
+  #endif
+  #if NUM_Z_STEPPERS > 3
+    steppers.push_back(add_component<StepperDriver>("StepperZ4", Z4_ENABLE_PIN, Z4_DIR_PIN, Z4_STEP_PIN, [this](){ this->kinematic_update(); }));
+  #endif
+  #if EXTRUDERS > 0
+    steppers.push_back(add_component<StepperDriver>("StepperE0", E0_ENABLE_PIN, E0_DIR_PIN, E0_STEP_PIN, [this](){ this->kinematic_update(); }));
+    state.effector_position.push_back({});
+  #endif
+  #if EXTRUDERS > 1
+    steppers.push_back(add_component<StepperDriver>("StepperE1", E1_ENABLE_PIN, E1_DIR_PIN, E1_STEP_PIN, [this](){ this->kinematic_update(); }));
+    state.effector_position.push_back({});
+  #endif
+  #if EXTRUDERS > 2
+    steppers.push_back(add_component<StepperDriver>("StepperE2", E2_ENABLE_PIN, E2_DIR_PIN, E2_STEP_PIN, [this](){ this->kinematic_update(); }));
+    state.effector_position.push_back({});
+  #endif
+  #if EXTRUDERS > 3
+    steppers.push_back(add_component<StepperDriver>("StepperE3", E3_ENABLE_PIN, E3_DIR_PIN, E3_STEP_PIN, [this](){ this->kinematic_update(); }));
+  #endif
+  #if EXTRUDERS > 4
+    steppers.push_back(add_component<StepperDriver>("StepperE4", E4_ENABLE_PIN, E4_DIR_PIN, E4_STEP_PIN, [this](){ this->kinematic_update(); }));
+  #endif
+  #if EXTRUDERS > 5
+    steppers.push_back(add_component<StepperDriver>("StepperE5", E5_ENABLE_PIN, E5_DIR_PIN, E5_STEP_PIN, [this](){ this->kinematic_update(); }));
+  #endif
+  #if EXTRUDERS > 6
+    steppers.push_back(add_component<StepperDriver>("StepperE6", E6_ENABLE_PIN, E6_DIR_PIN, E6_STEP_PIN, [this](){ this->kinematic_update(); }));
+  #endif
+  #if EXTRUDERS > 7
+    steppers.push_back(add_component<StepperDriver>("StepperE7", E7_ENABLE_PIN, E7_DIR_PIN, E7_STEP_PIN, [this](){ this->kinematic_update(); }));
+  #endif
 
   srand(time(0));
   origin.x = (rand() % (int)((X_MAX_POS / 4) - X_MIN_POS)) + X_MIN_POS;
   origin.y = (rand() % (int)((Y_MAX_POS / 4) - Y_MIN_POS)) + Y_MIN_POS;
   origin.z = (rand() % (int)((Z_MAX_POS / 8) - Z_MIN_POS)) + Z_MIN_POS;
+
 }
 
+std::array<double, HOTENDS> hotend_offset_x HOTEND_OFFSET_X;
+std::array<double, HOTENDS> hotend_offset_y HOTEND_OFFSET_Y;
+std::array<double, HOTENDS> hotend_offset_z HOTEND_OFFSET_Z;
+
+
 void KinematicSystem::kinematic_update() {
-  stepper_position = glm::vec4{
+  glm::vec3 axis_position = glm::vec3{
     std::static_pointer_cast<StepperDriver>(steppers[0])->steps() / steps_per_unit[0] * (((INVERT_X_DIR * 2) - 1) * -1.0),
     std::static_pointer_cast<StepperDriver>(steppers[1])->steps() / steps_per_unit[1] * (((INVERT_Y_DIR * 2) - 1) * -1.0),
-    std::static_pointer_cast<StepperDriver>(steppers[2])->steps() / steps_per_unit[2] * (((INVERT_Z_DIR * 2) - 1) * -1.0),
-    std::static_pointer_cast<StepperDriver>(steppers[3])->steps() / steps_per_unit[3] * (((INVERT_E0_DIR * 2) - 1) * -1.0)
+    std::static_pointer_cast<StepperDriver>(steppers[2])->steps() / steps_per_unit[2] * (((INVERT_Z_DIR * 2) - 1) * -1.0)
   };
 
-  effector_position = glm::vec4(origin, 0.0f) + stepper_position;
-  on_kinematic_update(effector_position);
+  auto extruder0 = std::static_pointer_cast<StepperDriver>(steppers[3])->steps() / steps_per_unit[3] * (((INVERT_E0_DIR * 2) - 1) * -1.0);
+  auto extruder1 = std::static_pointer_cast<StepperDriver>(steppers[4])->steps() / steps_per_unit[4] * (((INVERT_E1_DIR * 2) - 1) * -1.0);
+  auto extruder2 = std::static_pointer_cast<StepperDriver>(steppers[5])->steps() / steps_per_unit[5] * (((INVERT_E2_DIR * 2) - 1) * -1.0);
+
+  state.effector_position[0] = glm::vec4(origin + glm::vec3{hotend_offset_x[0], hotend_offset_y[0], hotend_offset_z[0]}, 0.0f) + glm::vec4(axis_position, extruder0);
+  state.effector_position[1] = glm::vec4(origin + glm::vec3{hotend_offset_x[1], hotend_offset_y[1], hotend_offset_z[1]}, 0.0f) + glm::vec4(axis_position, extruder1);
+  state.effector_position[2] = glm::vec4(origin + glm::vec3{hotend_offset_x[2], hotend_offset_y[2], hotend_offset_z[2]}, 0.0f) + glm::vec4(axis_position, extruder2);
+
+  on_kinematic_update(state);
 }
 
 void KinematicSystem::ui_widget() {
