@@ -5,6 +5,7 @@
 
 #include "hardware/print_bed.h"
 #include "hardware/bed_probe.h"
+#include "hardware/KinematicSystem.h"
 
 #include <gl.h>
 #include <SDL2/SDL.h>
@@ -159,6 +160,19 @@ public:
 
 enum FollowMode : uint8_t { FOLLOW_NONE, FOLLOW_Z, FOLLOW_XY };
 
+struct Extrusion {
+  glm::vec4 last_position = {};
+  glm::vec4 last_extrusion_check = {};
+  bool extruding = false;
+  bool last_extruding  = false;
+  const float filiment_diameter = 1.75;
+  float extrude_width = 0.4;
+  float extrude_thickness = 0.3;
+  glm::vec4 position = {};
+  std::vector<cp_vertex>* active_path_block = nullptr;
+  std::vector<std::vector<cp_vertex>> full_path;
+};
+
 class Visualisation {
 public:
   Visualisation(VirtualPrinter& virtual_printer);
@@ -176,12 +190,10 @@ public:
   void ui_viewport_callback(UiWindow*);
   void ui_info_callback(UiWindow*);
 
-  glm::vec4 last_position = {};
-  glm::vec4 last_extrusion_check = {};
-  bool extruding = false;
-  bool last_extruding  = false;
+  std::vector<Extrusion> extrusion {};
+
   const float filiment_diameter = 1.75;
-  void set_head_position(glm::vec4 position);
+  void set_head_position(size_t hotend_index, extruder_state position);
   bool points_are_collinear(glm::vec3 a, glm::vec3 b, glm::vec3 c);
 
   FollowMode follow_mode = FOLLOW_NONE;
@@ -190,13 +202,11 @@ public:
   glm::vec3 follow_offset = {0.0f, 0.0f, 0.0f};
   std::chrono::steady_clock clock;
   std::chrono::steady_clock::time_point last_update;
-  glm::vec4 effector_pos = {};
+
   glm::vec3 effector_scale = {3.0f ,10.0f, 3.0f};
 
   PerspectiveCamera camera;
   opengl_util::FrameBuffer* framebuffer = nullptr;
-  std::vector<cp_vertex>* active_path_block = nullptr;
-  std::vector<std::vector<cp_vertex>> full_path;
 
   GLuint program, path_program;
   GLuint vao, vbo;
@@ -247,7 +257,7 @@ public:
       EFFECTOR_VERTEX(-0.5, 0.5, 0.5, EFFECTOR_COLOR_2),
       EFFECTOR_VERTEX(0.5, 0.5, 0.5, EFFECTOR_COLOR_3),
 
-      
+
       // bed will be populated elsewhere
 
   };

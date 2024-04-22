@@ -10,8 +10,15 @@
 #include "../virtual_printer.h"
 #include "StepperDriver.h"
 
+struct extruder_state {
+  glm::vec4 position {};
+  glm::vec3 color{};
+};
+
 struct kinematic_state {
-  std::vector<glm::vec4> effector_position {};
+  std::vector<extruder_state> effector_position {};
+  glm::vec3 stepper_position {};
+  glm::vec3 position {};
 };
 
 class KinematicSystem : public VirtualPrinter::Component {
