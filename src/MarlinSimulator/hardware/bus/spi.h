@@ -62,7 +62,7 @@ public:
     auto evt = SpiEvent{data, (uint8_t*)read_into, sizeof(DataType) * length, source_increment, sizeof(DataType)};
     for (auto callback : callbacks) callback(evt);
 
-    if ((void*)data != (void*)write_from) delete data;
+    if ((void*)data != (void*)write_from) delete[] data;
   }
 
   template<class... Args>
@@ -86,4 +86,3 @@ extern SpiBus SpiBus3;
 
 template <pin_type CLK, pin_type MOSI, pin_type MISO>
 SpiBus& spi_bus_by_pins();
-
