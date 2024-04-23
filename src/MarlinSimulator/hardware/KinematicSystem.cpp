@@ -7,6 +7,39 @@
 #include <src/inc/MarlinConfig.h>
 
 constexpr float steps_per_unit[] = DEFAULT_AXIS_STEPS_PER_UNIT;
+constexpr bool extruder_invert_dir[EXTRUDERS] = {
+#ifdef INVERT_E0_DIR
+  INVERT_E0_DIR,
+#endif
+#ifdef INVERT_E1_DIR
+  INVERT_E1_DIR,
+#endif
+#ifdef INVERT_E2_DIR
+  INVERT_E2_DIR,
+#endif
+#ifdef INVERT_E3_DIR
+  INVERT_E3_DIR,
+#endif
+#ifdef INVERT_E4_DIR
+  INVERT_E4_DIR,
+#endif
+#ifdef INVERT_E5_DIR
+  INVERT_E5_DIR,
+#endif
+#ifdef INVERT_E6_DIR
+  INVERT_E6_DIR,
+#endif
+#ifdef INVERT_E7_DIR
+  INVERT_E7_DIR,
+#endif
+};
+
+constexpr bool distinct_e_factors =
+#ifdef DISTINCT_E_FACTORS
+true;
+#else
+false;
+#endif
 
 enum AxisIndex {
   X,
@@ -118,9 +151,34 @@ KinematicSystem::KinematicSystem(std::function<void(kinematic_state)> on_kinemat
 
 }
 
+#ifdef HOTEND_OFFSET_X
 std::array<double, HOTENDS> hotend_offset_x HOTEND_OFFSET_X;
+#else
+std::array<double, HOTENDS> hotend_offset_x {};
+#endif
+
+#ifdef HOTEND_OFFSET_Y
 std::array<double, HOTENDS> hotend_offset_y HOTEND_OFFSET_Y;
+#else
+std::array<double, HOTENDS> hotend_offset_y {};
+#endif
+
+#ifdef HOTEND_OFFSET_Z
 std::array<double, HOTENDS> hotend_offset_z HOTEND_OFFSET_Z;
+#else
+std::array<double, HOTENDS> hotend_offset_z {};
+#endif
+
+std::array<glm::vec3, 8> filament_color {
+  glm::vec3 {1.0, 0.0, 0.0},
+            {0.0, 1.0, 0.0},
+            {0.0, 0.0, 1.0},
+            {1.0, 1.0, 0.0},
+            {1.0, 0.0, 1.0},
+            {0.0, 1.0, 1.0},
+            {1.0, 1.0, 1.0},
+            {0.0, 0.0, 0.0}
+};
 
 void KinematicSystem::kinematic_update() {
   state.stepper_position = glm::vec3{
@@ -128,22 +186,22 @@ void KinematicSystem::kinematic_update() {
     std::static_pointer_cast<StepperDriver>(steppers[1])->steps() / steps_per_unit[1] * (((INVERT_Y_DIR * 2) - 1) * -1.0),
     std::static_pointer_cast<StepperDriver>(steppers[2])->steps() / steps_per_unit[2] * (((INVERT_Z_DIR * 2) - 1) * -1.0)
   };
-  #if HOTENDS
-    auto extruder0 = std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::E0])->steps() / steps_per_unit[3] * (((INVERT_E0_DIR * 2) - 1) * -1.0);
-    state.effector_position[0] = {glm::vec4(origin + glm::vec3{hotend_offset_x[0], hotend_offset_y[0], hotend_offset_z[0]}, 0.0f) + glm::vec4(state.stepper_position, extruder0), {1.0, 0.0, 0.0}};
-  #endif
-  #if HOTENDS > 1
-    auto extruder1 = std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::E1])->steps() / steps_per_unit[4] * (((INVERT_E1_DIR * 2) - 1) * -1.0);
-    state.effector_position[1] = {glm::vec4(origin + glm::vec3{hotend_offset_x[1], hotend_offset_y[1], hotend_offset_z[1]}, 0.0f) + glm::vec4(state.stepper_position, extruder1), {0.0, 1.0, 0.0}};
-  #endif
-  #if HOTENDS > 2
-    auto extruder2 = std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::E2])->steps() / steps_per_unit[5] * (((INVERT_E2_DIR * 2) - 1) * -1.0);
-    state.effector_position[2] = {glm::vec4(origin + glm::vec3{hotend_offset_x[2], hotend_offset_y[2], hotend_offset_z[2]}, 0.0f) + glm::vec4(state.stepper_position, extruder2), {0.0, 0.0, 1.0}};
-  #endif
-  #if HOTENDS > 3
-    auto extruder3 = std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::E3])->steps() / steps_per_unit[6] * (((INVERT_E3_DIR * 2) - 1) * -1.0);
-    state.effector_position[3] = {glm::vec4(origin + glm::vec3{hotend_offset_x[3], hotend_offset_y[3], hotend_offset_z[3]}, 0.0f) + glm::vec4(state.stepper_position, extruder3), {1.0, 0.0, 1.0}};
-  #endif
+
+  std::vector<double> extruder {};
+  for (size_t i = 0; i < EXTRUDERS; ++i) {
+    extruder.push_back(std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::E0 + i])->steps() / steps_per_unit[3 + (i * distinct_e_factors)] * (((extruder_invert_dir[i] * 2) - 1) * -1.0));
+  }
+
+#ifdef SINGLENOZZLE
+  for (size_t i = 0; i < EXTRUDERS; ++i) {
+    state.effector_position[i] = {glm::vec4(origin + glm::vec3{hotend_offset_x[0], hotend_offset_y[0], hotend_offset_z[0]}, 0.0f) + glm::vec4(state.stepper_position, extruder[i]), filament_color[i]};
+  }
+#else
+  for (size_t i = 0; i < HOTENDS; ++i) {
+    state.effector_position[i] = {glm::vec4(origin + glm::vec3{hotend_offset_x[i], hotend_offset_y[i], hotend_offset_z[i]}, 0.0f) + glm::vec4(state.stepper_position, extruder[i]), filament_color[i]};
+  }
+#endif
+
   state.position = state.effector_position[0].position;
   on_kinematic_update(state);
 }

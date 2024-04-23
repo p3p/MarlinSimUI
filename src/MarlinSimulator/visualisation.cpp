@@ -24,12 +24,12 @@ static GLfloat * SetBedVertexAndAdvance(GLfloat * dest, GLfloat x, GLfloat y) {
 
 Visualisation::Visualisation(VirtualPrinter& virtual_printer) : virtual_printer(virtual_printer) {
   virtual_printer.on_kinematic_update = [this](kinematic_state state){
-    for (size_t i = 0; i < HOTENDS; ++i) {
+    for (size_t i = 0; i < state.effector_position.size(); ++i) {
       this->set_head_position(i, state.effector_position[i]);
     }
   };
 
-  for (int i = 0; i < HOTENDS; ++i) {
+  for (int i = 0; i < EXTRUDERS; ++i) {
     extrusion.push_back({});
   }
 
