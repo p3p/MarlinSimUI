@@ -23,7 +23,15 @@ static GLfloat * SetBedVertexAndAdvance(GLfloat * dest, GLfloat x, GLfloat y) {
 }
 
 Visualisation::Visualisation(VirtualPrinter& virtual_printer) : virtual_printer(virtual_printer) {
-  virtual_printer.on_kinematic_update = [this](glm::vec4 pos){this->set_head_position(pos);};
+  virtual_printer.on_kinematic_update = [this](kinematic_state state){
+    for (size_t i = 0; i < state.effector_position.size(); ++i) {
+      this->set_head_position(i, state.effector_position[i]);
+    }
+  };
+
+  for (int i = 0; i < EXTRUDERS; ++i) {
+    extrusion.push_back({});
+  }
 
   GLfloat *vertex_dest = g_vertex_buffer_data.data() + BED_VERTEX_OFFSET * VERTEX_FLOAT_COUNT;
 
@@ -302,6 +310,8 @@ void Visualisation::update() {
   // float delta = std::chrono::duration_cast<std::chrono::duration<float>>(now - last_update).count();
   // last_update = now;
 
+  auto effector_pos = extrusion[0].position;
+
   switch (follow_mode) {
     case FOLLOW_Z:  camera.position = glm::vec3(effector_pos.x, camera.position.y, effector_pos.z); break;
     case FOLLOW_XY: camera.position = glm::vec3(camera.position.x, effector_pos.y + follow_offset.y, camera.position.z); break;
@@ -312,7 +322,6 @@ void Visualisation::update() {
   glm::mat4 model_tmatrix = glm::translate(glm::mat4(1.0f), glm::vec3(effector_pos.x, effector_pos.y, effector_pos.z));
   glm::mat4 model_smatrix = glm::scale(glm::mat4(1.0f), effector_scale );
   glm::mat4 model_matrix = model_tmatrix * model_smatrix;
-
   glm::mat4 mvp = camera.proj * camera.view * model_matrix;
 
   auto print_bed = virtual_printer.get_component<PrintBed>("Print Bed");
@@ -348,62 +357,72 @@ void Visualisation::update() {
     g_vertex_buffer_data[(i * VERTEX_FLOAT_COUNT) + 8] = b;
   }
 
+  auto mvp_loc = glGetUniformLocation( program, "u_mvp" );
+
   glUseProgram( program );
-  glUniformMatrix4fv( glGetUniformLocation( program, "u_mvp" ), 1, GL_FALSE, glm::value_ptr(mvp));
   glBindVertexArray( vao );
   glBindBuffer( GL_ARRAY_BUFFER, vbo );
   glBufferData( GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), &g_vertex_buffer_data[0], GL_STATIC_DRAW );
 
-  if (follow_mode != FOLLOW_Z) glDrawArrays( GL_TRIANGLES, 0, 18 );
-
   // glm::mat4 bed_matrix = glm::translate(glm::scale(glm::mat4(1.0f), {200.0f, 0.0f, 200.0f}), {0.5f, 0.0, -0.5f});
   // mvp = camera.proj * camera.view * bed_matrix;
   mvp = camera.proj * camera.view;
-  glUniformMatrix4fv( glGetUniformLocation( program, "u_mvp" ), 1, GL_FALSE, glm::value_ptr(mvp));
+  glUniformMatrix4fv( mvp_loc, 1, GL_FALSE, glm::value_ptr(mvp));
   glDrawArrays( GL_TRIANGLES, BED_VERTEX_OFFSET, NUM_VERTEXES - BED_VERTEX_OFFSET);
 
-  if (active_path_block != nullptr) {
-    glm::mat4 print_path_matrix = glm::mat4(1.0f);
-    mvp = camera.proj * camera.view * print_path_matrix;
-    glUniformMatrix4fv( glGetUniformLocation( program, "u_mvp" ), 1, GL_FALSE, glm::value_ptr(mvp));
-    auto active_path = active_path_block; // a new active path block can be added at any time, so back up the active block ptr;
-    std::size_t data_length = active_path->size();
+  for (auto& ext : extrusion ) {
+    model_tmatrix = glm::translate(glm::mat4(1.0f), glm::vec3(ext.position.x, ext.position.y, ext.position.z));
+    model_smatrix = glm::scale(glm::mat4(1.0f), effector_scale );
+    model_matrix = model_tmatrix * model_smatrix;
+    mvp = camera.proj * camera.view * model_matrix;
+    glUniformMatrix4fv( mvp_loc, 1, GL_FALSE, glm::value_ptr(mvp));
+    if (follow_mode != FOLLOW_Z) glDrawArrays( GL_TRIANGLES, 0, 18 );
+  }
 
-    if (render_path_line) {
+  for (auto& ext : extrusion ) {
+    if (ext.active_path_block != nullptr) {
+      glm::mat4 print_path_matrix = glm::mat4(1.0f);
+      mvp = camera.proj * camera.view * print_path_matrix;
+      glUniformMatrix4fv( mvp_loc, 1, GL_FALSE, glm::value_ptr(mvp));
+      auto active_path = ext.active_path_block; // a new active path block can be added at any time, so back up the active block ptr;
+      std::size_t data_length = active_path->size();
+
+      glUseProgram( path_program );
+      glUniform1f( glGetUniformLocation( path_program, "u_layer_thickness" ), extrude_thickness);
+      glUniform1f( glGetUniformLocation( path_program, "u_layer_width" ), extrude_width);
+      glUniformMatrix4fv( glGetUniformLocation( path_program, "u_mvp" ), 1, GL_FALSE, glm::value_ptr(mvp));
+      glUniform3fv( glGetUniformLocation( path_program, "u_view_position" ), 1, glm::value_ptr(camera.position));
+
+      if (render_path_line) {
+        if (active_path != nullptr && data_length > 1) {
+          glBufferData( GL_ARRAY_BUFFER, data_length * sizeof(std::remove_pointer<decltype(active_path)>::type::value_type), &(*active_path)[0], GL_STATIC_DRAW );
+          glDrawArrays( GL_LINE_STRIP_ADJACENCY, 0, data_length);
+        }
+
+        if (render_full_path) {
+          for (auto& path : ext.full_path) {
+            if (&path[0] == &(*active_path)[0]) break;
+            // these are no longer dynamic buffers and could have the geometry baked rather than continue using the geometery shader
+            std::size_t data_length = path.size();
+            glBufferData( GL_ARRAY_BUFFER, data_length * sizeof(std::remove_reference<decltype(path)>::type::value_type), &path[0], GL_STATIC_DRAW );
+            glDrawArrays( GL_LINE_STRIP_ADJACENCY, 0, data_length);
+          }
+        }
+      }
+
       if (active_path != nullptr && data_length > 1) {
         glBufferData( GL_ARRAY_BUFFER, data_length * sizeof(std::remove_pointer<decltype(active_path)>::type::value_type), &(*active_path)[0], GL_STATIC_DRAW );
         glDrawArrays( GL_LINE_STRIP_ADJACENCY, 0, data_length);
       }
 
       if (render_full_path) {
-        for (auto& path : full_path) {
+        for (auto& path : ext.full_path) {
           if (&path[0] == &(*active_path)[0]) break;
           // these are no longer dynamic buffers and could have the geometry baked rather than continue using the geometery shader
           std::size_t data_length = path.size();
           glBufferData( GL_ARRAY_BUFFER, data_length * sizeof(std::remove_reference<decltype(path)>::type::value_type), &path[0], GL_STATIC_DRAW );
           glDrawArrays( GL_LINE_STRIP_ADJACENCY, 0, data_length);
         }
-      }
-    }
-
-    glUseProgram( path_program );
-    glUniform1f( glGetUniformLocation( path_program, "u_layer_thickness" ), extrude_thickness);
-    glUniform1f( glGetUniformLocation( path_program, "u_layer_width" ), extrude_width);
-    glUniformMatrix4fv( glGetUniformLocation( path_program, "u_mvp" ), 1, GL_FALSE, glm::value_ptr(mvp));
-    glUniform3fv( glGetUniformLocation( path_program, "u_view_position" ), 1, glm::value_ptr(camera.position));
-
-    if (active_path != nullptr && data_length > 1) {
-      glBufferData( GL_ARRAY_BUFFER, data_length * sizeof(std::remove_pointer<decltype(active_path)>::type::value_type), &(*active_path)[0], GL_STATIC_DRAW );
-      glDrawArrays( GL_LINE_STRIP_ADJACENCY, 0, data_length);
-    }
-
-    if (render_full_path) {
-      for (auto& path : full_path) {
-        if (&path[0] == &(*active_path)[0]) break;
-        // these are no longer dynamic buffers and could have the geometry baked rather than continue using the geometery shader
-        std::size_t data_length = path.size();
-        glBufferData( GL_ARRAY_BUFFER, data_length * sizeof(std::remove_reference<decltype(path)>::type::value_type), &path[0], GL_STATIC_DRAW );
-        glDrawArrays( GL_LINE_STRIP_ADJACENCY, 0, data_length);
       }
     }
   }
@@ -417,50 +436,55 @@ void Visualisation::destroy() {
   }
 }
 
-void Visualisation::set_head_position(glm::vec4 sim_pos) {
+void Visualisation::set_head_position(size_t hotend_index, extruder_state state) {
+  glm::vec4 sim_pos = state.position;
   glm::vec4 position = {sim_pos.x, sim_pos.z, sim_pos.y * -1.0, sim_pos.w}; // correct for opengl coordinate system
-  if (position != effector_pos) {
+  if (hotend_index >= extrusion.size()) return;
+  auto& extruder = extrusion[hotend_index];
+  glm::vec3 extrude_color = state.color;
 
-    if (glm::length(glm::vec3(position) - glm::vec3(last_extrusion_check)) > 0.5f) { // smooths out extrusion over a minimum length to fill in gaps todo: implement an simulation to do this better
-      extruding = position.w - last_extrusion_check.w > 0.0f;
-      last_extrusion_check = position;
+  if (position != extruder.position) {
+
+    if (glm::length(glm::vec3(position) - glm::vec3(extruder.last_extrusion_check)) > 0.5f) { // smooths out extrusion over a minimum length to fill in gaps todo: implement an simulation to do this better
+      extruder.extruding = position.w - extruder.last_extrusion_check.w > 0.0f;
+      extruder.last_extrusion_check = position;
     }
 
-    if (active_path_block != nullptr && active_path_block->size() > 1 && active_path_block->size() < 10000) {
+    if (extruder.active_path_block != nullptr && extruder.active_path_block->size() > 1 && extruder.active_path_block->size() < 10000) {
 
-      if (glm::length(glm::vec3(position) - glm::vec3(last_position)) > 0.05f) { // smooth out the path so the model renders with less geometry, rendering each individual step hurts the fps
-        if(points_are_collinear(position, active_path_block->end()[-3].position, active_path_block->end()[-2].position) && extruding == last_extruding) {
+      if (glm::length(glm::vec3(position) - glm::vec3(extruder.last_position)) > 0.05f) { // smooth out the path so the model renders with less geometry, rendering each individual step hurts the fps
+        if(points_are_collinear(position, extruder.active_path_block->end()[-3].position, extruder.active_path_block->end()[-2].position) && extruder.extruding == extruder.last_extruding) {
           // collinear and extrusion state has not changed to we can just change the current point.
-          active_path_block->end()[-2].position = position;
-          active_path_block->end()[-1].position = position;
+          extruder.active_path_block->end()[-2].position = position;
+          extruder.active_path_block->end()[-1].position = position;
         } else { // new point is not collinear with current path add new point
-          active_path_block->end()[-1] ={position, {0.0, 1.0, 0.0}, {1.0, 0.0, 0.0, extruding}};
-          active_path_block->push_back(active_path_block->back());
+          extruder.active_path_block->end()[-1] ={position, {0.0, 1.0, 0.0}, {extrude_color, extruder.extruding}};
+          extruder.active_path_block->push_back(extruder.active_path_block->back());
         }
-        last_position = position;
-        last_extruding = extruding;
+        extruder.last_position = position;
+        extruder.last_extruding = extruder.extruding;
       }
 
     } else { // need to change geometry buffer
-      if (active_path_block == nullptr) {
-        full_path.push_back({{position, {0.0, 1.0, 0.0}, {1.0, 0.0, 0.0, 0.0}}});
-        full_path.back().reserve(10000);
-        active_path_block = &full_path.end()[-1];
-        active_path_block->push_back(active_path_block->back());
-        last_extrusion_check = position;
+      if (extruder.active_path_block == nullptr) {
+        extruder.full_path.push_back({{position, {0.0, 1.0, 0.0}, {extrude_color, 0.0}}});
+        extruder.full_path.back().reserve(10000);
+        extruder.active_path_block = &extruder.full_path.end()[-1];
+        extruder.active_path_block->push_back(extruder.active_path_block->back());
+        extruder.last_extrusion_check = position;
       } else {
-        full_path.push_back({full_path.back().back()});
-        full_path.back().reserve(10000);
-        active_path_block = &full_path.end()[-1];
-        active_path_block->push_back({position, {0.0, 1.0, 0.0}, {1.0, 0.0, 0.0, extruding}});
-        active_path_block->push_back(active_path_block->back());
+        extruder.full_path.push_back({extruder.full_path.back().back()});
+        extruder.full_path.back().reserve(10000);
+        extruder.active_path_block = &extruder.full_path.end()[-1];
+        extruder.active_path_block->push_back({position, {0.0, 1.0, 0.0}, {extrude_color, extruder.extruding}});
+        extruder.active_path_block->push_back(extruder.active_path_block->back());
       }
       // extra dummy verticies for line strip adjacency
-      active_path_block->push_back(active_path_block->back());
-      active_path_block->push_back(active_path_block->back());
-      last_position = position;
+      extruder.active_path_block->push_back(extruder.active_path_block->back());
+      extruder.active_path_block->push_back(extruder.active_path_block->back());
+      extruder.last_position = position;
     }
-    effector_pos = position;
+    extruder.position = position;
   }
 }
 
@@ -468,13 +492,13 @@ bool Visualisation::points_are_collinear(glm::vec3 a, glm::vec3 b, glm::vec3 c) 
   return glm::length(glm::dot(b - a, c - a) - (glm::length(b - a) * glm::length(c - a))) < 0.0002; // could be increased to further reduce rendered geometry
 }
 
-
 void Visualisation::ui_viewport_callback(UiWindow* window) {
   auto now = clock.now();
   float delta = std::chrono::duration_cast<std::chrono::duration<float>>(now- last_update).count();
   last_update = now;
 
   Viewport& viewport = *((Viewport*)window);
+  auto& ex = extrusion[0];
 
   if (viewport.dirty) {
     framebuffer->update(viewport.viewport_size.x, viewport.viewport_size.y);
@@ -504,14 +528,14 @@ void Visualisation::ui_viewport_callback(UiWindow* window) {
     if (ImGui::IsKeyPressed(SDL_SCANCODE_F)) {
       follow_mode = follow_mode == FOLLOW_Z ? FOLLOW_NONE : FOLLOW_Z;
       if (follow_mode != FOLLOW_NONE) {
-        camera.position = glm::vec3(effector_pos.x, effector_pos.y + 10.0, effector_pos.z);
+        camera.position = glm::vec3(ex.position.x, ex.position.y + 10.0, ex.position.z);
         camera.rotation.y = -89.99999;
       }
     }
     if (ImGui::IsKeyPressed(SDL_SCANCODE_G)) {
       follow_mode = follow_mode == FOLLOW_XY ? FOLLOW_NONE : FOLLOW_XY;
       if (follow_mode != FOLLOW_NONE)
-        follow_offset = camera.position - glm::vec3(effector_pos);
+        follow_offset = camera.position - glm::vec3(ex.position);
     }
     if (ImGui::IsKeyPressed(SDL_SCANCODE_F1)) {
       render_full_path = !render_full_path;
@@ -520,8 +544,10 @@ void Visualisation::ui_viewport_callback(UiWindow* window) {
       render_path_line = !render_path_line;
     }
     if (ImGui::IsKeyPressed(SDL_SCANCODE_F4)) {
-      active_path_block = nullptr;
-      full_path.clear();
+      for (auto& extruder : extrusion) {
+        extruder.active_path_block = nullptr;
+        extruder.full_path.clear();
+      }
     }
     if (ImGui::GetIO().MouseWheel != 0 && viewport.hovered) {
       camera.position += camera.speed * camera.direction * delta * ImGui::GetIO().MouseWheel;
@@ -593,8 +619,10 @@ void Visualisation::ui_info_callback(UiWindow* w) {
   //             effector_pos.y,
   //             NATIVE_TO_LOGICAL(current_position[Z_AXIS], Z_AXIS) - effector_pos.y);
   if (ImGui::Button("Clear Print Area")) {
-    active_path_block = nullptr;
-    full_path.clear();
+    for (auto& extruder : extrusion) {
+      extruder.active_path_block = nullptr;
+      extruder.full_path.clear();
+    }
   }
   ImGui::PushItemWidth(150); ImGui::Text("Extrude Width    ");  ImGui::PopItemWidth(); ImGui::PushItemWidth(50); ImGui::SameLine(); ImGui::InputFloat("##Extrude_Width", &extrude_width); ImGui::PopItemWidth();
   ImGui::PushItemWidth(150); ImGui::Text("Extrude Thickness");  ImGui::PopItemWidth(); ImGui::PushItemWidth(50); ImGui::SameLine(); ImGui::InputFloat("##Extrude_Thickness", &extrude_thickness); ImGui::PopItemWidth();

@@ -29,7 +29,7 @@
   #define SD_DETECT_STATE HIGH
 #endif
 
-std::function<void(glm::vec4)> VirtualPrinter::on_kinematic_update;
+std::function<void(kinematic_state)> VirtualPrinter::on_kinematic_update;
 std::map<std::string, std::shared_ptr<VirtualPrinter::Component>> VirtualPrinter::component_map;
 std::vector<std::shared_ptr<VirtualPrinter::Component>> VirtualPrinter::components;
 std::shared_ptr<VirtualPrinter::Component> VirtualPrinter::root;
@@ -52,14 +52,14 @@ void VirtualPrinter::build() {
 
   #if ENABLED(DELTA)
     auto kinematics = root->add_component<DeltaKinematicSystem>("Delta Kinematic System", on_kinematic_update);
-    root->add_component<EndStop>("Endstop(Tower A Max)", X_MAX_PIN, !X_MAX_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->stepper_position.x >= Z_MAX_POS; });
-    root->add_component<EndStop>("Endstop(Tower B Max)", Y_MAX_PIN, !Y_MAX_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->stepper_position.y >= Z_MAX_POS; });
-    root->add_component<EndStop>("Endstop(Tower C Max)", Z_MAX_PIN, !Z_MAX_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->stepper_position.z >= Z_MAX_POS; });
+    root->add_component<EndStop>("Endstop(Tower A Max)", X_MAX_PIN, !X_MAX_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->state.stepper_position.x >= Z_MAX_POS; });
+    root->add_component<EndStop>("Endstop(Tower B Max)", Y_MAX_PIN, !Y_MAX_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->state.stepper_position.y >= Z_MAX_POS; });
+    root->add_component<EndStop>("Endstop(Tower C Max)", Z_MAX_PIN, !Z_MAX_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->state.stepper_position.z >= Z_MAX_POS; });
   #else
     auto kinematics = root->add_component<KinematicSystem>("Cartesian Kinematic System", on_kinematic_update);
-    root->add_component<EndStop>("Endstop(X Min)", X_MIN_PIN, !X_MIN_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->effector_position.x <= X_MIN_POS; });
-    root->add_component<EndStop>("Endstop(Y Min)", Y_MIN_PIN, !Y_MIN_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->effector_position.y <= Y_MIN_POS; });
-    root->add_component<EndStop>("Endstop(Z Min)", Z_MIN_PIN, !Z_MIN_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->effector_position.z <= Z_MIN_POS; });
+    root->add_component<EndStop>("Endstop(X Min)", X_MIN_PIN, !X_MIN_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->state.position.x <= X_MIN_POS; });
+    root->add_component<EndStop>("Endstop(Y Min)", Y_MIN_PIN, !Y_MIN_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->state.position.y <= Y_MIN_POS; });
+    root->add_component<EndStop>("Endstop(Z Min)", Z_MIN_PIN, !Z_MIN_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->state.position.z <= Z_MIN_POS; });
   #endif
 
   auto print_bed = root->add_component<PrintBed>("Print Bed", glm::vec2{X_BED_SIZE, Y_BED_SIZE});
@@ -74,8 +74,23 @@ void VirtualPrinter::build() {
     , glm::vec3 NOZZLE_TO_PROBE_OFFSET, kinematics->effector_position, *print_bed);
   #endif
 
-  root->add_component<Heater>("Hotend Heater", HEATER_0_PIN, TEMP_0_PIN, heater_data{12, 3.6}, hotend_data{13, 20, 0.897}, adc_data{4700, 12});
-  root->add_component<Heater>("Bed Heater", HEATER_BED_PIN, TEMP_BED_PIN, heater_data{12, 1.2}, hotend_data{325, 824, 0.897}, adc_data{4700, 12});
+  #if HOTENDS
+    root->add_component<Heater>("Hotend0 Heater", HEATER_0_PIN, TEMP_0_PIN, heater_data{12, 3.6}, hotend_data{13, 20, 0.897}, adc_data{4700, 12});
+    #if HOTENDS > 1
+      root->add_component<Heater>("Hotend1 Heater", HEATER_1_PIN, TEMP_1_PIN, heater_data{12, 3.6}, hotend_data{13, 20, 0.897}, adc_data{4700, 12});
+    #endif
+    #if HOTENDS > 2
+      root->add_component<Heater>("Hotend2 Heater", HEATER_2_PIN, TEMP_2_PIN, heater_data{12, 3.6}, hotend_data{13, 20, 0.897}, adc_data{4700, 12});
+    #endif
+    #if HOTENDS > 3
+      root->add_component<Heater>("Hotend3 Heater", HEATER_3_PIN, TEMP_3_PIN, heater_data{12, 3.6}, hotend_data{13, 20, 0.897}, adc_data{4700, 12});
+    #endif
+  #endif
+
+  #if TEMP_SENSOR_BED
+    root->add_component<Heater>("Bed Heater", HEATER_BED_PIN, TEMP_BED_PIN, heater_data{12, 1.2}, hotend_data{325, 824, 0.897}, adc_data{4700, 12});
+  #endif
+
   #if ENABLED(SPI_FLASH)
     root->add_component<W25QxxDevice>("SPI Flash", spi_bus_by_pins<SPI_FLASH_SCK_PIN, SPI_FLASH_MOSI_PIN, SPI_FLASH_MISO_PIN>(), SPI_FLASH_CS_PIN, SPI_FLASH_SIZE);
   #endif
