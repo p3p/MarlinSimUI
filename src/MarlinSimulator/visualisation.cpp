@@ -126,6 +126,17 @@ void Visualisation::create() {
     }
   }
 
+  auto kin = virtual_printer.get_component<KinematicSystem>("Cartesian Kinematic System");
+  if (kin != nullptr && kin->state.effector_position.size() == extrusion.size()) {
+    size_t i = 0;
+    for (auto state : kin->state.effector_position) {
+      glm::vec4 pos = {state.position.x, state.position.z, state.position.y * -1.0, state.position.w};
+      extrusion[i].last_position = pos;
+      extrusion[i].position = pos;
+      ++i;
+    }
+  }
+
   m_initialised = true;
 
 }
@@ -208,10 +219,9 @@ void Visualisation::destroy() {
 }
 
 void Visualisation::set_head_position(size_t hotend_index, extruder_state state) {
-  if (!m_initialised) return;
+  if (!m_initialised || hotend_index >= extrusion.size()) return;
   glm::vec4 sim_pos = state.position;
   glm::vec4 position = {sim_pos.x, sim_pos.z, sim_pos.y * -1.0, sim_pos.w}; // correct for opengl coordinate system
-  if (hotend_index >= extrusion.size()) return;
   auto& extruder = extrusion[hotend_index];
   glm::vec3 extrude_color = state.color;
 
@@ -259,6 +269,7 @@ void Visualisation::set_head_position(size_t hotend_index, extruder_state state)
 
         buffer->add_vertex(last_vertex);
         buffer->add_vertex({position, {0.0, 1.0, 0.0}, {extrude_color, extruder.extruding}});
+        buffer->add_vertex(buffer->cdata().back());
       }
       // extra dummy verticies for line strip adjacency
       extruder.active_mesh_buffer->add_vertex(extruder.active_mesh_buffer->cdata().back());
