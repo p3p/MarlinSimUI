@@ -32,9 +32,71 @@ Visualisation::Visualisation(VirtualPrinter& virtual_printer) : virtual_printer(
   for (int i = 0; i < EXTRUDERS; ++i) {
     extrusion.push_back({});
   }
+}
 
-  GLfloat *vertex_dest = g_vertex_buffer_data.data() + BED_VERTEX_OFFSET * VERTEX_FLOAT_COUNT;
+Visualisation::~Visualisation() {
+  destroy();
+}
 
+void Visualisation::create() {
+  path_program = ShaderProgram::loadProgram(renderer::path_vertex_shader, renderer::path_fragment_shader, renderer::geometry_shader);
+  program = ShaderProgram::loadProgram(renderer::vertex_shader, renderer::fragment_shader);
+
+  framebuffer = new opengl_util::MsaaFrameBuffer();
+  if (!((opengl_util::MsaaFrameBuffer*)framebuffer)->create(100, 100, 4)) {
+    fprintf(stderr, "Failed to initialise MSAA Framebuffer falling back to TextureFramebuffer\n");
+    delete framebuffer;
+    framebuffer = new opengl_util::TextureFrameBuffer();
+    if (!((opengl_util::TextureFrameBuffer*)framebuffer)->create(100,100)) {
+      fprintf(stderr, "Unable to initialise a Framebuffer\n");
+    }
+  }
+
+  camera = { {37.0f, 121.0f, 129.0f}, {-192.0f, -25.0, 0.0f}, {0.0f, 1.0f, 0.0f}, float(100) / float(100), glm::radians(45.0f), 0.1f, 2000.0f};
+  camera.generate();
+
+  if (EXTRUDERS > 0) {
+    auto mesh = renderer::Mesh::create<renderer::vertex_data_t>();
+    auto buffer = mesh->buffer<renderer::vertex_data_t>();
+    buffer->data() = {
+        renderer::vertex_data_t EFFECTOR_VERTEX2(0.0, 0.0, 0.0, EFFECTOR_COLOR_1),
+        EFFECTOR_VERTEX2(-0.5, 0.5, 0.5, EFFECTOR_COLOR_2),
+        EFFECTOR_VERTEX2(-0.5, 0.5, -0.5, EFFECTOR_COLOR_3),
+        EFFECTOR_VERTEX2(0.0, 0.0, 0.0, EFFECTOR_COLOR_1),
+        EFFECTOR_VERTEX2(-0.5, 0.5, -0.5, EFFECTOR_COLOR_3),
+        EFFECTOR_VERTEX2(0.5, 0.5, -0.5, EFFECTOR_COLOR_2),
+        EFFECTOR_VERTEX2(0.0, 0.0, 0.0, EFFECTOR_COLOR_1),
+        EFFECTOR_VERTEX2(0.5, 0.5, -0.5, EFFECTOR_COLOR_2),
+        EFFECTOR_VERTEX2(0.5, 0.5, 0.5, EFFECTOR_COLOR_3),
+        EFFECTOR_VERTEX2(0.0, 0.0, 0.0, EFFECTOR_COLOR_1),
+        EFFECTOR_VERTEX2(0.5, 0.5, 0.5, EFFECTOR_COLOR_3),
+        EFFECTOR_VERTEX2(-0.5, 0.5, 0.5, EFFECTOR_COLOR_2),
+        EFFECTOR_VERTEX2(0.5, 0.5, -0.5, EFFECTOR_COLOR_2),
+        EFFECTOR_VERTEX2(-0.5, 0.5, -0.5, EFFECTOR_COLOR_3),
+        EFFECTOR_VERTEX2(-0.5, 0.5, 0.5, EFFECTOR_COLOR_2),
+        EFFECTOR_VERTEX2(0.5, 0.5, -0.5, EFFECTOR_COLOR_2),
+        EFFECTOR_VERTEX2(-0.5, 0.5, 0.5, EFFECTOR_COLOR_2),
+        EFFECTOR_VERTEX2(0.5, 0.5, 0.5, EFFECTOR_COLOR_3),
+    };
+
+    m_extruder_mesh.push_back(mesh);
+    for (int i = 1; i < EXTRUDERS; ++i) {
+      m_extruder_mesh.push_back(renderer::Mesh::create(buffer));
+    }
+  }
+
+  for (auto m : m_extruder_mesh) {
+    m->set_shader_program(program);
+    m->m_scale = effector_scale;
+    m_renderer.m_mesh.push_back(m);
+  }
+
+  m_bed_mesh = renderer::Mesh::create<renderer::vertex_data_t>();
+  m_bed_mesh->set_shader_program(program);
+  m_bed_mesh_buffer = m_bed_mesh->buffer<renderer::vertex_data_t>();
+  m_renderer.m_mesh.push_back(m_bed_mesh);
+
+  m_bed_mesh_buffer->data().reserve(BED_NUM_VERTEXES_PER_AXIS * BED_NUM_VERTEXES_PER_AXIS);
   // Calculate the number of divisions (line segments) along each axis.
   const GLfloat x_div = GLfloat(build_plate_dimension.x) / (BED_NUM_VERTEXES_PER_AXIS - 1);
   const GLfloat y_div = GLfloat(-build_plate_dimension.y) / (BED_NUM_VERTEXES_PER_AXIS - 1);
@@ -52,252 +114,20 @@ Visualisation::Visualisation(VirtualPrinter& virtual_printer) : virtual_printer(
       // |--/
       // | /
       // |/
-      vertex_dest = SetBedVertexAndAdvance(vertex_dest, x2, y2);
-      vertex_dest = SetBedVertexAndAdvance(vertex_dest, x1, y2);
-      vertex_dest = SetBedVertexAndAdvance(vertex_dest, x1, y1);
-
+      m_bed_mesh_buffer->add_vertex(BED_VERTEX2(x2, y2));
+      m_bed_mesh_buffer->add_vertex(BED_VERTEX2(x1, y2));
+      m_bed_mesh_buffer->add_vertex(BED_VERTEX2(x1, y1));
       //    /|
       //   / |
       //  /--|
-      vertex_dest = SetBedVertexAndAdvance(vertex_dest, x2, y2);
-      vertex_dest = SetBedVertexAndAdvance(vertex_dest, x1, y1);
-      vertex_dest = SetBedVertexAndAdvance(vertex_dest, x2, y1);
-    }
-  }
-}
-
-Visualisation::~Visualisation() {
-  destroy();
-}
-
-void Visualisation::create() {
-  // todo : Y axis change fix, worked around by not joining
-  // todo : very spiky corners after 45 degs, again just worked around by not joining
-  const char * geometry_shader = R"SHADERSTR(
-    #version 330 core
-    layout (lines_adjacency) in;
-    layout (triangle_strip, max_vertices = 28) out;
-
-    in vec3 g_normal[];
-    in vec4 g_color[];
-    out vec4 v_color;
-    out vec3 v_normal;
-    out vec4 v_position;
-
-    uniform mat4 u_mvp;
-    uniform float u_layer_thickness;// = 0.3;
-    uniform float u_layer_width;// = 0.4;
-
-    vec4 mvp_vertices[9];
-    vec4 vertices[9];
-    void emit(const int a, const int b, const int c, const int d) {
-      gl_Position = mvp_vertices[a]; v_position = vertices[a]; EmitVertex();
-      gl_Position = mvp_vertices[b]; v_position = vertices[b]; EmitVertex();
-      gl_Position = mvp_vertices[c]; v_position = vertices[c]; EmitVertex();
-      gl_Position = mvp_vertices[d]; v_position = vertices[d]; EmitVertex();
-      EndPrimitive();
-    }
-
-    const float epsilon = 0.000001;
-
-    void main() {
-      vec3 prev = gl_in[0].gl_Position.xyz;
-      vec3 start = gl_in[1].gl_Position.xyz;
-      vec3 end = gl_in[2].gl_Position.xyz;
-      vec3 next = gl_in[3].gl_Position.xyz;
-
-      vec4 prev_color = g_color[1];
-      vec4 active_color = g_color[2];
-      vec4 next_color = g_color[3];
-
-      vec3 forward = normalize(end - start);
-      vec3 left = normalize(cross(forward, g_normal[2])); // what if formward is world_up? zero vector
-      if (left == vec3(0.0)) return; //panic
-
-      vec3 up = normalize(cross(forward, left));
-      up *= sign(up); // make sure up is positive
-
-      bool first_segment = length(start - prev) < epsilon;
-      bool last_segment = length(end - next) < epsilon;
-      vec3 a = normalize(start - prev);
-      vec3 b = normalize(start - end);
-      vec3 c = (a + b) * 0.5;
-      vec3 start_lhs = normalize(c) * sign(dot(c, left));
-      a = normalize(end - start);
-      b = normalize(end - next);
-      c = (a + b) * 0.5;
-      vec3 end_lhs = normalize(c) * sign(dot(c, left));
-
-      vec2 xz_dir_a = normalize(start.xz - prev.xz);
-      vec2 xz_dir_b = normalize(end.xz - start.xz);
-      vec2 xz_dir_c = normalize(next.xz - end.xz);
-
-
-      // remove edge cases that will break teh following algorithm, angle more than 90 degrees or 0 (points collinear), also break on extrude state change (color)
-      if(first_segment || active_color.a != prev_color.a || normalize(next - prev).y != 0.0 ||  dot(normalize(start.xz - prev.xz), normalize(end.xz - start.xz)) < epsilon || dot(normalize(start.xz - prev.xz), normalize(end.xz - start.xz)) > 1.0 - epsilon) {
-        start_lhs = left;
-        first_segment = true;
-      }
-      if(last_segment || active_color.a != next_color.a || normalize(next - prev).y != 0.0 || dot(normalize(end.xz - start.xz), normalize(next.xz - end.xz)) < epsilon || dot(normalize(end.xz - start.xz), normalize(next.xz - end.xz)) > 1.0 - epsilon) {
-        end_lhs = left;
-        last_segment = true;
-      }
-
-      float start_join_scale = dot(start_lhs, left);
-      float end_join_scale = dot(end_lhs, left);
-      start_lhs *= u_layer_width * 0.5;
-      end_lhs *= u_layer_width * 0.5;
-
-      float half_layer_width = u_layer_width / 2.0;
-      vertices[0] = vec4(start - start_lhs / start_join_scale, 1.0); // top_back_left
-      vertices[1] = vec4(start + start_lhs / start_join_scale, 1.0); // top_back_right
-      vertices[2] = vec4(end   - end_lhs / end_join_scale, 1.0);   // top_front_left
-      vertices[3] = vec4(end   + end_lhs / end_join_scale, 1.0);   // top_front_right
-      vertices[4] = vec4(start - start_lhs / start_join_scale - (up * u_layer_thickness), 1.0); // bottom_back_left
-      vertices[5] = vec4(start + start_lhs / start_join_scale - (up * u_layer_thickness), 1.0); // bottom_back_right
-      vertices[6] = vec4(end   - end_lhs / end_join_scale - (up * u_layer_thickness), 1.0);   // bottom_front_left
-      vertices[7] = vec4(end   + end_lhs / end_join_scale - (up * u_layer_thickness), 1.0);   // bottom_front_right
-
-      mvp_vertices[0] = u_mvp * vertices[0];
-      mvp_vertices[1] = u_mvp * vertices[1];
-      mvp_vertices[2] = u_mvp * vertices[2];
-      mvp_vertices[3] = u_mvp * vertices[3];
-      mvp_vertices[4] = u_mvp * vertices[4];
-      mvp_vertices[5] = u_mvp * vertices[5];
-      mvp_vertices[6] = u_mvp * vertices[6];
-      mvp_vertices[7] = u_mvp * vertices[7];
-
-      vertices[8] = vec4(start - (left * half_layer_width) + (up * 1.0), 1.0);
-      mvp_vertices[8] = u_mvp * vertices[8];
-
-      v_color = active_color;
-      v_normal = forward;
-      if (last_segment) emit(2, 3, 6, 7); // thise should be rounded ends of path diamter, not single po
-      v_normal = -forward;
-      if (first_segment) emit(1, 0, 5, 4);
-      v_normal = -left;
-      emit(3, 1, 7, 5);
-      v_normal = left;
-      emit(0, 2, 4, 6);
-      v_normal = up;
-      emit(0, 1, 2, 3);
-      v_normal = -up;
-      emit(5, 4, 7, 6);
-
-      //emit(0, 1, 8, 0); //show up normal
-    })SHADERSTR";
-
-  const char * path_vertex_shader = R"SHADERSTR(
-    #version 330 core
-    in vec3 i_position;
-    in vec3 i_normal;
-    in vec4 i_color;
-    out vec4 g_color;
-    out vec3 g_normal;
-    void main() {
-        g_color = i_color;
-        g_normal = i_normal;
-        gl_Position = vec4( i_position, 1.0 );
-    })SHADERSTR";
-
-  const char * path_fragment_shader = R"SHADERSTR(
-    #version 330 core
-    in vec4 v_color;
-    out vec4 o_color;
-    in vec3 v_normal;
-    in vec4 v_position;
-
-    uniform vec3 u_view_position;
-    void main() {
-        if(v_color.a < 0.1) discard;
-
-        float ambient_level = 0.1;
-        vec3 ambient_color = vec3(1.0, 0.86, 0.66);
-        vec3 ambient = ambient_color * ambient_level;
-
-        vec3 light_position = vec3(0,300,0);
-        vec3 norm = normalize(v_normal);
-        vec3 light_direction = light_position - v_position.xyz;
-        float d = length(light_direction);
-        float attenuation = 1.0 / ( 1.0 + 0.005 * d); // simplication of 1.0/(1.0 + c1*d + c2*d^2)
-        light_direction = normalize(light_direction);
-        vec3 diffuse_color = ambient_color;
-        float diff = max(dot(norm, light_direction), 0.0);
-        vec3 diffuse = diff * diffuse_color;
-
-        float specular_strength = 0.5;
-        vec3 view_direction = normalize(u_view_position - v_position.xyz);
-        vec3 reflect_direction = reflect(-light_direction, norm);
-
-        float spec = pow(max(dot(view_direction, reflect_direction), 0.0), 32);
-        vec3 specular = specular_strength * spec * diffuse_color;
-
-        if(v_color.a < 0.1) {
-          o_color = vec4(vec3(0.0, 0.0, 1.0) * (ambient + ((diffuse + specular) * attenuation)), v_color.a);
-        } else {
-          o_color = vec4(v_color.rgb * (ambient + ((diffuse + specular) * attenuation)), v_color.a);
-        }
-    })SHADERSTR";
-
-  const char * vertex_shader = R"SHADERSTR(
-    #version 330 core
-    in vec3 i_position;
-    in vec3 i_normal;
-    in vec4 i_color;
-    out vec4 v_color;
-    out vec3 v_normal;
-    out vec3 v_position;
-    uniform mat4 u_mvp;
-    void main() {
-        v_color = i_color;
-        v_normal = i_normal;
-        v_position = i_position;
-        gl_Position = u_mvp * vec4( i_position, 1.0 );
-    })SHADERSTR";
-
-  const char * fragment_shader = R"SHADERSTR(
-    #version 330 core
-    in vec4 v_color;
-    in vec3 v_normal;
-    in vec3 v_position;
-    out vec4 o_color;
-    void main() {
-        if(v_color.a < 0.1) {
-          //discard;
-          o_color = vec4(0.0, 0.0, 1.0, 1.0);
-        } else {
-          o_color = v_color;
-        }
-    })SHADERSTR";
-
-  path_program = ShaderProgram::loadProgram(path_vertex_shader, path_fragment_shader, geometry_shader);
-  program = ShaderProgram::loadProgram(vertex_shader, fragment_shader);
-
-  glGenVertexArrays( 1, &vao );
-  glGenBuffers( 1, &vbo );
-  glBindVertexArray( vao );
-  glBindBuffer( GL_ARRAY_BUFFER, vbo );
-  glEnableVertexAttribArray( attrib_position );
-  glEnableVertexAttribArray( attrib_normal );
-  glEnableVertexAttribArray( attrib_color );
-  glVertexAttribPointer( attrib_position, 3, GL_FLOAT, GL_FALSE, sizeof(cp_vertex), 0 );
-  glVertexAttribPointer( attrib_normal, 3, GL_FLOAT, GL_FALSE, sizeof(cp_vertex), ( void * )(sizeof(cp_vertex::position)) );
-  glVertexAttribPointer( attrib_color, 4, GL_FLOAT, GL_FALSE, sizeof(cp_vertex), ( void * )(sizeof(cp_vertex::position) + sizeof(cp_vertex::normal)) );
-
-  framebuffer = new opengl_util::MsaaFrameBuffer();
-  if (!((opengl_util::MsaaFrameBuffer*)framebuffer)->create(100, 100, 4)) {
-    fprintf(stderr, "Failed to initialise MSAA Framebuffer falling back to TextureFramebuffer\n");
-    delete framebuffer;
-    framebuffer = new opengl_util::TextureFrameBuffer();
-    if (!((opengl_util::TextureFrameBuffer*)framebuffer)->create(100,100)) {
-      fprintf(stderr, "Unable to initialise a Framebuffer\n");
+      m_bed_mesh_buffer->add_vertex(BED_VERTEX2(x2, y2));
+      m_bed_mesh_buffer->add_vertex(BED_VERTEX2(x1, y1));
+      m_bed_mesh_buffer->add_vertex(BED_VERTEX2(x2, y1));
     }
   }
 
-  camera = { {37.0f, 121.0f, 129.0f}, {-192.0f, -25.0, 0.0f}, {0.0f, 1.0f, 0.0f}, float(100) / float(100), glm::radians(45.0f), 0.1f, 2000.0f};
-  camera.generate();
+  m_initialised = true;
 
-  //print_bed.build_3point(bed_level_point[0], bed_level_point[1], bed_level_point[2]);
 }
 
 void Visualisation::process_event(SDL_Event& e) { }
@@ -309,7 +139,6 @@ void Visualisation::update() {
   // auto now = clock.now();
   // float delta = std::chrono::duration_cast<std::chrono::duration<float>>(now - last_update).count();
   // last_update = now;
-
   auto effector_pos = extrusion[0].position;
 
   switch (follow_mode) {
@@ -319,114 +148,56 @@ void Visualisation::update() {
   }
   camera.update_view();
 
-  glm::mat4 model_tmatrix = glm::translate(glm::mat4(1.0f), glm::vec3(effector_pos.x, effector_pos.y, effector_pos.z));
-  glm::mat4 model_smatrix = glm::scale(glm::mat4(1.0f), effector_scale );
-  glm::mat4 model_matrix = model_tmatrix * model_smatrix;
-  glm::mat4 mvp = camera.proj * camera.view * model_matrix;
-
   auto print_bed = virtual_printer.get_component<PrintBed>("Print Bed");
 
-  GLfloat max_abs_z = 0.0f;
-
-  // todo: move vertex generation
-  for (int i = BED_VERTEX_OFFSET; i < NUM_VERTEXES; i++) {
-    GLfloat z = print_bed->calculate_z({g_vertex_buffer_data[(i * 10) + 0], -g_vertex_buffer_data[(i * 10) + 2]});
-    g_vertex_buffer_data[(i * VERTEX_FLOAT_COUNT) + 1] = z; // invert y (opengl Z) for opengl
-    max_abs_z = std::max(max_abs_z, abs(z));
-  }
-
-  for (int i = BED_VERTEX_OFFSET; i < NUM_VERTEXES; i++) {
-    GLfloat r = 0.0, g = 0.0, b = 0.0;
-
-    if (print_bed->gradient_enabled) {
-      GLfloat z = g_vertex_buffer_data[(i * VERTEX_FLOAT_COUNT) + 1];
-
-      GLfloat *dest = z < 0.0 ? &r : &b;
-
-      GLfloat gradient_range = std::max(1.0f, max_abs_z);
-      *dest = std::min(1.0f, abs(z) / gradient_range);
-      g = 0.5f - *dest;
-    } else {
-      // default color
-      r = g = b = 0.5f;
+  if (print_bed->dirty) {
+    GLfloat max_abs_z = 0.0f;
+    // todo: move vertex generation
+    for (auto& v : m_bed_mesh_buffer->data()) {
+      GLfloat z = print_bed->calculate_z({v.position.x, -v.position.z});
+      v.position.y = z;
+      max_abs_z = std::max(max_abs_z, abs(z));
     }
 
-    // 6 7 8 = R G B
-    g_vertex_buffer_data[(i * VERTEX_FLOAT_COUNT) + 6] = r;
-    g_vertex_buffer_data[(i * VERTEX_FLOAT_COUNT) + 7] = g;
-    g_vertex_buffer_data[(i * VERTEX_FLOAT_COUNT) + 8] = b;
-  }
+    for (auto&v : m_bed_mesh_buffer->data()) {
+      GLfloat r = 0.0, g = 0.0, b = 0.0;
 
-  auto mvp_loc = glGetUniformLocation( program, "u_mvp" );
+      if (print_bed->gradient_enabled) {
+        GLfloat z = v.position.y;
+        GLfloat *dest = z < 0.0 ? &r : &b;
+        GLfloat gradient_range = std::max(1.0f, max_abs_z);
 
-  glUseProgram( program );
-  glBindVertexArray( vao );
-  glBindBuffer( GL_ARRAY_BUFFER, vbo );
-  glBufferData( GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), &g_vertex_buffer_data[0], GL_STATIC_DRAW );
-
-  // glm::mat4 bed_matrix = glm::translate(glm::scale(glm::mat4(1.0f), {200.0f, 0.0f, 200.0f}), {0.5f, 0.0, -0.5f});
-  // mvp = camera.proj * camera.view * bed_matrix;
-  mvp = camera.proj * camera.view;
-  glUniformMatrix4fv( mvp_loc, 1, GL_FALSE, glm::value_ptr(mvp));
-  glDrawArrays( GL_TRIANGLES, BED_VERTEX_OFFSET, NUM_VERTEXES - BED_VERTEX_OFFSET);
-
-  for (auto& ext : extrusion ) {
-    model_tmatrix = glm::translate(glm::mat4(1.0f), glm::vec3(ext.position.x, ext.position.y, ext.position.z));
-    model_smatrix = glm::scale(glm::mat4(1.0f), effector_scale );
-    model_matrix = model_tmatrix * model_smatrix;
-    mvp = camera.proj * camera.view * model_matrix;
-    glUniformMatrix4fv( mvp_loc, 1, GL_FALSE, glm::value_ptr(mvp));
-    if (follow_mode != FOLLOW_Z) glDrawArrays( GL_TRIANGLES, 0, 18 );
-  }
-
-  for (auto& ext : extrusion ) {
-    if (ext.active_path_block != nullptr) {
-      glm::mat4 print_path_matrix = glm::mat4(1.0f);
-      mvp = camera.proj * camera.view * print_path_matrix;
-      glUniformMatrix4fv( mvp_loc, 1, GL_FALSE, glm::value_ptr(mvp));
-      auto active_path = ext.active_path_block; // a new active path block can be added at any time, so back up the active block ptr;
-      std::size_t data_length = active_path->size();
-
-      glUseProgram( path_program );
-      glUniform1f( glGetUniformLocation( path_program, "u_layer_thickness" ), extrude_thickness);
-      glUniform1f( glGetUniformLocation( path_program, "u_layer_width" ), extrude_width);
-      glUniformMatrix4fv( glGetUniformLocation( path_program, "u_mvp" ), 1, GL_FALSE, glm::value_ptr(mvp));
-      glUniform3fv( glGetUniformLocation( path_program, "u_view_position" ), 1, glm::value_ptr(camera.position));
-
-      if (render_path_line) {
-        if (active_path != nullptr && data_length > 1) {
-          glBufferData( GL_ARRAY_BUFFER, data_length * sizeof(std::remove_pointer<decltype(active_path)>::type::value_type), &(*active_path)[0], GL_STATIC_DRAW );
-          glDrawArrays( GL_LINE_STRIP_ADJACENCY, 0, data_length);
-        }
-
-        if (render_full_path) {
-          for (auto& path : ext.full_path) {
-            if (&path[0] == &(*active_path)[0]) break;
-            // these are no longer dynamic buffers and could have the geometry baked rather than continue using the geometery shader
-            std::size_t data_length = path.size();
-            glBufferData( GL_ARRAY_BUFFER, data_length * sizeof(std::remove_reference<decltype(path)>::type::value_type), &path[0], GL_STATIC_DRAW );
-            glDrawArrays( GL_LINE_STRIP_ADJACENCY, 0, data_length);
-          }
-        }
+        *dest = std::min(1.0f, abs(z) / gradient_range);
+        g = 0.5f - *dest;
+      } else {
+        // default color
+        r = g = b = 0.5f;
       }
 
-      if (active_path != nullptr && data_length > 1) {
-        glBufferData( GL_ARRAY_BUFFER, data_length * sizeof(std::remove_pointer<decltype(active_path)>::type::value_type), &(*active_path)[0], GL_STATIC_DRAW );
-        glDrawArrays( GL_LINE_STRIP_ADJACENCY, 0, data_length);
-      }
-
-      if (render_full_path) {
-        for (auto& path : ext.full_path) {
-          if (&path[0] == &(*active_path)[0]) break;
-          // these are no longer dynamic buffers and could have the geometry baked rather than continue using the geometery shader
-          std::size_t data_length = path.size();
-          glBufferData( GL_ARRAY_BUFFER, data_length * sizeof(std::remove_reference<decltype(path)>::type::value_type), &path[0], GL_STATIC_DRAW );
-          glDrawArrays( GL_LINE_STRIP_ADJACENCY, 0, data_length);
-        }
-      }
+      v.color.r = r;
+      v.color.g = g;
+      v.color.b = b;
     }
+    print_bed->dirty = false;
   }
 
+  // update the position of the extruder mesh for visualisation
+  size_t mesh_id = 0;
+  for (auto& ext : extrusion ) {
+    auto pos = glm::vec3(ext.position.x, ext.position.y, ext.position.z);
+    if (m_extruder_mesh[mesh_id]->m_position != pos) {
+      m_extruder_mesh[mesh_id]->m_position = pos;
+      m_extruder_mesh[mesh_id]->m_dirty = true;
+    }
+    m_extruder_mesh[mesh_id]->m_visible = (follow_mode != FOLLOW_Z);
+    mesh_id ++;
+  }
+
+  glUseProgram( path_program );
+  glUniform1f( glGetUniformLocation( path_program, "u_layer_thickness" ), extrude_thickness);
+  glUniform1f( glGetUniformLocation( path_program, "u_layer_width" ), extrude_width);
+  glUniform3fv( glGetUniformLocation( path_program, "u_view_position" ), 1, glm::value_ptr(camera.position));
+  m_renderer.render(camera.proj * camera.view);
 }
 
 void Visualisation::destroy() {
@@ -437,6 +208,7 @@ void Visualisation::destroy() {
 }
 
 void Visualisation::set_head_position(size_t hotend_index, extruder_state state) {
+  if (!m_initialised) return;
   glm::vec4 sim_pos = state.position;
   glm::vec4 position = {sim_pos.x, sim_pos.z, sim_pos.y * -1.0, sim_pos.w}; // correct for opengl coordinate system
   if (hotend_index >= extrusion.size()) return;
@@ -450,38 +222,47 @@ void Visualisation::set_head_position(size_t hotend_index, extruder_state state)
       extruder.last_extrusion_check = position;
     }
 
-    if (extruder.active_path_block != nullptr && extruder.active_path_block->size() > 1 && extruder.active_path_block->size() < 10000) {
+    if (extruder.active_mesh_buffer != nullptr && extruder.active_mesh_buffer->size() > 1 && extruder.active_mesh_buffer->size() < renderer::Renderer::MAX_BUFFER_SIZE) {
 
       if (glm::length(glm::vec3(position) - glm::vec3(extruder.last_position)) > 0.05f) { // smooth out the path so the model renders with less geometry, rendering each individual step hurts the fps
-        if(points_are_collinear(position, extruder.active_path_block->end()[-3].position, extruder.active_path_block->end()[-2].position) && extruder.extruding == extruder.last_extruding) {
-          // collinear and extrusion state has not changed to we can just change the current point.
-          extruder.active_path_block->end()[-2].position = position;
-          extruder.active_path_block->end()[-1].position = position;
+        if((points_are_collinear(position, extruder.active_mesh_buffer->cdata().end()[-3].position, extruder.active_mesh_buffer->cdata().end()[-2].position) && extruder.extruding == extruder.last_extruding) || ( extruder.extruding == false &&  extruder.last_extruding == false)) {
+          // collinear and extrusion state has not changed so we can just change the current point.
+          extruder.active_mesh_buffer->data().end()[-2].position = position;
+          extruder.active_mesh_buffer->data().end()[-1].position = position;
         } else { // new point is not collinear with current path add new point
-          extruder.active_path_block->end()[-1] ={position, {0.0, 1.0, 0.0}, {extrude_color, extruder.extruding}};
-          extruder.active_path_block->push_back(extruder.active_path_block->back());
+          extruder.active_mesh_buffer->data().end()[-1] = {position, {0.0, 1.0, 0.0}, {extrude_color, extruder.extruding}};
+          extruder.active_mesh_buffer->add_vertex(extruder.active_mesh_buffer->cdata().back());
         }
         extruder.last_position = position;
         extruder.last_extruding = extruder.extruding;
       }
 
     } else { // need to change geometry buffer
-      if (extruder.active_path_block == nullptr) {
-        extruder.full_path.push_back({{position, {0.0, 1.0, 0.0}, {extrude_color, 0.0}}});
-        extruder.full_path.back().reserve(10000);
-        extruder.active_path_block = &extruder.full_path.end()[-1];
-        extruder.active_path_block->push_back(extruder.active_path_block->back());
+      if (extruder.active_mesh_buffer == nullptr) {
+        auto mesh = renderer::Mesh::create<renderer::vertex_data_t>();
+        mesh->set_shader_program(program);
+        extruder.active_mesh_buffer = mesh->buffer<renderer::vertex_data_t>();
+        extruder.active_mesh_buffer->data().reserve(renderer::Renderer::MAX_BUFFER_SIZE);
+        extruder.active_mesh_buffer->m_geometry_type = renderer::Primitive::LINE_STRIP_ADJACENCY;
+        extruder.mesh = mesh;
         extruder.last_extrusion_check = position;
+        m_renderer.m_mesh.push_back(mesh);
+
+        extruder.active_mesh_buffer->data().push_back({position, {0.0, 1.0, 0.0}, {extrude_color, 0.0}});
       } else {
-        extruder.full_path.push_back({extruder.full_path.back().back()});
-        extruder.full_path.back().reserve(10000);
-        extruder.active_path_block = &extruder.full_path.end()[-1];
-        extruder.active_path_block->push_back({position, {0.0, 1.0, 0.0}, {extrude_color, extruder.extruding}});
-        extruder.active_path_block->push_back(extruder.active_path_block->back());
+        renderer::vertex_data_t last_vertex = extruder.active_mesh_buffer->cdata().back();
+        auto buffer = renderer::Buffer<renderer::vertex_data_t>::create();
+        buffer->data().reserve(renderer::Renderer::MAX_BUFFER_SIZE);
+        buffer->m_geometry_type = renderer::Primitive::LINE_STRIP_ADJACENCY;
+        extruder.active_mesh_buffer = buffer;
+        extruder.mesh->buffer_vector<renderer::vertex_data_t>().push_back(buffer);
+
+        buffer->add_vertex(last_vertex);
+        buffer->add_vertex({position, {0.0, 1.0, 0.0}, {extrude_color, extruder.extruding}});
       }
       // extra dummy verticies for line strip adjacency
-      extruder.active_path_block->push_back(extruder.active_path_block->back());
-      extruder.active_path_block->push_back(extruder.active_path_block->back());
+      extruder.active_mesh_buffer->add_vertex(extruder.active_mesh_buffer->cdata().back());
+      extruder.active_mesh_buffer->add_vertex(extruder.active_mesh_buffer->cdata().back());
       extruder.last_position = position;
     }
     extruder.position = position;
@@ -538,17 +319,21 @@ void Visualisation::ui_viewport_callback(UiWindow* window) {
         follow_offset = camera.position - glm::vec3(ex.position);
     }
     if (ImGui::IsKeyPressed(SDL_SCANCODE_F1)) {
-      render_full_path = !render_full_path;
-    }
-    if (ImGui::IsKeyPressed(SDL_SCANCODE_F2)) {
-      render_path_line = !render_path_line;
-    }
-    if (ImGui::IsKeyPressed(SDL_SCANCODE_F4)) {
-      for (auto& extruder : extrusion) {
-        extruder.active_path_block = nullptr;
-        extruder.full_path.clear();
+      for (auto& mesh : m_renderer.m_mesh) {
+        mesh->m_visible = false;
       }
     }
+    if (ImGui::IsKeyPressed(SDL_SCANCODE_F2)) {
+      for (auto& mesh : m_renderer.m_mesh) {
+        mesh->m_visible = true;
+      }
+    }
+    // if (ImGui::IsKeyPressed(SDL_SCANCODE_F4)) {
+    //   for (auto& extruder : extrusion) {
+    //     extruder.active_path_block = nullptr;
+    //     extruder.full_path.clear();
+    //   }
+    // }
     if (ImGui::GetIO().MouseWheel != 0 && viewport.hovered) {
       camera.position += camera.speed * camera.direction * delta * ImGui::GetIO().MouseWheel;
     }
@@ -607,24 +392,28 @@ struct ScrollingData {
 };
 
 void Visualisation::ui_info_callback(UiWindow* w) {
-
-  // ImGui::Text("Marlin/Sim: X: %0.3f / %0.3f = %0.3f, Y: %0.3f / %0.3f = %0.3f, Z: %0.3f / %0.3f = %0.3f",
-  //             NATIVE_TO_LOGICAL(current_position[X_AXIS], X_AXIS),
-  //             effector_pos.x,
-  //             NATIVE_TO_LOGICAL(current_position[X_AXIS], X_AXIS) - effector_pos.x,
-  //             NATIVE_TO_LOGICAL(current_position[Y_AXIS], Y_AXIS),
-  //             effector_pos.z * -1.0f,
-  //             NATIVE_TO_LOGICAL(current_position[Y_AXIS], Y_AXIS) - (effector_pos.z * -1.0f),
-  //             NATIVE_TO_LOGICAL(current_position[Z_AXIS], Z_AXIS),
-  //             effector_pos.y,
-  //             NATIVE_TO_LOGICAL(current_position[Z_AXIS], Z_AXIS) - effector_pos.y);
   if (ImGui::Button("Clear Print Area")) {
     for (auto& extruder : extrusion) {
-      extruder.active_path_block = nullptr;
-      extruder.full_path.clear();
+      if (extruder.mesh != nullptr) {
+        extruder.active_mesh_buffer.reset();
+        extruder.mesh->m_delete = true;
+        extruder.mesh.reset();
+      }
     }
   }
   ImGui::PushItemWidth(150); ImGui::Text("Extrude Width    ");  ImGui::PopItemWidth(); ImGui::PushItemWidth(50); ImGui::SameLine(); ImGui::InputFloat("##Extrude_Width", &extrude_width); ImGui::PopItemWidth();
   ImGui::PushItemWidth(150); ImGui::Text("Extrude Thickness");  ImGui::PopItemWidth(); ImGui::PushItemWidth(50); ImGui::SameLine(); ImGui::InputFloat("##Extrude_Thickness", &extrude_thickness); ImGui::PopItemWidth();
 
+  size_t count = 0;
+  for (auto& extruder : extrusion) {
+    if (extruder.mesh != nullptr) {
+      bool vis = extruder.mesh->m_visible;
+      std::string label = "Extrusion ";
+      label += std::to_string(count);
+      if (ImGui::Checkbox(label.c_str(), &vis)) {
+        extruder.mesh->m_visible = vis;
+      }
+    }
+    ++count;
+  }
 }

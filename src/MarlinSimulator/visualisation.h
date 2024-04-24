@@ -21,6 +21,9 @@
 #include "window.h"
 #include "user_interface.h"
 
+#include "renderer/renderer.h"
+#include "renderer/shader_data.h"
+
 constexpr glm::ivec2 build_plate_dimension{X_BED_SIZE, Y_BED_SIZE};
 constexpr glm::ivec2 build_plate_offset{X_MIN_POS, Y_MIN_POS};
 
@@ -32,12 +35,6 @@ typedef enum t_attrib_id
     attrib_normal,
     attrib_color
 } t_attrib_id;
-
-struct cp_vertex {
-  glm::vec3 position;
-  glm::vec3 normal;
-  glm::vec4 color;
-};
 
 class PerspectiveCamera {
 public:
@@ -169,8 +166,9 @@ struct Extrusion {
   float extrude_width = 0.4;
   float extrude_thickness = 0.3;
   glm::vec4 position = {};
-  std::vector<cp_vertex>* active_path_block = nullptr;
-  std::vector<std::vector<cp_vertex>> full_path;
+
+  std::shared_ptr<renderer::Buffer<renderer::vertex_data_t>> active_mesh_buffer {};
+  std::shared_ptr<renderer::Mesh> mesh {};
 };
 
 class Visualisation {
@@ -207,9 +205,13 @@ public:
 
   PerspectiveCamera camera;
   opengl_util::FrameBuffer* framebuffer = nullptr;
+  std::vector<std::shared_ptr<renderer::Mesh>> m_extruder_mesh;
+
+  std::shared_ptr<renderer::Buffer<renderer::vertex_data_t>> m_bed_mesh_buffer {};
+  std::shared_ptr<renderer::Mesh> m_bed_mesh;
 
   GLuint program, path_program;
-  GLuint vao, vbo;
+
   bool mouse_captured = false;
   bool input_state[6] = {};
   glm::vec<2, int> mouse_lock_pos;
@@ -223,48 +225,23 @@ public:
   #define EFFECTOR_COLOR_3 0.0, 0.0, 1.0, 1.0
 
   #define BED_VERTEX(X, Y) X, 0.0, Y, BED_NORMAL, BED_COLOR
+  #define BED_VERTEX2(X, Y) {{X, 0.0, Y}, {BED_NORMAL}, {BED_COLOR}}
   #define EFFECTOR_VERTEX(X, Z, Y, COLOR) X, Z, Y, EFFECTOR_NORMAL, COLOR
+
+  #define EFFECTOR_VERTEX2(X, Z, Y, COLOR) {{X, Z, Y}, {EFFECTOR_NORMAL}, {COLOR}}
 
   #define VERTEX_FLOAT_COUNT 10
   #define BED_VERTEX_OFFSET 18
-  #define BED_NUM_VERTEXES_PER_AXIS 10
+  #define BED_NUM_VERTEXES_PER_AXIS 100
   #define BED_NUM_TRIANGES ((BED_NUM_VERTEXES_PER_AXIS - 1) * (BED_NUM_VERTEXES_PER_AXIS - 1) * 2)
   #define NUM_VERTEXES (BED_VERTEX_OFFSET + BED_NUM_TRIANGES * 3)
 
-  std::array<GLfloat, NUM_VERTEXES * VERTEX_FLOAT_COUNT> g_vertex_buffer_data{
-      //end effector
-      EFFECTOR_VERTEX(0.0, 0.0, 0.0, EFFECTOR_COLOR_1),
-      EFFECTOR_VERTEX(-0.5, 0.5, 0.5, EFFECTOR_COLOR_2),
-      EFFECTOR_VERTEX(-0.5, 0.5, -0.5, EFFECTOR_COLOR_3),
-
-      EFFECTOR_VERTEX(0.0, 0.0, 0.0, EFFECTOR_COLOR_1),
-      EFFECTOR_VERTEX(-0.5, 0.5, -0.5, EFFECTOR_COLOR_3),
-      EFFECTOR_VERTEX(0.5, 0.5, -0.5, EFFECTOR_COLOR_2),
-
-      EFFECTOR_VERTEX(0.0, 0.0, 0.0, EFFECTOR_COLOR_1),
-      EFFECTOR_VERTEX(0.5, 0.5, -0.5, EFFECTOR_COLOR_2),
-      EFFECTOR_VERTEX(0.5, 0.5, 0.5, EFFECTOR_COLOR_3),
-
-      EFFECTOR_VERTEX(0.0, 0.0, 0.0, EFFECTOR_COLOR_1),
-      EFFECTOR_VERTEX(0.5, 0.5, 0.5, EFFECTOR_COLOR_3),
-      EFFECTOR_VERTEX(-0.5, 0.5, 0.5, EFFECTOR_COLOR_2),
-
-      EFFECTOR_VERTEX(0.5, 0.5, -0.5, EFFECTOR_COLOR_2),
-      EFFECTOR_VERTEX(-0.5, 0.5, -0.5, EFFECTOR_COLOR_3),
-      EFFECTOR_VERTEX(-0.5, 0.5, 0.5, EFFECTOR_COLOR_2),
-
-      EFFECTOR_VERTEX(0.5, 0.5, -0.5, EFFECTOR_COLOR_2),
-      EFFECTOR_VERTEX(-0.5, 0.5, 0.5, EFFECTOR_COLOR_2),
-      EFFECTOR_VERTEX(0.5, 0.5, 0.5, EFFECTOR_COLOR_3),
-
-
-      // bed will be populated elsewhere
-
-  };
 
   float extrude_width = 0.4;
   float extrude_thickness = 0.3;
 
+  renderer::Renderer m_renderer {};
+  bool m_initialised = false;
 };
 
 struct Viewport : public UiWindow {
