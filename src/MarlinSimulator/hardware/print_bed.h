@@ -29,7 +29,7 @@ public:
     updated |= ImGui::SliderFloat("bed level(front left)", &bed_level_points[1].z, -5.0f, 5.0f);
     updated |= ImGui::SliderFloat("bed level(front right)", &bed_level_points[2].z, -5.0f, 5.0f);
     // Add a checkbox to choose whether to show a bed gradient
-    updated |= ImGui::Checkbox("Z height gradient", &gradient_enabled);    
+    updated |= ImGui::Checkbox("Z height gradient", &gradient_enabled);
 
     // Add combo box with the options "flat", "bowl" and "dome"
     static const char* items[] = { "flat", "parabolic", "chip", "ripple", "x ripple", "y ripple", "xy ripple" };
@@ -39,7 +39,10 @@ public:
 
     updated |= ImGui::SliderFloat("amplitude", &bed_shape_amplitude, -5.0f, 5.0f);
 
-    if (updated) build_3point(bed_level_points[0], bed_level_points[1], bed_level_points[2]);
+    if (updated) {
+      dirty = true;
+      build_3point(bed_level_points[0], bed_level_points[1], bed_level_points[2]);
+    }
   }
 
   void build_3point(glm::vec3 p1, glm::vec3 p2, glm::vec3 p3) {
@@ -95,4 +98,5 @@ public:
   bool gradient_enabled = false;
   bed_shape_t bed_shape = flat;
   float bed_shape_amplitude = 1.0f;
+  bool dirty = true;
 };
