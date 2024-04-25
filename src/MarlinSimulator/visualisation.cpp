@@ -198,12 +198,13 @@ void Visualisation::update() {
     auto pos = glm::vec3(ext.position.x, ext.position.y, ext.position.z);
     if (m_extruder_mesh[mesh_id]->m_position != pos) {
       m_extruder_mesh[mesh_id]->m_position = pos;
-      m_extruder_mesh[mesh_id]->m_dirty = true;
+      m_extruder_mesh[mesh_id]->m_transform_dirty = true;
     }
     m_extruder_mesh[mesh_id]->m_visible = (follow_mode != FOLLOW_Z);
     mesh_id ++;
   }
 
+  // TODO:  Shaders need this internalised
   glUseProgram( path_program );
   glUniform1f( glGetUniformLocation( path_program, "u_layer_thickness" ), extrude_thickness);
   glUniform1f( glGetUniformLocation( path_program, "u_layer_width" ), extrude_width);
@@ -225,6 +226,11 @@ void Visualisation::set_head_position(size_t hotend_index, extruder_state state)
   auto& extruder = extrusion[hotend_index];
   glm::vec3 extrude_color = state.color;
 
+  if (extruder.mesh != nullptr && extruder.mesh->m_delete) {
+    extruder.active_mesh_buffer.reset();
+    extruder.mesh.reset();
+  }
+
   if (position != extruder.position) {
 
     if (glm::length(glm::vec3(position) - glm::vec3(extruder.last_extrusion_check)) > 0.5f) { // smooths out extrusion over a minimum length to fill in gaps todo: implement an simulation to do this better
@@ -235,7 +241,7 @@ void Visualisation::set_head_position(size_t hotend_index, extruder_state state)
     if (extruder.active_mesh_buffer != nullptr && extruder.active_mesh_buffer->size() > 1 && extruder.active_mesh_buffer->size() < renderer::Renderer::MAX_BUFFER_SIZE) {
 
       if (glm::length(glm::vec3(position) - glm::vec3(extruder.last_position)) > 0.05f) { // smooth out the path so the model renders with less geometry, rendering each individual step hurts the fps
-        if((points_are_collinear(position, extruder.active_mesh_buffer->cdata().end()[-3].position, extruder.active_mesh_buffer->cdata().end()[-2].position) && extruder.extruding == extruder.last_extruding) || ( extruder.extruding == false &&  extruder.last_extruding == false)) {
+        if((points_are_collinear(position, extruder.active_mesh_buffer->cdata().end()[-3].position, extruder.active_mesh_buffer->cdata().end()[-2].position, 0.0002) && extruder.extruding == extruder.last_extruding) || ( extruder.extruding == false && extruder.last_extruding == false)) {
           // collinear and extrusion state has not changed so we can just change the current point.
           extruder.active_mesh_buffer->data().end()[-2].position = position;
           extruder.active_mesh_buffer->data().end()[-1].position = position;
@@ -280,8 +286,8 @@ void Visualisation::set_head_position(size_t hotend_index, extruder_state state)
   }
 }
 
-bool Visualisation::points_are_collinear(glm::vec3 a, glm::vec3 b, glm::vec3 c) {
-  return glm::length(glm::dot(b - a, c - a) - (glm::length(b - a) * glm::length(c - a))) < 0.0002; // could be increased to further reduce rendered geometry
+bool Visualisation::points_are_collinear(const glm::vec3 a, const glm::vec3 b, const glm::vec3 c, const double threshold) const {
+  return glm::abs(glm::dot(b - a, c - a) - (glm::length(b - a) * glm::length(c - a))) < threshold;
 }
 
 void Visualisation::ui_viewport_callback(UiWindow* window) {
@@ -406,9 +412,7 @@ void Visualisation::ui_info_callback(UiWindow* w) {
   if (ImGui::Button("Clear Print Area")) {
     for (auto& extruder : extrusion) {
       if (extruder.mesh != nullptr) {
-        extruder.active_mesh_buffer.reset();
         extruder.mesh->m_delete = true;
-        extruder.mesh.reset();
       }
     }
   }

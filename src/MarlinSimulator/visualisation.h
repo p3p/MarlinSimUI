@@ -192,7 +192,7 @@ public:
 
   const float filiment_diameter = 1.75;
   void set_head_position(size_t hotend_index, extruder_state position);
-  bool points_are_collinear(glm::vec3 a, glm::vec3 b, glm::vec3 c);
+  bool points_are_collinear(const glm::vec3 a, const glm::vec3 b, const glm::vec3 c, const double threshold) const;
 
   FollowMode follow_mode = FOLLOW_NONE;
   bool render_full_path = true;
