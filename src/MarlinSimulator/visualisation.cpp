@@ -39,8 +39,8 @@ Visualisation::~Visualisation() {
 }
 
 void Visualisation::create() {
-  path_program = ShaderProgram::loadProgram(renderer::path_vertex_shader, renderer::path_fragment_shader, renderer::geometry_shader);
-  program = ShaderProgram::loadProgram(renderer::vertex_shader, renderer::fragment_shader);
+  path_program = renderer::ShaderProgram::loadProgram(renderer::path_vertex_shader, renderer::path_fragment_shader, renderer::geometry_shader);
+  program = renderer::ShaderProgram::loadProgram(renderer::vertex_shader, renderer::fragment_shader);
 
   framebuffer = new opengl_util::MsaaFrameBuffer();
   if (!((opengl_util::MsaaFrameBuffer*)framebuffer)->create(100, 100, 4)) {
@@ -101,6 +101,7 @@ void Visualisation::create() {
   const GLfloat x_div = GLfloat(build_plate_dimension.x) / (BED_NUM_VERTEXES_PER_AXIS - 1);
   const GLfloat y_div = GLfloat(-build_plate_dimension.y) / (BED_NUM_VERTEXES_PER_AXIS - 1);
 
+  // Generate a subdivided plane mesh for the bed
   for (int row = 0; row < BED_NUM_VERTEXES_PER_AXIS - 1; ++row) {
     for (int col = 0; col < BED_NUM_VERTEXES_PER_AXIS - 1; ++col) {
       // For each division, calculate the coordinates of the four corners.
@@ -233,15 +234,17 @@ void Visualisation::set_head_position(size_t hotend_index, extruder_state state)
 
   if (position != extruder.position) {
 
-    if (glm::length(glm::vec3(position) - glm::vec3(extruder.last_extrusion_check)) > 0.5f) { // smooths out extrusion over a minimum length to fill in gaps todo: implement an simulation to do this better
+    // smooths out extrusion over a minimum length to fill in gaps todo: implement an simulation to do this better
+    // also use Z (Y in opengl) change to reduce minimum extrude length
+    if (glm::length(glm::vec3(position) - glm::vec3(extruder.last_extrusion_check)) > m_config.extrusion_check_min_line_length || glm::abs(position.y - extruder.last_extrusion_check.y) > m_config.extrusion_check_max_vertical_deviation) {
       extruder.extruding = position.w - extruder.last_extrusion_check.w > 0.0f;
       extruder.last_extrusion_check = position;
     }
 
     if (extruder.active_mesh_buffer != nullptr && extruder.active_mesh_buffer->size() > 1 && extruder.active_mesh_buffer->size() < renderer::Renderer::MAX_BUFFER_SIZE) {
 
-      if (glm::length(glm::vec3(position) - glm::vec3(extruder.last_position)) > 0.05f) { // smooth out the path so the model renders with less geometry, rendering each individual step hurts the fps
-        if((points_are_collinear(position, extruder.active_mesh_buffer->cdata().end()[-3].position, extruder.active_mesh_buffer->cdata().end()[-2].position, 0.0002) && extruder.extruding == extruder.last_extruding) || ( extruder.extruding == false && extruder.last_extruding == false)) {
+      if (glm::length(glm::vec3(position) - glm::vec3(extruder.last_position)) > m_config.extrusion_segment_minimum_length) { // smooth out the path so the model renders with less geometry, rendering each individual step hurts the fps
+        if((points_are_collinear(position, extruder.active_mesh_buffer->cdata().end()[-3].position, extruder.active_mesh_buffer->cdata().end()[-2].position, m_config.extrusion_segment_collinearity_max_deviation) && extruder.extruding == extruder.last_extruding) || ( extruder.extruding == false && extruder.last_extruding == false)) {
           // collinear and extrusion state has not changed so we can just change the current point.
           extruder.active_mesh_buffer->data().end()[-2].position = position;
           extruder.active_mesh_buffer->data().end()[-1].position = position;
@@ -286,7 +289,7 @@ void Visualisation::set_head_position(size_t hotend_index, extruder_state state)
   }
 }
 
-bool Visualisation::points_are_collinear(const glm::vec3 a, const glm::vec3 b, const glm::vec3 c, const double threshold) const {
+bool Visualisation::points_are_collinear(const glm::vec3 a, const glm::vec3 b, const glm::vec3 c, double const threshold) const {
   return glm::abs(glm::dot(b - a, c - a) - (glm::length(b - a) * glm::length(c - a))) < threshold;
 }
 
@@ -345,12 +348,6 @@ void Visualisation::ui_viewport_callback(UiWindow* window) {
         mesh->m_visible = true;
       }
     }
-    // if (ImGui::IsKeyPressed(SDL_SCANCODE_F4)) {
-    //   for (auto& extruder : extrusion) {
-    //     extruder.active_path_block = nullptr;
-    //     extruder.full_path.clear();
-    //   }
-    // }
     if (ImGui::GetIO().MouseWheel != 0 && viewport.hovered) {
       camera.position += camera.speed * camera.direction * delta * ImGui::GetIO().MouseWheel;
     }
@@ -416,8 +413,50 @@ void Visualisation::ui_info_callback(UiWindow* w) {
       }
     }
   }
-  ImGui::PushItemWidth(150); ImGui::Text("Extrude Width    ");  ImGui::PopItemWidth(); ImGui::PushItemWidth(50); ImGui::SameLine(); ImGui::InputFloat("##Extrude_Width", &extrude_width); ImGui::PopItemWidth();
-  ImGui::PushItemWidth(150); ImGui::Text("Extrude Thickness");  ImGui::PopItemWidth(); ImGui::PushItemWidth(50); ImGui::SameLine(); ImGui::InputFloat("##Extrude_Thickness", &extrude_thickness); ImGui::PopItemWidth();
+
+  ImGui::PushItemWidth(150);
+  ImGui::Text("Extrude Width    ");
+  ImGui::PopItemWidth();
+  ImGui::PushItemWidth(50);
+  ImGui::SameLine();
+  ImGui::InputFloat("##Extrude_Width", &extrude_width);
+  ImGui::PopItemWidth();
+
+  ImGui::PushItemWidth(150);
+  ImGui::Text("Extrude Thickness");
+  ImGui::PopItemWidth();
+  ImGui::PushItemWidth(50);
+  ImGui::SameLine();
+  ImGui::InputFloat("##Extrude_Thickness", &extrude_thickness);
+  ImGui::PopItemWidth();
+
+  ImGui::PushItemWidth(150);
+  ImGui::Text("Extrusion Check Min");
+  ImGui::PopItemWidth();
+  ImGui::PushItemWidth(100);
+  ImGui::InputDouble("##Extrusion_Check_Min", &m_config.extrusion_check_min_line_length);
+  ImGui::PopItemWidth();
+
+  ImGui::PushItemWidth(150);
+  ImGui::Text("Extrusion Check Vertical Max");
+  ImGui::PopItemWidth();
+  ImGui::PushItemWidth(100);
+  ImGui::InputDouble("##Extrusion_Check_Vertical_Max", &m_config.extrusion_check_max_vertical_deviation);
+  ImGui::PopItemWidth();
+
+  ImGui::PushItemWidth(150);
+  ImGui::Text("Extrusion Segment Min Length");
+  ImGui::PopItemWidth();
+  ImGui::PushItemWidth(100);
+  ImGui::InputDouble("##Extrusion_Segment_Min_Length", &m_config.extrusion_segment_minimum_length);
+  ImGui::PopItemWidth();
+
+  ImGui::PushItemWidth(150);
+  ImGui::Text("Extrusion Collinearity Max Deviation");
+  ImGui::PopItemWidth();
+  ImGui::PushItemWidth(100);
+  ImGui::InputDouble("##Extrusion_Collinearity_Max_Deviation", &m_config.extrusion_segment_collinearity_max_deviation);
+  ImGui::PopItemWidth();
 
   size_t count = 0;
   for (auto& extruder : extrusion) {

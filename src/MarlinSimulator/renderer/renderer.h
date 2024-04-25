@@ -23,6 +23,63 @@ struct vertex_data_t {
   };
 };
 
+typedef enum t_attrib_id {
+    attrib_position,
+    attrib_normal,
+    attrib_color
+} t_attrib_id;
+
+class ShaderProgram {
+public:
+  static GLuint loadProgram(const char* vertex_string, const char* fragment_string, const char* geometry_string = nullptr) {
+    GLuint vertex_shader = 0, fragment_shader = 0, geometry_shader = 0;
+    if (vertex_string != nullptr) {
+      vertex_shader = loadShader(GL_VERTEX_SHADER, vertex_string);
+    }
+    if (fragment_string != nullptr) {
+      fragment_shader = loadShader(GL_FRAGMENT_SHADER, fragment_string);
+    }
+    if (geometry_string != nullptr) {
+      geometry_shader = loadShader(GL_GEOMETRY_SHADER, geometry_string);
+    }
+
+    GLuint shader_program = glCreateProgram();
+    glAttachShader( shader_program, vertex_shader );
+    glAttachShader( shader_program, fragment_shader );
+    if (geometry_shader) glAttachShader( shader_program, geometry_shader );
+
+    glBindAttribLocation(shader_program, attrib_position, "i_position");
+    glBindAttribLocation(shader_program, attrib_color, "i_color");
+    glLinkProgram(shader_program );
+    glUseProgram(shader_program );
+
+    if (vertex_shader) glDeleteShader(vertex_shader);
+    if (fragment_shader) glDeleteShader(fragment_shader);
+    if (geometry_shader) glDeleteShader(geometry_shader);
+
+    return shader_program;
+  }
+  static GLuint loadShader(GLuint shader_type, const char* shader_string) {
+    GLuint shader_id = glCreateShader(shader_type);;
+    int length = strlen(shader_string);
+    glShaderSource(shader_id, 1, ( const GLchar ** )&shader_string, &length);
+    glCompileShader(shader_id );
+
+    GLint status;
+    glGetShaderiv(shader_id, GL_COMPILE_STATUS, &status);
+    if (status == GL_FALSE) {
+      GLint maxLength = 0;
+      glGetShaderiv(shader_id, GL_INFO_LOG_LENGTH, &maxLength);
+      std::vector<GLchar> errorLog(maxLength);
+      glGetShaderInfoLog(shader_id, maxLength, &maxLength, &errorLog[0]);
+      for (auto c : errorLog) fputc(c, stderr);
+      glDeleteShader(shader_id);
+      return 0;
+    }
+    return shader_id;
+  }
+};
+
 class BufferBase {
 public:
   virtual ~BufferBase() { }
