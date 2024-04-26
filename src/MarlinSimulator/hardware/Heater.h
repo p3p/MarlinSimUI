@@ -29,6 +29,14 @@ struct adc_data {
 
 class Heater: public VirtualPrinter::Component {
 public:
+
+  enum temperature_sensor_mode {
+    Normal,
+    ForceMin,
+    ForceMax,
+    ForcePause
+  };
+
   Heater(pin_type heater_pin, pin_type adc_pin, heater_data heater, hotend_data hotend, adc_data adc);
   virtual ~Heater();
   void interrupt(GpioEvent& ev);
@@ -68,4 +76,5 @@ public:
   //adc
   double adc_pullup_resistance = 4700;
   uint32_t adc_resolution = 12;
+  temperature_sensor_mode m_temperature_sensor_mode {};
 };
