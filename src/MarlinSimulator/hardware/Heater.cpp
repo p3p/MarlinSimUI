@@ -51,6 +51,11 @@ void Heater::update() {
 
 void Heater::ui_widget() {
   ImGui::Text("Temperature: %f", hotend_temperature);
+  static const char* items[] = { "Normal", "Force Min", "Force Max", "Force Pause"};
+  int mode = m_temperature_sensor_mode;
+  if (ImGui::Combo("Sensor Mode", &mode, items, IM_ARRAYSIZE(items))) {
+    m_temperature_sensor_mode = temperature_sensor_mode(mode);
+  }
 }
 
 void Heater::interrupt(GpioEvent& ev) {
@@ -72,6 +77,11 @@ void Heater::interrupt(GpioEvent& ev) {
   } else if (ev.event == ev.GET_VALUE && ev.pin_id == adc_pin) {
     double thermistor_resistance = temperature_to_resistance(hotend_temperature);
     uint32_t adc_reading = (uint32_t)((((1U << adc_resolution) -1)  * thermistor_resistance) / (adc_pullup_resistance + thermistor_resistance));
-    Gpio::set_pin_value(adc_pin, adc_reading);
+    switch (m_temperature_sensor_mode) {
+      case Normal: Gpio::set_pin_value(adc_pin, adc_reading); break;
+      case ForceMin: Gpio::set_pin_value(adc_pin, 0); break;
+      case ForceMax: Gpio::set_pin_value(adc_pin, UINT16_MAX); break;
+      case ForcePause: break;
+    }
   }
 }

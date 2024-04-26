@@ -85,6 +85,18 @@ void VirtualPrinter::build() {
     #if HOTENDS > 3
       root->add_component<Heater>("Hotend3 Heater", HEATER_3_PIN, TEMP_3_PIN, heater_data{12, 3.6}, hotend_data{13, 20, 0.897}, adc_data{4700, 12});
     #endif
+    #if HOTENDS > 4
+      root->add_component<Heater>("Hotend4 Heater", HEATER_4_PIN, TEMP_4_PIN, heater_data{12, 3.6}, hotend_data{13, 20, 0.897}, adc_data{4700, 12});
+    #endif
+    #if HOTENDS > 5
+      root->add_component<Heater>("Hotend5 Heater", HEATER_5_PIN, TEMP_5_PIN, heater_data{12, 3.6}, hotend_data{13, 20, 0.897}, adc_data{4700, 12});
+    #endif
+    #if HOTENDS > 6
+      root->add_component<Heater>("Hotend6 Heater", HEATER_6_PIN, TEMP_6_PIN, heater_data{12, 3.6}, hotend_data{13, 20, 0.897}, adc_data{4700, 12});
+    #endif
+    #if HOTENDS > 7
+      root->add_component<Heater>("Hotend7 Heater", HEATER_7_PIN, TEMP_7_PIN, heater_data{12, 3.6}, hotend_data{13, 20, 0.897}, adc_data{4700, 12});
+    #endif
   #endif
 
   #if TEMP_SENSOR_BED
