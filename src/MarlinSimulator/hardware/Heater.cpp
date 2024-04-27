@@ -2,6 +2,7 @@
 
 #include "pinmapping.h"
 #include "Heater.h"
+#include "pwm_reader.h"
 
 constexpr double absolute_zero_offset = -273.15;
 double thermistor_ext_coef[] = {
@@ -40,6 +41,9 @@ Heater::Heater(pin_type heater_pin, pin_type adc_pin, heater_data heater, hotend
   Gpio::attach(this->heater_pin, [this](GpioEvent& event){ this->interrupt(event); });
   hotend_energy = hotend_ambient_temperature * (hotend_specific_heat * hotend_mass);
   hotend_temperature = hotend_ambient_temperature;
+  static uint64_t elementid = 0;
+  add_component<PWMReader>("Element" + std::to_string(elementid), heater_pin);
+  ++elementid;
 }
 
 Heater::~Heater() {
