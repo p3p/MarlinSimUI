@@ -15,6 +15,7 @@
 #include "hardware/FilamentRunoutSensor.h"
 #include "hardware/NeoPixelDevice.h"
 #include "hardware/KinematicSystem.h"
+#include "hardware/pwm_reader.h"
 
 #include "virtual_printer.h"
 
@@ -103,14 +104,45 @@ void VirtualPrinter::build() {
     root->add_component<Heater>("Bed Heater", HEATER_BED_PIN, TEMP_BED_PIN, heater_data{12, 1.2}, hotend_data{325, 824, 0.897}, adc_data{4700, 12});
   #endif
 
+  #if TEMP_SENSOR_CHAMBER
+    root->add_component<Heater>("Chamber Heater", HEATER_CHAMBER_PIN, TEMP_CHAMBER_PIN, heater_data{12, 1.2}, hotend_data{325, 824, 0.897}, adc_data{4700, 12});
+  #endif
+
+  #if ENABLED(FILAMENT_RUNOUT_SENSOR)
+    root->add_component<FilamentRunoutSensor>("Filament Runout Sensor 1", FIL_RUNOUT1_PIN, FIL_RUNOUT1_STATE);
+    #if NUM_RUNOUT_SENSORS > 1
+      root->add_component<FilamentRunoutSensor>("Filament Runout Sensor 2", FIL_RUNOUT2_PIN, FIL_RUNOUT2_STATE);
+    #endif
+    #if NUM_RUNOUT_SENSORS > 2
+      root->add_component<FilamentRunoutSensor>("Filament Runout Sensor 3", FIL_RUNOUT3_PIN, FIL_RUNOUT3_STATE);
+    #endif
+    #if NUM_RUNOUT_SENSORS > 3
+      root->add_component<FilamentRunoutSensor>("Filament Runout Sensor 4", FIL_RUNOUT4_PIN, FIL_RUNOUT4_STATE);
+    #endif
+    #if NUM_RUNOUT_SENSORS > 4
+      root->add_component<FilamentRunoutSensor>("Filament Runout Sensor 5", FIL_RUNOUT5_PIN, FIL_RUNOUT5_STATE);
+    #endif
+    #if NUM_RUNOUT_SENSORS > 5
+      root->add_component<FilamentRunoutSensor>("Filament Runout Sensor 6", FIL_RUNOUT6_PIN, FIL_RUNOUT6_STATE);
+    #endif
+    #if NUM_RUNOUT_SENSORS > 6
+      root->add_component<FilamentRunoutSensor>("Filament Runout Sensor 7", FIL_RUNOUT7_PIN, FIL_RUNOUT7_STATE);
+    #endif
+    #if NUM_RUNOUT_SENSORS > 7
+      root->add_component<FilamentRunoutSensor>("Filament Runout Sensor 8", FIL_RUNOUT8_PIN, FIL_RUNOUT8_STATE);
+    #endif
+  #endif
+
+  #ifdef FAN0_PIN
+    root->add_component<PWMReader>("Fan0", FAN0_PIN);
+  #endif
+
   #if ENABLED(SPI_FLASH)
     root->add_component<W25QxxDevice>("SPI Flash", spi_bus_by_pins<SPI_FLASH_SCK_PIN, SPI_FLASH_MOSI_PIN, SPI_FLASH_MISO_PIN>(), SPI_FLASH_CS_PIN, SPI_FLASH_SIZE);
   #endif
+
   #ifdef SDSUPPORT
     root->add_component<SDCard>("SD Card", spi_bus_by_pins<SD_SCK_PIN, SD_MOSI_PIN, SD_MISO_PIN>(), SD_SS_PIN, SD_DETECT_PIN, SD_DETECT_STATE);
-  #endif
-  #if ENABLED(FILAMENT_RUNOUT_SENSOR)
-    root->add_component<FilamentRunoutSensor>("Filament Runout Sensor", FIL_RUNOUT1_PIN, FIL_RUNOUT_STATE);
   #endif
 
   #ifndef LCD_PINS_EN
