@@ -13,8 +13,6 @@
 #include <imgui_internal.h>
 #include <implot.h>
 
-#include "src/inc/MarlinConfig.h"
-#include "src/module/motion.h"
 
 static GLfloat * SetBedVertexAndAdvance(GLfloat * dest, GLfloat x, GLfloat y) {
   const GLfloat new_vertex[VERTEX_FLOAT_COUNT] = { BED_VERTEX(x, y) };
