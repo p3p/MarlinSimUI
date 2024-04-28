@@ -31,6 +31,7 @@ public:
 
   glm::vec4 effector_position{}, stepper_position{};
   glm::vec3 origin{};
+  glm::vec3 origin2{};
   std::vector<std::shared_ptr<VirtualPrinter::Component>> steppers;
   kinematic_state state{};
   std::function<void(kinematic_state)> on_kinematic_update;
