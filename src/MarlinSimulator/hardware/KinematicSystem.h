@@ -11,13 +11,13 @@
 #include "StepperDriver.h"
 
 struct extruder_state {
+  glm::vec3 stepper_position {};
   glm::vec4 position {};
   glm::vec3 color{};
 };
 
 struct kinematic_state {
   std::vector<extruder_state> effector_position {};
-  glm::vec3 stepper_position {};
   glm::vec3 position {};
 };
 
@@ -28,9 +28,7 @@ public:
 
   void ui_widget();
   void kinematic_update();
-
-  glm::vec4 effector_position{}, stepper_position{};
-  glm::vec3 origin{};
+  std::vector<glm::vec3> hardware_offset {};
   std::vector<std::shared_ptr<VirtualPrinter::Component>> steppers;
   kinematic_state state{};
   std::function<void(kinematic_state)> on_kinematic_update;
@@ -44,11 +42,9 @@ public:
   void ui_widget();
   void kinematic_update();
 
-  glm::vec4 effector_position{}, stepper_position{};
-  glm::vec3 origin{};
   std::vector<std::shared_ptr<VirtualPrinter::Component>> steppers;
+  kinematic_state state{};
   std::function<void(kinematic_state)> on_kinematic_update;
-
   double delta_radius = 140.0;
   double delta_diagonal_rod = 250.0;
   glm::vec2 delta_tower[3]{};

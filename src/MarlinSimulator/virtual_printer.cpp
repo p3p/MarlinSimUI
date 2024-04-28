@@ -58,9 +58,12 @@ void VirtualPrinter::build() {
     root->add_component<EndStop>("Endstop(Tower C Max)", Z_MAX_PIN, !Z_MAX_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->state.stepper_position.z >= Z_MAX_POS; });
   #else
     auto kinematics = root->add_component<KinematicSystem>("Cartesian Kinematic System", on_kinematic_update);
-    root->add_component<EndStop>("Endstop(X Min)", X_MIN_PIN, !X_MIN_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->state.position.x <= X_MIN_POS; });
-    root->add_component<EndStop>("Endstop(Y Min)", Y_MIN_PIN, !Y_MIN_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->state.position.y <= Y_MIN_POS; });
-    root->add_component<EndStop>("Endstop(Z Min)", Z_MIN_PIN, !Z_MIN_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->state.position.z <= Z_MIN_POS; });
+    root->add_component<EndStop>("Endstop(X Min)", X_MIN_PIN, !X_MIN_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->state.effector_position[0].position.x <= X_MIN_POS; });
+    #ifdef DUAL_X_CARRIAGE
+      root->add_component<EndStop>("Endstop(X2 Max)", X_MAX_PIN, !X_MAX_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->state.effector_position[1].position.x >= X2_MAX_POS; });
+    #endif
+    root->add_component<EndStop>("Endstop(Y Min)", Y_MIN_PIN, !Y_MIN_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->state.effector_position[0].position.y <= Y_MIN_POS; });
+    root->add_component<EndStop>("Endstop(Z Min)", Z_MIN_PIN, !Z_MIN_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->state.effector_position[0].position.z <= Z_MIN_POS; });
   #endif
 
   auto print_bed = root->add_component<PrintBed>("Print Bed", glm::vec2{X_BED_SIZE, Y_BED_SIZE});
