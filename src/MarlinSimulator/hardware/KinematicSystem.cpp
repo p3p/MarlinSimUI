@@ -145,12 +145,18 @@ KinematicSystem::KinematicSystem(std::function<void(kinematic_state)> on_kinemat
   #endif
 
   srand(time(0));
-  origin.x = (rand() % (int)((X_MAX_POS / 4) - X_MIN_POS)) + X_MIN_POS;
-  origin.y = (rand() % (int)((Y_MAX_POS / 4) - Y_MIN_POS)) + Y_MIN_POS;
-  origin.z = (rand() % (int)((Z_MAX_POS / 8) - Z_MIN_POS)) + Z_MIN_POS;
+  hardware_offset.push_back(glm::vec3{
+    (rand() % (int)((X_MAX_POS / 4) - X_MIN_POS)) + X_MIN_POS,
+    (rand() % (int)((Y_MAX_POS / 4) - Y_MIN_POS)) + Y_MIN_POS,
+    (rand() % (int)((Z_MAX_POS / 8) - Z_MIN_POS)) + Z_MIN_POS
+  });
 
   #ifdef DUAL_X_CARRIAGE
-    origin2.x = (rand() % (int)((X2_MAX_POS / 4) - (origin.x + X2_MIN_POS))) + (origin.x + X2_MIN_POS);
+    hardware_offset.push_back(glm::vec3{
+      (rand() % (int)((X2_MAX_POS / 4) - (hardware_offset[0].x + X2_MIN_POS))) + (hardware_offset[0].x + X2_MIN_POS),
+      hardware_offset[0].y,
+      hardware_offset[0].z
+    });
   #endif
 
 }
@@ -198,7 +204,7 @@ void KinematicSystem::kinematic_update() {
 
 #ifdef SINGLENOZZLE
   for (size_t i = 0; i < EXTRUDERS; ++i) {
-    state.effector_position[i] = {glm::vec4(origin + glm::vec3{hotend_offset_x[0], hotend_offset_y[0], hotend_offset_z[0]}, 0.0f) + glm::vec4(carriage, extruder[i]), filament_color[i]};
+    state.effector_position[i] = {carriage, glm::vec4(hardware_offset[0] + glm::vec3{hotend_offset_x[0], hotend_offset_y[0], hotend_offset_z[0]}, 0.0f) + glm::vec4(carriage, extruder[i]), filament_color[i]};
   }
 #elif defined(DUAL_X_CARRIAGE)
   auto carriage2 = glm::vec3{
@@ -206,11 +212,11 @@ void KinematicSystem::kinematic_update() {
     carriage.y,
     carriage.z
   };
-  state.effector_position[0] = {glm::vec4(origin, 0.0f) + glm::vec4(carriage, extruder[0]), filament_color[0]};
-  state.effector_position[1] = {glm::vec4(glm::vec3{origin2.x, origin.y, origin.z}, 0.0f) + glm::vec4(carriage2, extruder[1]), filament_color[1]};
+  state.effector_position[0] = {carriage, glm::vec4(hardware_offset[0], 0.0f) + glm::vec4(carriage, extruder[0]), filament_color[0]};
+  state.effector_position[1] = {carriage2, glm::vec4(hardware_offset[1], 0.0f) + glm::vec4(carriage2, extruder[1]), filament_color[1]};
 #else
   for (size_t i = 0; i < HOTENDS; ++i) {
-    state.effector_position[i] = {glm::vec4(origin + glm::vec3{hotend_offset_x[i], hotend_offset_y[i], hotend_offset_z[i]}, 0.0f) + glm::vec4(carriage, extruder[i]), filament_color[i]};
+    state.effector_position[i] = {carriage, glm::vec4(hardware_offset[0], 0.0f) + glm::vec4{hotend_offset_x[i], hotend_offset_y[i], hotend_offset_z[i], 0.0} + glm::vec4(carriage, extruder[i]), filament_color[i]};
   }
 #endif
 
@@ -220,32 +226,28 @@ void KinematicSystem::kinematic_update() {
 
 void KinematicSystem::ui_widget() {
   if (state.effector_position.size() > 0) {
-    auto& ex1_position = state.effector_position[0];
-    auto pos = glm::vec4{origin, 0} + ex1_position.position;
-    auto value = pos.x;
+    auto value = state.effector_position[0].position.x;
     if (ImGui::SliderFloat("X Position(mm)", &value, X_MIN_POS, X_MAX_POS)) {
-      origin.x = value - ex1_position.position.x;
+      hardware_offset[0].x = value - state.effector_position[0].stepper_position.x;
       kinematic_update();
     }
 
     #if defined(DUAL_X_CARRIAGE) && EXTRUDERS > 1
-      auto& ex2_position = state.effector_position[1];
-      auto pos2 = glm::vec4{origin2, 0} + ex2_position.position;
-      value = pos2.x;
+      value = state.effector_position[1].position.x;
       if (ImGui::SliderFloat("X2 Position(mm)", &value, X2_MIN_POS, X2_MAX_POS)) {
-        origin2.x = value - ex2_position.position.x;
+        hardware_offset[1].x = value - state.effector_position[1].stepper_position.x;
         kinematic_update();
       }
     #endif
 
-    value = pos.y;
+    value = state.effector_position[0].position.y;
     if (ImGui::SliderFloat("Y Position(mm)",  &value, Y_MIN_POS, Y_MAX_POS)) {
-      origin.y = value - ex1_position.position.y;
+      hardware_offset[0].y = value - state.effector_position[0].stepper_position.y;
       kinematic_update();
-    }
-    value = pos.z;
+          }
+    value = state.effector_position[0].position.z;
     if (ImGui::SliderFloat("Z Position(mm)",  &value, Z_MIN_POS, Z_MAX_POS)) {
-      origin.z = value - ex1_position.position.z;
+      hardware_offset[0].z = value - state.effector_position[0].stepper_position.z;
       kinematic_update();
     }
   }
