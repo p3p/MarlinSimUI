@@ -27,7 +27,7 @@ static const char * data_shader_extrusion_gs = R"SHADERSTR(
     EndPrimitive();
   }
 
-  const float epsilon = 0.000001;
+  const float epsilon = 0.0004;
 
   void main() {
     vec3 prev = gl_in[0].gl_Position.xyz;
