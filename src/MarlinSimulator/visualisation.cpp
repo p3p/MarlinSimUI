@@ -126,6 +126,7 @@ void Visualisation::create() {
   }
 
   auto kin = virtual_printer.get_component<KinematicSystem>("Cartesian Kinematic System");
+  if(kin == nullptr) kin = virtual_printer.get_component<KinematicSystem>("Delta Kinematic System");
   if (kin != nullptr && kin->state.effector_position.size() == extrusion.size()) {
     size_t i = 0;
     for (auto state : kin->state.effector_position) {
@@ -336,18 +337,19 @@ void Visualisation::ui_viewport_callback(UiWindow* window) {
       if (follow_mode != FOLLOW_NONE)
         follow_offset = camera.position - glm::vec3(ex.position);
     }
-    if (ImGui::IsKeyPressed(SDL_SCANCODE_F1)) {
-      for (auto& mesh : m_renderer.m_mesh) {
-        mesh->m_visible = false;
-      }
-    }
-    if (ImGui::IsKeyPressed(SDL_SCANCODE_F2)) {
-      for (auto& mesh : m_renderer.m_mesh) {
-        mesh->m_visible = true;
-      }
-    }
     if (ImGui::GetIO().MouseWheel != 0 && viewport.hovered) {
       camera.position += camera.speed * camera.direction * delta * ImGui::GetIO().MouseWheel;
+    }
+  }
+
+  if (ImGui::IsKeyPressed(SDL_SCANCODE_F1)) {
+    for (auto& mesh : m_renderer.m_mesh) {
+      mesh->m_visible = false;
+    }
+  }
+  if (ImGui::IsKeyPressed(SDL_SCANCODE_F2)) {
+    for (auto& mesh : m_renderer.m_mesh) {
+      mesh->m_visible = true;
     }
   }
 

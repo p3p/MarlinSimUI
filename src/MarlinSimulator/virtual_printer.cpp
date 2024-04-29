@@ -53,11 +53,11 @@ void VirtualPrinter::build() {
 
   #if ENABLED(DELTA)
     auto kinematics = root->add_component<DeltaKinematicSystem>("Delta Kinematic System", on_kinematic_update);
-    root->add_component<EndStop>("Endstop(Tower A Max)", X_MAX_PIN, !X_MAX_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->state.stepper_position.x >= Z_MAX_POS; });
-    root->add_component<EndStop>("Endstop(Tower B Max)", Y_MAX_PIN, !Y_MAX_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->state.stepper_position.y >= Z_MAX_POS; });
-    root->add_component<EndStop>("Endstop(Tower C Max)", Z_MAX_PIN, !Z_MAX_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->state.stepper_position.z >= Z_MAX_POS; });
+    root->add_component<EndStop>("Endstop(Tower A Max)", X_MAX_PIN, !X_MAX_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->state.effector_position[0].stepper_position.x >= DELTA_HEIGHT; });
+    root->add_component<EndStop>("Endstop(Tower B Max)", Y_MAX_PIN, !Y_MAX_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->state.effector_position[0].stepper_position.y >= DELTA_HEIGHT; });
+    root->add_component<EndStop>("Endstop(Tower C Max)", Z_MAX_PIN, !Z_MAX_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->state.effector_position[0].stepper_position.z >= DELTA_HEIGHT; });
   #else
-    auto kinematics = root->add_component<KinematicSystem>("Cartesian Kinematic System", on_kinematic_update);
+    auto kinematics = root->add_component<CartesianKinematicSystem>("Cartesian Kinematic System", on_kinematic_update);
     root->add_component<EndStop>("Endstop(X Min)", X_MIN_PIN, !X_MIN_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->state.effector_position[0].position.x <= X_MIN_POS; });
     #ifdef DUAL_X_CARRIAGE
       root->add_component<EndStop>("Endstop(X2 Max)", X_MAX_PIN, !X_MAX_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->state.effector_position[1].position.x >= X2_MAX_POS; });
@@ -75,7 +75,7 @@ void VirtualPrinter::build() {
     #else
       Z_MIN_PROBE_PIN
     #endif
-    , glm::vec3 NOZZLE_TO_PROBE_OFFSET, kinematics->effector_position, *print_bed);
+    , glm::vec3 NOZZLE_TO_PROBE_OFFSET, kinematics->state.effector_position[0].position, *print_bed);
   #endif
 
   #if HOTENDS

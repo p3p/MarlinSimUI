@@ -86,15 +86,14 @@ enum AxisIndex {
   #if EXTRUDERS > 7
     E7,
   #endif
+  COUNT
 };
 
-KinematicSystem::KinematicSystem(std::function<void(kinematic_state)> on_kinematic_update) : VirtualPrinter::Component("Kinematic System"), on_kinematic_update(on_kinematic_update) {
-
+void KinematicSystem::collect_steppers() {
   steppers.push_back(add_component<StepperDriver>("StepperX", X_ENABLE_PIN, X_DIR_PIN, X_STEP_PIN, [this](){ this->kinematic_update(); }));
   #if HAS_X2_STEPPER
     steppers.push_back(add_component<StepperDriver>("StepperX2", X2_ENABLE_PIN, X2_DIR_PIN, X2_STEP_PIN, [this](){ this->kinematic_update(); }));
   #endif
-
   steppers.push_back(add_component<StepperDriver>("StepperY", Y_ENABLE_PIN, Y_DIR_PIN, Y_STEP_PIN, [this](){ this->kinematic_update(); }));
   #if HAS_Y2_STEPPER
     steppers.push_back(add_component<StepperDriver>("StepperY2", Y2_ENABLE_PIN, Y2_DIR_PIN, Y2_STEP_PIN, [this](){ this->kinematic_update(); }));
@@ -143,6 +142,10 @@ KinematicSystem::KinematicSystem(std::function<void(kinematic_state)> on_kinemat
     steppers.push_back(add_component<StepperDriver>("StepperE7", E7_ENABLE_PIN, E7_DIR_PIN, E7_STEP_PIN, [this](){ this->kinematic_update(); }));
     state.effector_position.push_back({});
   #endif
+}
+
+CartesianKinematicSystem::CartesianKinematicSystem(std::function<void(kinematic_state)> on_kinematic_update) : KinematicSystem(on_kinematic_update) {
+  collect_steppers();
 
   srand(time(0));
   hardware_offset.push_back(glm::vec3{
@@ -190,7 +193,7 @@ std::array<glm::vec3, 8> filament_color {
             {0.0, 0.0, 0.0}
 };
 
-void KinematicSystem::kinematic_update() {
+void CartesianKinematicSystem::kinematic_update() {
   auto carriage = glm::vec3{
     std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::X])->steps() / steps_per_unit[0] * (((INVERT_X_DIR * 2) - 1) * -1.0),
     std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::Y])->steps() / steps_per_unit[1] * (((INVERT_Y_DIR * 2) - 1) * -1.0),
@@ -224,7 +227,7 @@ void KinematicSystem::kinematic_update() {
   on_kinematic_update(state);
 }
 
-void KinematicSystem::ui_widget() {
+void CartesianKinematicSystem::ui_widget() {
   if (state.effector_position.size() > 0) {
     auto value = state.effector_position[0].position.x;
     if (ImGui::SliderFloat("X Position(mm)", &value, X_MIN_POS, X_MAX_POS)) {
@@ -253,19 +256,20 @@ void KinematicSystem::ui_widget() {
   }
 }
 
-#if ENABLED(DELTA)
-#define A_AXIS 0
-#define B_AXIS 1
-#define C_AXIS 2
+enum DeltaAxis {
+  A_AXIS_IDX,
+  B_AXIS_IDX,
+  C_AXIS_IDX
+};
 
 // Stolen from Marlin Firmware delta.cpp
 void DeltaKinematicSystem::recalc_delta_settings() {
   //constexpr abc_float_t trt = DELTA_RADIUS_TRIM_TOWER;
-  delta_tower[A_AXIS] = { std::cos(glm::radians(210.0 + delta_tower_angle_trim.x)) * (delta_radius + delta_radius_trim_tower.x), // front left tower
+  delta_tower[A_AXIS_IDX] = { std::cos(glm::radians(210.0 + delta_tower_angle_trim.x)) * (delta_radius + delta_radius_trim_tower.x), // front left tower
                           std::sin(glm::radians(210.0 + delta_tower_angle_trim.x)) * (delta_radius + delta_radius_trim_tower.x) };
-  delta_tower[B_AXIS] = { std::cos(glm::radians(330.0 + delta_tower_angle_trim.y)) * (delta_radius + delta_radius_trim_tower.y), // front right tower
+  delta_tower[B_AXIS_IDX] = { std::cos(glm::radians(330.0 + delta_tower_angle_trim.y)) * (delta_radius + delta_radius_trim_tower.y), // front right tower
                           std::sin(glm::radians(330.0 + delta_tower_angle_trim.y)) * (delta_radius + delta_radius_trim_tower.y) };
-  delta_tower[C_AXIS] = { std::cos(glm::radians( 90.0 + delta_tower_angle_trim.z)) * (delta_radius + delta_radius_trim_tower.z), // back middle tower
+  delta_tower[C_AXIS_IDX] = { std::cos(glm::radians( 90.0 + delta_tower_angle_trim.z)) * (delta_radius + delta_radius_trim_tower.z), // back middle tower
                           std::sin(glm::radians( 90.0 + delta_tower_angle_trim.z)) * (delta_radius + delta_radius_trim_tower.z) };
   delta_diagonal_rod_2_tower = { std::pow(delta_diagonal_rod + delta_diagonal_rod_trim.x, 2),
                                  std::pow(delta_diagonal_rod + delta_diagonal_rod_trim.y, 2),
@@ -275,8 +279,8 @@ void DeltaKinematicSystem::recalc_delta_settings() {
 glm::vec3 DeltaKinematicSystem::forward_kinematics(const double z1, const double z2, const double z3) {
 
   // Create a vector in old coordinates along x axis of new coordinate
-  const double p12[3] = { delta_tower[B_AXIS].x - delta_tower[A_AXIS].x,
-                          delta_tower[B_AXIS].y - delta_tower[A_AXIS].y,
+  const double p12[3] = { delta_tower[B_AXIS_IDX].x - delta_tower[A_AXIS_IDX].x,
+                          delta_tower[B_AXIS_IDX].y - delta_tower[A_AXIS_IDX].y,
                           z2 - z1 };
 
   // Get the reciprocal of Magnitude of vector.
@@ -288,8 +292,8 @@ glm::vec3 DeltaKinematicSystem::forward_kinematics(const double z1, const double
                          p12[2] * inv_d };
 
   // Get the vector from the origin of the new system to the third point.
-  const double p13[3] = { delta_tower[C_AXIS].x - delta_tower[A_AXIS].x,
-                          delta_tower[C_AXIS].y - delta_tower[A_AXIS].y,
+  const double p13[3] = { delta_tower[C_AXIS_IDX].x - delta_tower[A_AXIS_IDX].x,
+                          delta_tower[C_AXIS_IDX].y - delta_tower[A_AXIS_IDX].y,
                           z3 - z1 };
 
   // Use the dot product to find the component of this vector on the X axis.
@@ -331,63 +335,78 @@ glm::vec3 DeltaKinematicSystem::forward_kinematics(const double z1, const double
   // Start from the origin of the old coordinates and add vectors in the
   // old coords that represent the Xnew, Ynew and Znew to find the point
   // in the old system.
-  return glm::vec3{ delta_tower[A_AXIS].x + ex[0] * Xnew + ey[0] * Ynew - ez[0] * Znew,
-                    delta_tower[A_AXIS].y + ex[1] * Xnew + ey[1] * Ynew - ez[1] * Znew,
+  return glm::vec3{ delta_tower[A_AXIS_IDX].x + ex[0] * Xnew + ey[0] * Ynew - ez[0] * Znew,
+                    delta_tower[A_AXIS_IDX].y + ex[1] * Xnew + ey[1] * Ynew - ez[1] * Znew,
                     z1 + ex[2] * Xnew + ey[2] * Ynew - ez[2] * Znew
   };
 }
 
-DeltaKinematicSystem::DeltaKinematicSystem(std::function<void(glm::vec4)> on_kinematic_update) : VirtualPrinter::Component("Delta Kinematic System"), on_kinematic_update(on_kinematic_update) {
+DeltaKinematicSystem::DeltaKinematicSystem(std::function<void(kinematic_state)> on_kinematic_update) : KinematicSystem(on_kinematic_update) {
 
-  steppers.push_back(add_component<StepperDriver>("Stepper0", X_ENABLE_PIN, X_DIR_PIN, X_STEP_PIN, [this](){ this->kinematic_update(); }));
-  steppers.push_back(add_component<StepperDriver>("Stepper1", Y_ENABLE_PIN, Y_DIR_PIN, Y_STEP_PIN, [this](){ this->kinematic_update(); }));
-  steppers.push_back(add_component<StepperDriver>("Stepper2", Z_ENABLE_PIN, Z_DIR_PIN, Z_STEP_PIN, [this](){ this->kinematic_update(); }));
-  steppers.push_back(add_component<StepperDriver>("Stepper3", E0_ENABLE_PIN, E0_DIR_PIN, E0_STEP_PIN, [this](){ this->kinematic_update(); }));
+  #ifdef DELTA_HEIGHT
+    delta_height = DELTA_HEIGHT;
+  #endif
+  #ifdef DELTA_RADIUS
+    delta_radius = DELTA_RADIUS;
+  #endif
+  #ifdef DELTA_DIAGONAL_ROD
+    delta_diagonal_rod = DELTA_DIAGONAL_ROD;
+  #endif
+
+  collect_steppers();
+
   recalc_delta_settings();
-
-  // Add an offset as on deltas the linear rails are offset from the bed
-  origin.x = 207.124;//215.0 + DELTA_HEIGHT;
-  origin.y = 207.124;//215.0 + DELTA_HEIGHT;
-  origin.z = 207.124;//215.0 + DELTA_HEIGHT;
+  // Add an offset as on deltas the linear rails minimum position are offset from the bed
+  hardware_offset.push_back({ 217.0807,  217.0807, 217.0807 });
 }
 
 void DeltaKinematicSystem::kinematic_update() {
-  stepper_position = glm::vec4{
-    std::static_pointer_cast<StepperDriver>(steppers[0])->steps() / steps_per_unit[0] * (((INVERT_X_DIR * 2) - 1) * -1.0),
-    std::static_pointer_cast<StepperDriver>(steppers[1])->steps() / steps_per_unit[1] * (((INVERT_Y_DIR * 2) - 1) * -1.0),
-    std::static_pointer_cast<StepperDriver>(steppers[2])->steps() / steps_per_unit[2] * (((INVERT_Z_DIR * 2) - 1) * -1.0),
-    std::static_pointer_cast<StepperDriver>(steppers[3])->steps() / steps_per_unit[3] * (((INVERT_E0_DIR * 2) - 1) * -1.0)
+  auto carriage = glm::vec3{
+    std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::X])->steps() / steps_per_unit[0] * (((INVERT_X_DIR * 2) - 1) * -1.0),
+    std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::Y])->steps() / steps_per_unit[1] * (((INVERT_Y_DIR * 2) - 1) * -1.0),
+    std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::Z])->steps() / steps_per_unit[2] * (((INVERT_Z_DIR * 2) - 1) * -1.0),
   };
 
-  // Add an offset to fudge the coordinate system onto the bed
-  effector_position = glm::vec4{ forward_kinematics(stepper_position.x + origin.x, stepper_position.y + origin.y, stepper_position.z + origin.z), stepper_position.a} + glm::vec4{X_BED_SIZE / 2.0, Y_BED_SIZE / 2.0, 0, 0};
-  on_kinematic_update(effector_position);
+  std::vector<double> extruder {};
+  for (size_t i = 0; i < EXTRUDERS; ++i) {
+    extruder.push_back(std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::E0 + i])->steps() / steps_per_unit[3 + (i * distinct_e_factors)] * (((extruder_invert_dir[i] * 2) - 1) * -1.0));
+  }
+
+#ifdef SINGLENOZZLE
+  for (size_t i = 0; i < EXTRUDERS; ++i) {
+    auto cartesian_pos = forward_kinematics(hardware_offset[0].x + carriage.x, hardware_offset[0].y + carriage.y, hardware_offset[0].z + carriage.z) + glm::vec3{X_BED_SIZE / 2, Y_BED_SIZE / 2, 0.0};
+    state.effector_position[i] = {carriage, glm::vec4(cartesian_pos, extruder[i]), filament_color[i]};
+  }
+#else
+  #error Implement Offset kinematics for multiple offset hotends on a delta carriage ...
+#endif
+
+  state.position = state.effector_position[0].position;
+  on_kinematic_update(state);
 }
 
 void DeltaKinematicSystem::ui_widget() {
-  auto value = stepper_position.x + origin.x;
-  if (ImGui::SliderFloat("Stepper(A) Position (mm)", &value, -100, DELTA_HEIGHT + 100)) {
-    origin.x = value - stepper_position.x;
+  auto value = hardware_offset[0].x + state.effector_position[0].stepper_position.x;
+  if (ImGui::SliderFloat("Stepper(A) Position (mm)", &value, -100, delta_height + 100)) {
+    hardware_offset[0].x = value - state.effector_position[0].stepper_position.x;
     kinematic_update();
   }
-  value = stepper_position.y + origin.y;
-  if (ImGui::SliderFloat("Stepper(B) Position (mm)",  &value, -100, DELTA_HEIGHT + 100)) {
-    origin.y = value - stepper_position.y;
+  value = hardware_offset[0].y + state.effector_position[0].stepper_position.y;
+  if (ImGui::SliderFloat("Stepper(B) Position (mm)",  &value, -100, delta_height + 100)) {
+    hardware_offset[0].y = value - state.effector_position[0].stepper_position.y;
     kinematic_update();
   }
-  value = stepper_position.z + origin.z;
-  if (ImGui::SliderFloat("Stepper(C) Position (mm)",  &value, -100, DELTA_HEIGHT + 100)) {
-    origin.z = value - stepper_position.z;
+  value = hardware_offset[0].z + state.effector_position[0].stepper_position.z;
+  if (ImGui::SliderFloat("Stepper(C) Position (mm)",  &value, -100, delta_height + 100)) {
+    hardware_offset[0].z = value - state.effector_position[0].stepper_position.z;
     kinematic_update();
   }
   ImGui::Text("Stepper Position:");
-  ImGui::Text("x: %f", stepper_position.x);
-  ImGui::Text("y: %f", stepper_position.y);
-  ImGui::Text("z: %f", stepper_position.z);
+  ImGui::Text("x: %f", state.effector_position[0].stepper_position.x);
+  ImGui::Text("y: %f", state.effector_position[0].stepper_position.y);
+  ImGui::Text("z: %f", state.effector_position[0].stepper_position.z);
   ImGui::Text("Cartesian Position:");
-  ImGui::Text("x: %f", effector_position.x);
-  ImGui::Text("y: %f", effector_position.y);
-  ImGui::Text("z: %f", effector_position.z);
+  ImGui::Text("x: %f", state.effector_position[0].position.x);
+  ImGui::Text("y: %f", state.effector_position[0].position.y);
+  ImGui::Text("z: %f", state.effector_position[0].position.z);
 }
-
-#endif

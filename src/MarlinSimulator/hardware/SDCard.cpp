@@ -141,17 +141,18 @@ void SDCard::onRequestedDataReceived(uint8_t token, uint8_t* _data, size_t count
       memset(buf+1, 0xC0, 3);
       setResponse(buf, 4);
       break;
-    case CMD17: //read block
+    case CMD17: { //read block
       buf[0] = R1_READY_STATE;
       buf[1] = DATA_START_BLOCK;
       if (true  /*_type != SD_CARD_TYPE_SDHC*/) {
         currentArg >>= 9;
       }
       fseek(fp, 512 * currentArg, SEEK_SET);
-      fread(buf + 2, 512, 1, fp);
+      [[maybe_unused]] auto result = fread(buf + 2, 512, 1, fp);
       buf[512 + 2] = 0; //crc
       setResponse(buf, 512 + 3);
       break;
+    }
     case CMD24: //write block
       if (true  /*_type != SD_CARD_TYPE_SDHC*/) {
         currentArg >>= 9;
