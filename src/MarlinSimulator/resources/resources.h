@@ -29,13 +29,11 @@ public:
 
 class ResourceManager {
 public:
-  ResourceManager();
-  const char* get_as_cstr(std::filesystem::path path);
+  static const char* get_as_cstr(std::filesystem::path path);
 private:
-  std::map<std::filesystem::path, std::shared_ptr<Resource>> m_embedded_resource = {};
-  std::map<std::filesystem::path, std::shared_ptr<Resource>> m_loaded_resource = {};
+  static std::map<std::filesystem::path, std::shared_ptr<Resource>> s_embedded_resource;
+  static std::map<std::filesystem::path, std::shared_ptr<Resource>> s_loaded_resource;
+  ResourceManager();
 };
-
-extern ResourceManager manager;
 
 }

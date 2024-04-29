@@ -32,8 +32,8 @@ Visualisation::~Visualisation() {
 }
 
 void Visualisation::create() {
-  path_program = renderer::ShaderProgram::loadProgram(resource::manager.get_as_cstr("data/shaders/extrusion.vs"), resource::manager.get_as_cstr("data/shaders/extrusion.fs"), resource::manager.get_as_cstr("data/shaders/extrusion.gs"));
-  program = renderer::ShaderProgram::loadProgram(resource::manager.get_as_cstr("data/shaders/default.vs"), resource::manager.get_as_cstr("data/shaders/default.fs"));
+  path_program = renderer::ShaderProgram::loadProgram(resource::ResourceManager::get_as_cstr("data/shaders/extrusion.vs"), resource::ResourceManager::get_as_cstr("data/shaders/extrusion.fs"), resource::ResourceManager::get_as_cstr("data/shaders/extrusion.gs"));
+  program = renderer::ShaderProgram::loadProgram(resource::ResourceManager::get_as_cstr("data/shaders/default.vs"), resource::ResourceManager::get_as_cstr("data/shaders/default.fs"));
 
   framebuffer = new opengl_util::MsaaFrameBuffer();
   if (!((opengl_util::MsaaFrameBuffer*)framebuffer)->create(100, 100, 4)) {
@@ -406,6 +406,17 @@ void Visualisation::ui_info_callback(UiWindow* w) {
       if (extruder.mesh != nullptr) {
         extruder.mesh->m_delete = true;
       }
+    }
+  }
+
+  if (ImGui::Button("Reload Shaders")) {
+    glDeleteProgram(path_program);
+    path_program = renderer::ShaderProgram::loadProgram(resource::ResourceManager::get_as_cstr("data/shaders/extrusion.vs"), resource::ResourceManager::get_as_cstr("data/shaders/extrusion.fs"), resource::ResourceManager::get_as_cstr("data/shaders/extrusion.gs"));
+    glUniform1f( glGetUniformLocation( path_program, "u_layer_thickness" ), extrude_thickness);
+    glUniform1f( glGetUniformLocation( path_program, "u_layer_width" ), extrude_width);
+    glUniform3fv( glGetUniformLocation( path_program, "u_view_position" ), 1, glm::value_ptr(camera.position));
+    for (auto& ex : extrusion) {
+      ex.mesh->m_shader_program = path_program;
     }
   }
 

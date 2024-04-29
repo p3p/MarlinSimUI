@@ -4,6 +4,16 @@
 #include <fstream>
 
 namespace resource {
+  std::map<std::filesystem::path, std::shared_ptr<Resource>> ResourceManager::s_loaded_resource = {};
+  std::map<std::filesystem::path, std::shared_ptr<Resource>> ResourceManager::s_embedded_resource = {
+    {{"null"}, std::make_shared<Resource>(nullptr)},
+    {{"data/shaders/extrusion.gs"}, std::make_shared<Resource>(data_shader_extrusion_gs)},
+    {{"data/shaders/extrusion.vs"}, std::make_shared<Resource>(data_shader_extrusion_vs)},
+    {{"data/shaders/extrusion.fs"}, std::make_shared<Resource>(data_shader_extrusion_fs)},
+    {{"data/shaders/default.vs"}, std::make_shared<Resource>(data_shader_default_vs)},
+    {{"data/shaders/default.fs"}, std::make_shared<Resource>(data_shader_default_fs)},
+  } ;
+
   FileResource::FileResource(std::filesystem::path path) : m_path{path} {
     load();
   }
@@ -31,28 +41,17 @@ namespace resource {
     return false;
   }
 
-  ResourceManager::ResourceManager() : m_embedded_resource
-    {
-      {{"null"}, std::make_shared<Resource>(nullptr)},
-      {{"data/shaders/extrusion.gs"}, std::make_shared<Resource>(data_shader_extrusion_gs)},
-      {{"data/shaders/extrusion.vs"}, std::make_shared<Resource>(data_shader_extrusion_vs)},
-      {{"data/shaders/extrusion.fs"}, std::make_shared<Resource>(data_shader_extrusion_fs)},
-      {{"data/shaders/default.vs"}, std::make_shared<Resource>(data_shader_default_vs)},
-      {{"data/shaders/default.fs"}, std::make_shared<Resource>(data_shader_default_fs)},
-    } { }
-
   const char* ResourceManager::get_as_cstr(std::filesystem::path path) {
     if (std::filesystem::exists(std::filesystem::current_path() / path)) {
-      if (m_loaded_resource.count(path)) {
-        m_loaded_resource[path]->reload();
-        return m_loaded_resource[path]->m_buffer;
+      if (s_loaded_resource.count(path)) {
+        s_loaded_resource[path]->reload();
+        return s_loaded_resource[path]->m_buffer;
       }
       auto file_buffer = std::make_shared<FileResource>(path);
-      m_loaded_resource[path] = file_buffer;
+      s_loaded_resource[path] = file_buffer;
       return file_buffer->m_buffer;
     }
-    return m_embedded_resource.count(path) > 0 ? m_embedded_resource[path]->m_buffer : nullptr;
+    return s_embedded_resource.count(path) > 0 ? s_embedded_resource[path]->m_buffer : nullptr;
   }
 
-  ResourceManager manager { };
 }
