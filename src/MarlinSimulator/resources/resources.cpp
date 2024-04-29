@@ -31,14 +31,14 @@ namespace resource {
     return false;
   }
 
-  ResourceManager::ResourceManager() : m_resource
+  ResourceManager::ResourceManager() : m_embedded_resource
     {
       {{"null"}, std::make_shared<Resource>(nullptr)},
-      {{"data/shaders/extrusion.gs"}, std::make_shared<Resource>(geometry_shader)},
-      {{"data/shaders/extrusion.vs"}, std::make_shared<Resource>(path_vertex_shader)},
-      {{"data/shaders/extrusion.fs"}, std::make_shared<Resource>(path_fragment_shader)},
-      {{"data/shaders/default.vs"}, std::make_shared<Resource>(vertex_shader)},
-      {{"data/shaders/default.fs"}, std::make_shared<Resource>(fragment_shader)},
+      {{"data/shaders/extrusion.gs"}, std::make_shared<Resource>(data_shader_extrusion_gs)},
+      {{"data/shaders/extrusion.vs"}, std::make_shared<Resource>(data_shader_extrusion_vs)},
+      {{"data/shaders/extrusion.fs"}, std::make_shared<Resource>(data_shader_extrusion_fs)},
+      {{"data/shaders/default.vs"}, std::make_shared<Resource>(data_shader_default_vs)},
+      {{"data/shaders/default.fs"}, std::make_shared<Resource>(data_shader_default_fs)},
     } { }
 
   const char* ResourceManager::get_as_cstr(std::filesystem::path path) {
@@ -51,7 +51,7 @@ namespace resource {
       m_loaded_resource[path] = file_buffer;
       return file_buffer->m_buffer;
     }
-    return m_resource.count(path) > 0 ? m_resource[path]->m_buffer : nullptr;
+    return m_embedded_resource.count(path) > 0 ? m_embedded_resource[path]->m_buffer : nullptr;
   }
 
   ResourceManager manager { };
