@@ -1,6 +1,6 @@
 #pragma once
 
-namespace renderer {
+namespace resource {
 
 // todo : Y axis change fix, worked around by not joining
 // todo : very spiky corners after 45 degs, again just worked around by not joining

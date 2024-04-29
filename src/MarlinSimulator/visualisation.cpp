@@ -13,12 +13,7 @@
 #include <imgui_internal.h>
 #include <implot.h>
 
-
-static GLfloat * SetBedVertexAndAdvance(GLfloat * dest, GLfloat x, GLfloat y) {
-  const GLfloat new_vertex[VERTEX_FLOAT_COUNT] = { BED_VERTEX(x, y) };
-  memcpy(dest, new_vertex, sizeof(new_vertex));
-  return dest + VERTEX_FLOAT_COUNT;
-}
+#include "resources/resources.h"
 
 Visualisation::Visualisation(VirtualPrinter& virtual_printer) : virtual_printer(virtual_printer) {
   virtual_printer.on_kinematic_update = [this](kinematic_state state){
@@ -37,8 +32,8 @@ Visualisation::~Visualisation() {
 }
 
 void Visualisation::create() {
-  path_program = renderer::ShaderProgram::loadProgram(renderer::path_vertex_shader, renderer::path_fragment_shader, renderer::geometry_shader);
-  program = renderer::ShaderProgram::loadProgram(renderer::vertex_shader, renderer::fragment_shader);
+  path_program = renderer::ShaderProgram::loadProgram(resource::manager.get_as_cstr("data/shaders/extrusion.vs"), resource::manager.get_as_cstr("data/shaders/extrusion.fs"), resource::manager.get_as_cstr("data/shaders/extrusion.gs"));
+  program = renderer::ShaderProgram::loadProgram(resource::manager.get_as_cstr("data/shaders/default.vs"), resource::manager.get_as_cstr("data/shaders/default.fs"));
 
   framebuffer = new opengl_util::MsaaFrameBuffer();
   if (!((opengl_util::MsaaFrameBuffer*)framebuffer)->create(100, 100, 4)) {
@@ -57,24 +52,24 @@ void Visualisation::create() {
     auto mesh = renderer::Mesh::create<renderer::vertex_data_t>();
     auto buffer = mesh->buffer<renderer::vertex_data_t>();
     buffer->data() = {
-        renderer::vertex_data_t EFFECTOR_VERTEX2(0.0, 0.0, 0.0, EFFECTOR_COLOR_1),
-        EFFECTOR_VERTEX2(-0.5, 0.5, 0.5, EFFECTOR_COLOR_2),
-        EFFECTOR_VERTEX2(-0.5, 0.5, -0.5, EFFECTOR_COLOR_3),
-        EFFECTOR_VERTEX2(0.0, 0.0, 0.0, EFFECTOR_COLOR_1),
-        EFFECTOR_VERTEX2(-0.5, 0.5, -0.5, EFFECTOR_COLOR_3),
-        EFFECTOR_VERTEX2(0.5, 0.5, -0.5, EFFECTOR_COLOR_2),
-        EFFECTOR_VERTEX2(0.0, 0.0, 0.0, EFFECTOR_COLOR_1),
-        EFFECTOR_VERTEX2(0.5, 0.5, -0.5, EFFECTOR_COLOR_2),
-        EFFECTOR_VERTEX2(0.5, 0.5, 0.5, EFFECTOR_COLOR_3),
-        EFFECTOR_VERTEX2(0.0, 0.0, 0.0, EFFECTOR_COLOR_1),
-        EFFECTOR_VERTEX2(0.5, 0.5, 0.5, EFFECTOR_COLOR_3),
-        EFFECTOR_VERTEX2(-0.5, 0.5, 0.5, EFFECTOR_COLOR_2),
-        EFFECTOR_VERTEX2(0.5, 0.5, -0.5, EFFECTOR_COLOR_2),
-        EFFECTOR_VERTEX2(-0.5, 0.5, -0.5, EFFECTOR_COLOR_3),
-        EFFECTOR_VERTEX2(-0.5, 0.5, 0.5, EFFECTOR_COLOR_2),
-        EFFECTOR_VERTEX2(0.5, 0.5, -0.5, EFFECTOR_COLOR_2),
-        EFFECTOR_VERTEX2(-0.5, 0.5, 0.5, EFFECTOR_COLOR_2),
-        EFFECTOR_VERTEX2(0.5, 0.5, 0.5, EFFECTOR_COLOR_3),
+        renderer::vertex_data_t EFFECTOR_VERTEX(0.0, 0.0, 0.0, EFFECTOR_COLOR_1),
+        EFFECTOR_VERTEX(-0.5, 0.5, 0.5, EFFECTOR_COLOR_2),
+        EFFECTOR_VERTEX(-0.5, 0.5, -0.5, EFFECTOR_COLOR_3),
+        EFFECTOR_VERTEX(0.0, 0.0, 0.0, EFFECTOR_COLOR_1),
+        EFFECTOR_VERTEX(-0.5, 0.5, -0.5, EFFECTOR_COLOR_3),
+        EFFECTOR_VERTEX(0.5, 0.5, -0.5, EFFECTOR_COLOR_2),
+        EFFECTOR_VERTEX(0.0, 0.0, 0.0, EFFECTOR_COLOR_1),
+        EFFECTOR_VERTEX(0.5, 0.5, -0.5, EFFECTOR_COLOR_2),
+        EFFECTOR_VERTEX(0.5, 0.5, 0.5, EFFECTOR_COLOR_3),
+        EFFECTOR_VERTEX(0.0, 0.0, 0.0, EFFECTOR_COLOR_1),
+        EFFECTOR_VERTEX(0.5, 0.5, 0.5, EFFECTOR_COLOR_3),
+        EFFECTOR_VERTEX(-0.5, 0.5, 0.5, EFFECTOR_COLOR_2),
+        EFFECTOR_VERTEX(0.5, 0.5, -0.5, EFFECTOR_COLOR_2),
+        EFFECTOR_VERTEX(-0.5, 0.5, -0.5, EFFECTOR_COLOR_3),
+        EFFECTOR_VERTEX(-0.5, 0.5, 0.5, EFFECTOR_COLOR_2),
+        EFFECTOR_VERTEX(0.5, 0.5, -0.5, EFFECTOR_COLOR_2),
+        EFFECTOR_VERTEX(-0.5, 0.5, 0.5, EFFECTOR_COLOR_2),
+        EFFECTOR_VERTEX(0.5, 0.5, 0.5, EFFECTOR_COLOR_3),
     };
 
     m_extruder_mesh.push_back(mesh);
@@ -113,15 +108,15 @@ void Visualisation::create() {
       // |--/
       // | /
       // |/
-      m_bed_mesh_buffer->add_vertex(BED_VERTEX2(x2, y2));
-      m_bed_mesh_buffer->add_vertex(BED_VERTEX2(x1, y2));
-      m_bed_mesh_buffer->add_vertex(BED_VERTEX2(x1, y1));
+      m_bed_mesh_buffer->add_vertex(BED_VERTEX(x2, y2));
+      m_bed_mesh_buffer->add_vertex(BED_VERTEX(x1, y2));
+      m_bed_mesh_buffer->add_vertex(BED_VERTEX(x1, y1));
       //    /|
       //   / |
       //  /--|
-      m_bed_mesh_buffer->add_vertex(BED_VERTEX2(x2, y2));
-      m_bed_mesh_buffer->add_vertex(BED_VERTEX2(x1, y1));
-      m_bed_mesh_buffer->add_vertex(BED_VERTEX2(x2, y1));
+      m_bed_mesh_buffer->add_vertex(BED_VERTEX(x2, y2));
+      m_bed_mesh_buffer->add_vertex(BED_VERTEX(x1, y1));
+      m_bed_mesh_buffer->add_vertex(BED_VERTEX(x2, y1));
     }
   }
 
