@@ -23,29 +23,32 @@ struct kinematic_state {
 
 class KinematicSystem : public VirtualPrinter::Component {
 public:
-  KinematicSystem(std::function<void(kinematic_state)> on_kinematic_update);
-  ~KinematicSystem() {}
+  KinematicSystem(std::function<void(kinematic_state)> on_kinematic_update) :  VirtualPrinter::Component("Kinematic System"), on_kinematic_update(on_kinematic_update) {};
 
-  void ui_widget();
-  void kinematic_update();
+  virtual void kinematic_update() = 0;
+  void collect_steppers();
+
   std::vector<glm::vec3> hardware_offset {};
   std::vector<std::shared_ptr<VirtualPrinter::Component>> steppers;
   kinematic_state state{};
   std::function<void(kinematic_state)> on_kinematic_update;
 };
 
-class DeltaKinematicSystem : public VirtualPrinter::Component {
+class CartesianKinematicSystem : public KinematicSystem {
+public:
+  CartesianKinematicSystem(std::function<void(kinematic_state)> on_kinematic_update);
+  virtual void ui_widget() override;
+  virtual void kinematic_update() override;
+};
+
+class DeltaKinematicSystem : public KinematicSystem {
 public:
   DeltaKinematicSystem(std::function<void(kinematic_state)> on_kinematic_update);
-  ~DeltaKinematicSystem() {}
+  virtual void ui_widget() override;
+  virtual void kinematic_update() override;
 
-  void ui_widget();
-  void kinematic_update();
-
-  std::vector<std::shared_ptr<VirtualPrinter::Component>> steppers;
-  kinematic_state state{};
-  std::function<void(kinematic_state)> on_kinematic_update;
-  double delta_radius = 140.0;
+  double delta_height = 200.0;
+  double delta_radius = 124.0;
   double delta_diagonal_rod = 250.0;
   glm::vec2 delta_tower[3]{};
   glm::vec3 delta_tower_angle_trim{};
