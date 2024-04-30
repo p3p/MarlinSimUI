@@ -30,7 +30,7 @@
   #define SD_DETECT_STATE HIGH
 #endif
 
-std::function<void(kinematic_state)> VirtualPrinter::on_kinematic_update;
+std::function<void(kinematic_state&)> VirtualPrinter::on_kinematic_update;
 std::map<std::string, std::shared_ptr<VirtualPrinter::Component>> VirtualPrinter::component_map;
 std::vector<std::shared_ptr<VirtualPrinter::Component>> VirtualPrinter::components;
 std::shared_ptr<VirtualPrinter::Component> VirtualPrinter::root;

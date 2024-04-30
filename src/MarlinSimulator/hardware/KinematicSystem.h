@@ -23,7 +23,7 @@ struct kinematic_state {
 
 class KinematicSystem : public VirtualPrinter::Component {
 public:
-  KinematicSystem(std::function<void(kinematic_state)> on_kinematic_update) :  VirtualPrinter::Component("Kinematic System"), on_kinematic_update(on_kinematic_update) {};
+  KinematicSystem(std::function<void(kinematic_state&)> on_kinematic_update) :  VirtualPrinter::Component("Kinematic System"), on_kinematic_update(on_kinematic_update) {};
 
   virtual void kinematic_update() = 0;
   void collect_steppers();
@@ -31,19 +31,20 @@ public:
   std::vector<glm::vec3> hardware_offset {};
   std::vector<std::shared_ptr<VirtualPrinter::Component>> steppers;
   kinematic_state state{};
-  std::function<void(kinematic_state)> on_kinematic_update;
+  std::function<void(kinematic_state&)> on_kinematic_update;
 };
 
 class CartesianKinematicSystem : public KinematicSystem {
 public:
-  CartesianKinematicSystem(std::function<void(kinematic_state)> on_kinematic_update);
+  CartesianKinematicSystem(std::function<void(kinematic_state&)> on_kinematic_update);
   virtual void ui_widget() override;
   virtual void kinematic_update() override;
+  std::vector<double> extruder {};
 };
 
 class DeltaKinematicSystem : public KinematicSystem {
 public:
-  DeltaKinematicSystem(std::function<void(kinematic_state)> on_kinematic_update);
+  DeltaKinematicSystem(std::function<void(kinematic_state&)> on_kinematic_update);
   virtual void ui_widget() override;
   virtual void kinematic_update() override;
 

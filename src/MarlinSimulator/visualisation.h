@@ -136,7 +136,7 @@ public:
 
   std::vector<Extrusion> extrusion {};
 
-  void set_head_position(size_t hotend_index, extruder_state position);
+  void set_head_position(size_t hotend_index, extruder_state& position);
   bool points_are_collinear(const glm::vec3 a, const glm::vec3 b, const glm::vec3 c, const double threshold) const;
 
   FollowMode follow_mode = FOLLOW_NONE;
@@ -176,7 +176,6 @@ public:
   float extrude_width = 0.4;
   float extrude_thickness = 0.3;
 
-  renderer::Renderer m_renderer {};
   bool m_initialised = false;
   visualisation_config m_config {};
 };

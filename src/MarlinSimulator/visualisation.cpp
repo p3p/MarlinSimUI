@@ -16,7 +16,7 @@
 #include "resources/resources.h"
 
 Visualisation::Visualisation(VirtualPrinter& virtual_printer) : virtual_printer(virtual_printer) {
-  virtual_printer.on_kinematic_update = [this](kinematic_state state){
+  virtual_printer.on_kinematic_update = [this](kinematic_state& state){
     for (size_t i = 0; i < state.effector_position.size(); ++i) {
       this->set_head_position(i, state.effector_position[i]);
     }
@@ -209,7 +209,7 @@ void Visualisation::destroy() {
   }
 }
 
-void Visualisation::set_head_position(size_t hotend_index, extruder_state state) {
+void Visualisation::set_head_position(size_t hotend_index, extruder_state& state) {
   if (!m_initialised || hotend_index >= extrusion.size()) return;
   glm::vec4 sim_pos = state.position;
   glm::vec4 position = {sim_pos.x, sim_pos.z, sim_pos.y * -1.0, sim_pos.w}; // correct for opengl coordinate system

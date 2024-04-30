@@ -149,8 +149,9 @@ public:
 
   void bind_immediate() {
     glUseProgram(m_program->m_program_id);
-    for (auto [location, uniform] : m_uniforms)
+    for (auto& [location, uniform] : m_uniforms) {
       uniform.gl_uniform_call(uniform.desc, uniform.uniform_data);
+    }
   }
 
   template<typename T> void set_uniform(std::string name, T* value) {

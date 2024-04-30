@@ -223,6 +223,11 @@ struct SerialMonitor : public UiWindow {
 
   MSerialT& serial_stream;
   std::ifstream input_file;
+  uint8_t buffer[HalSerial::receive_buffer_size]{};
+  const std::string file_dialog_key = "ChooseFileDlgKey";
+  const std::string file_dialog_title = "Choose File";
+  const char* file_dialog_filters = "GCode(*.gcode *.gc *.g){.gcode,.gc,.g},.*";
+  const std::string file_dialog_path = ".";
 
   int input_callback(ImGuiInputTextCallbackData* data) {
     switch (data->EventFlag) {
@@ -270,7 +275,6 @@ struct SerialMonitor : public UiWindow {
   void show() {
     // File read into serial port
     if (input_file.is_open() && serial_stream.receive_buffer.free() && streaming) {
-      uint8_t buffer[HalSerial::receive_buffer_size]{};
       size_t read_size = std::min(serial_stream.receive_buffer.free(), stream_total - stream_sent);
       input_file.read((char*)buffer, read_size);
       serial_stream.receive_buffer.write(buffer, read_size);
@@ -291,7 +295,7 @@ struct SerialMonitor : public UiWindow {
     if (ImGui::BeginMenuBar()) {
       if (ImGui::BeginMenu("Stream")) {
         if (ImGui::MenuItem("Select GCode File")) {
-          ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", "GCode(*.gcode *.gc *.g){.gcode,.gc,.g},.*", ".");
+          ImGuiFileDialog::Instance()->OpenDialog(file_dialog_key, file_dialog_title, file_dialog_filters, file_dialog_path);
         }
         if (input_file.is_open() && streaming)
           if (ImGui::MenuItem("Pause")) {
@@ -319,7 +323,7 @@ struct SerialMonitor : public UiWindow {
       ImGui::EndMenuBar();
     }
 
-    if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey", ImGuiWindowFlags_NoDocking))  {
+    if (ImGuiFileDialog::Instance()->IsOpened() &&  ImGuiFileDialog::Instance()->Display(file_dialog_key, ImGuiWindowFlags_NoDocking))  {
       if (ImGuiFileDialog::Instance()->IsOk()) {
         std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
         //printf("Streaming file: %s\n", filePathName.c_str());
@@ -340,7 +344,7 @@ struct SerialMonitor : public UiWindow {
     auto size = ImGui::GetContentRegionAvail();
     size.y -= 25; // TODO: there must be a better way to fill 2 items on a line
     if (ImGui::BeginChild(child_id, size, true, child_flags)) {
-      for (auto line : line_buffer) {
+      for (auto& line : line_buffer) {
         if (line.count > 1) ImGui::TextWrapped("[%ld] %s", line.count, (char *)line.text.c_str());
         else  ImGui::TextWrapped("%s", (char *)line.text.c_str());
       }

@@ -60,7 +60,7 @@ public:
     return std::static_pointer_cast<T>(component_map[name]);
   }
 
-  static std::function<void(kinematic_state)> on_kinematic_update;
+  static std::function<void(kinematic_state&)> on_kinematic_update;
 
 private:
   static std::map<std::string, std::shared_ptr<Component>> component_map;
