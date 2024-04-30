@@ -154,8 +154,8 @@ public:
 
   std::shared_ptr<renderer::Buffer<renderer::vertex_data_t>> m_bed_mesh_buffer {};
   std::shared_ptr<renderer::Mesh> m_bed_mesh;
-
-  GLuint program, path_program;
+  std::shared_ptr<renderer::ShaderProgram> extrusion_program;
+  std::shared_ptr<renderer::ShaderProgram> default_program;
 
   bool mouse_captured = false;
   bool input_state[6] = {};

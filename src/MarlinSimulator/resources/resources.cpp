@@ -42,7 +42,7 @@ namespace resource {
   }
 
   const char* ResourceManager::get_as_cstr(std::filesystem::path path) {
-    if (std::filesystem::exists(std::filesystem::current_path() / path)) {
+    if (!path.empty() && std::filesystem::exists(std::filesystem::current_path() / path)) {
       if (s_loaded_resource.count(path)) {
         s_loaded_resource[path]->reload();
         return s_loaded_resource[path]->m_buffer;

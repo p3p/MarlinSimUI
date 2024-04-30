@@ -32,8 +32,8 @@ Visualisation::~Visualisation() {
 }
 
 void Visualisation::create() {
-  path_program = renderer::ShaderProgram::loadProgram(resource::ResourceManager::get_as_cstr("data/shaders/extrusion.vs"), resource::ResourceManager::get_as_cstr("data/shaders/extrusion.fs"), resource::ResourceManager::get_as_cstr("data/shaders/extrusion.gs"));
-  program = renderer::ShaderProgram::loadProgram(resource::ResourceManager::get_as_cstr("data/shaders/default.vs"), resource::ResourceManager::get_as_cstr("data/shaders/default.fs"));
+  extrusion_program = renderer::ShaderProgram::create("data/shaders/extrusion.vs", "data/shaders/extrusion.fs", "data/shaders/extrusion.gs");
+  default_program = renderer::ShaderProgram::create("data/shaders/default.vs","data/shaders/default.fs");
 
   framebuffer = new opengl_util::MsaaFrameBuffer();
   if (!((opengl_util::MsaaFrameBuffer*)framebuffer)->create(100, 100, 4)) {
@@ -79,13 +79,13 @@ void Visualisation::create() {
   }
 
   for (auto m : m_extruder_mesh) {
-    m->set_shader_program(program);
+    m->set_shader_program(default_program);
     m->m_scale = effector_scale;
     m_renderer.m_mesh.push_back(m);
   }
 
   m_bed_mesh = renderer::Mesh::create<renderer::vertex_data_t>();
-  m_bed_mesh->set_shader_program(program);
+  m_bed_mesh->set_shader_program(default_program);
   m_bed_mesh_buffer = m_bed_mesh->buffer<renderer::vertex_data_t>();
   m_renderer.m_mesh.push_back(m_bed_mesh);
 
@@ -199,11 +199,6 @@ void Visualisation::update() {
     mesh_id ++;
   }
 
-  // TODO:  Shaders need this internalised
-  glUseProgram( path_program );
-  glUniform1f( glGetUniformLocation( path_program, "u_layer_thickness" ), extrude_thickness);
-  glUniform1f( glGetUniformLocation( path_program, "u_layer_width" ), extrude_width);
-  glUniform3fv( glGetUniformLocation( path_program, "u_view_position" ), 1, glm::value_ptr(camera.position));
   m_renderer.render(camera.proj * camera.view);
 }
 
@@ -253,10 +248,14 @@ void Visualisation::set_head_position(size_t hotend_index, extruder_state state)
     } else { // need to change geometry buffer
       if (extruder.active_mesh_buffer == nullptr) {
         auto mesh = renderer::Mesh::create<renderer::vertex_data_t>();
-        mesh->set_shader_program(path_program);
+        mesh->set_shader_program(extrusion_program);
+        mesh->m_shader_instance->set_uniform("u_layer_thickness", &extrude_thickness);
+        mesh->m_shader_instance->set_uniform("u_layer_width", &extrude_width);
+        mesh->m_shader_instance->set_uniform("u_view_position", &camera.position);
+
         extruder.active_mesh_buffer = mesh->buffer<renderer::vertex_data_t>();
         extruder.active_mesh_buffer->data().reserve(renderer::Renderer::MAX_BUFFER_SIZE);
-        extruder.active_mesh_buffer->m_geometry_type = renderer::Primitive::LINE_STRIP_ADJACENCY;
+        extruder.active_mesh_buffer->m_geometry_type = renderer::GeometryPrimitive::LINE_STRIP_ADJACENCY;
         extruder.mesh = mesh;
         extruder.last_extrusion_check = position;
         m_renderer.m_mesh.push_back(mesh);
@@ -266,7 +265,7 @@ void Visualisation::set_head_position(size_t hotend_index, extruder_state state)
         renderer::vertex_data_t last_vertex = extruder.active_mesh_buffer->cdata().back();
         auto buffer = renderer::Buffer<renderer::vertex_data_t>::create();
         buffer->data().reserve(renderer::Renderer::MAX_BUFFER_SIZE);
-        buffer->m_geometry_type = renderer::Primitive::LINE_STRIP_ADJACENCY;
+        buffer->m_geometry_type = renderer::GeometryPrimitive::LINE_STRIP_ADJACENCY;
         extruder.active_mesh_buffer = buffer;
         extruder.mesh->buffer_vector<renderer::vertex_data_t>().push_back(buffer);
 
@@ -410,14 +409,13 @@ void Visualisation::ui_info_callback(UiWindow* w) {
   }
 
   if (ImGui::Button("Reload Shaders")) {
-    glDeleteProgram(path_program);
-    path_program = renderer::ShaderProgram::loadProgram(resource::ResourceManager::get_as_cstr("data/shaders/extrusion.vs"), resource::ResourceManager::get_as_cstr("data/shaders/extrusion.fs"), resource::ResourceManager::get_as_cstr("data/shaders/extrusion.gs"));
-    glUniform1f( glGetUniformLocation( path_program, "u_layer_thickness" ), extrude_thickness);
-    glUniform1f( glGetUniformLocation( path_program, "u_layer_width" ), extrude_width);
-    glUniform3fv( glGetUniformLocation( path_program, "u_view_position" ), 1, glm::value_ptr(camera.position));
-    for (auto& ex : extrusion) {
-      ex.mesh->m_shader_program = path_program;
-    }
+    // path_program = renderer::ShaderProgram::loadProgram(resource::ResourceManager::get_as_cstr("data/shaders/extrusion.vs"), resource::ResourceManager::get_as_cstr("data/shaders/extrusion.fs"), resource::ResourceManager::get_as_cstr("data/shaders/extrusion.gs"));
+    // glUniform1f( glGetUniformLocation( path_program, "u_layer_thickness" ), extrude_thickness);
+    // glUniform1f( glGetUniformLocation( path_program, "u_layer_width" ), extrude_width);
+    // glUniform3fv( glGetUniformLocation( path_program, "u_view_position" ), 1, glm::value_ptr(camera.position));
+    // for (auto& ex : extrusion) {
+    //   ex.mesh->m_shader_program = path_program;
+    // }
   }
 
   ImGui::PushItemWidth(150);
