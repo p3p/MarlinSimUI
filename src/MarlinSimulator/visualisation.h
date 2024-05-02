@@ -22,7 +22,6 @@
 #include "user_interface.h"
 
 #include "renderer/renderer.h"
-#include "renderer/shader_data.h"
 
 constexpr glm::ivec2 build_plate_dimension{X_BED_SIZE, Y_BED_SIZE};
 constexpr glm::ivec2 build_plate_offset{X_MIN_POS, Y_MIN_POS};
@@ -137,7 +136,7 @@ public:
 
   std::vector<Extrusion> extrusion {};
 
-  void set_head_position(size_t hotend_index, extruder_state position);
+  void set_head_position(size_t hotend_index, extruder_state& position);
   bool points_are_collinear(const glm::vec3 a, const glm::vec3 b, const glm::vec3 c, const double threshold) const;
 
   FollowMode follow_mode = FOLLOW_NONE;
@@ -155,8 +154,8 @@ public:
 
   std::shared_ptr<renderer::Buffer<renderer::vertex_data_t>> m_bed_mesh_buffer {};
   std::shared_ptr<renderer::Mesh> m_bed_mesh;
-
-  GLuint program, path_program;
+  std::shared_ptr<renderer::ShaderProgram> extrusion_program;
+  std::shared_ptr<renderer::ShaderProgram> default_program;
 
   bool mouse_captured = false;
   bool input_state[6] = {};
@@ -170,25 +169,16 @@ public:
   #define EFFECTOR_COLOR_2 0.0, 1.0, 0.0, 1.0
   #define EFFECTOR_COLOR_3 0.0, 0.0, 1.0, 1.0
 
-  #define BED_VERTEX(X, Y) X, 0.0, Y, BED_NORMAL, BED_COLOR
-  #define BED_VERTEX2(X, Y) {{X, 0.0, Y}, {BED_NORMAL}, {BED_COLOR}}
-  #define EFFECTOR_VERTEX(X, Z, Y, COLOR) X, Z, Y, EFFECTOR_NORMAL, COLOR
-
-  #define EFFECTOR_VERTEX2(X, Z, Y, COLOR) {{X, Z, Y}, {EFFECTOR_NORMAL}, {COLOR}}
-
-  #define VERTEX_FLOAT_COUNT 10
-  #define BED_VERTEX_OFFSET 18
+  #define BED_VERTEX(X, Y) {{X, 0.0, Y}, {BED_NORMAL}, {BED_COLOR}}
+  #define EFFECTOR_VERTEX(X, Z, Y, COLOR) {{X, Z, Y}, {EFFECTOR_NORMAL}, {COLOR}}
   #define BED_NUM_VERTEXES_PER_AXIS 100
-  #define BED_NUM_TRIANGES ((BED_NUM_VERTEXES_PER_AXIS - 1) * (BED_NUM_VERTEXES_PER_AXIS - 1) * 2)
-  #define NUM_VERTEXES (BED_VERTEX_OFFSET + BED_NUM_TRIANGES * 3)
-
 
   float extrude_width = 0.4;
   float extrude_thickness = 0.3;
 
-  renderer::Renderer m_renderer {};
   bool m_initialised = false;
   visualisation_config m_config {};
+  renderer::Renderer m_renderer {};
 };
 
 struct Viewport : public UiWindow {

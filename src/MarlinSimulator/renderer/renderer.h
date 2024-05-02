@@ -1,10 +1,16 @@
 #pragma once
 
-#include <memory>
-#include <vector>
-
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
+#include "../resources/resources.h"
+#include <functional>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <vector>
 
 #include "gl.h"
 
@@ -17,41 +23,43 @@ struct vertex_data_t {
 
   static constexpr std::size_t elements = 3;
   static constexpr std::array<data_descriptor_element_t, vertex_data_t::elements> descriptor {
-    data_descriptor_element_t::build<decltype(position)>(),
-    data_descriptor_element_t::build<decltype(normal)>(),
-    data_descriptor_element_t::build<decltype(color)>()
+      data_descriptor_element_t::build<decltype(position)>(),
+      data_descriptor_element_t::build<decltype(normal)>(),
+      data_descriptor_element_t::build<decltype(color)>(),
   };
 };
 
-typedef enum t_attrib_id {
-    attrib_position,
-    attrib_normal,
-    attrib_color
-} t_attrib_id;
+struct shader_attr_t {
+  uint32_t location;
+  std::string name;
+  uint32_t gl_type;
+  int32_t size;
+  bool active = true;
+};
 
 class ShaderProgram {
 public:
-  static GLuint loadProgram(const char* vertex_string, const char* fragment_string, const char* geometry_string = nullptr) {
+  ShaderProgram(GLuint program_id) : m_program_id {program_id} { }
+
+  static GLuint load_program(char const* vertex_string, char const* fragment_string, char const* geometry_string = nullptr) {
     GLuint vertex_shader = 0, fragment_shader = 0, geometry_shader = 0;
     if (vertex_string != nullptr) {
-      vertex_shader = loadShader(GL_VERTEX_SHADER, vertex_string);
+      vertex_shader = load_shader(GL_VERTEX_SHADER, vertex_string);
     }
     if (fragment_string != nullptr) {
-      fragment_shader = loadShader(GL_FRAGMENT_SHADER, fragment_string);
+      fragment_shader = load_shader(GL_FRAGMENT_SHADER, fragment_string);
     }
     if (geometry_string != nullptr) {
-      geometry_shader = loadShader(GL_GEOMETRY_SHADER, geometry_string);
+      geometry_shader = load_shader(GL_GEOMETRY_SHADER, geometry_string);
     }
 
     GLuint shader_program = glCreateProgram();
-    glAttachShader( shader_program, vertex_shader );
-    glAttachShader( shader_program, fragment_shader );
-    if (geometry_shader) glAttachShader( shader_program, geometry_shader );
+    glAttachShader(shader_program, vertex_shader);
+    glAttachShader(shader_program, fragment_shader);
+    if (geometry_shader) glAttachShader(shader_program, geometry_shader);
 
-    glBindAttribLocation(shader_program, attrib_position, "i_position");
-    glBindAttribLocation(shader_program, attrib_color, "i_color");
-    glLinkProgram(shader_program );
-    glUseProgram(shader_program );
+    glLinkProgram(shader_program);
+    glUseProgram(shader_program);
 
     if (vertex_shader) glDeleteShader(vertex_shader);
     if (fragment_shader) glDeleteShader(fragment_shader);
@@ -59,11 +67,12 @@ public:
 
     return shader_program;
   }
-  static GLuint loadShader(GLuint shader_type, const char* shader_string) {
-    GLuint shader_id = glCreateShader(shader_type);;
-    int length = strlen(shader_string);
-    glShaderSource(shader_id, 1, ( const GLchar ** )&shader_string, &length);
-    glCompileShader(shader_id );
+
+  static GLuint load_shader(GLuint shader_type, char const* shader_string) {
+    GLuint shader_id = glCreateShader(shader_type);
+    int length       = strlen(shader_string);
+    glShaderSource(shader_id, 1, (GLchar const**)&shader_string, &length);
+    glCompileShader(shader_id);
 
     GLint status;
     glGetShaderiv(shader_id, GL_COMPILE_STATUS, &status);
@@ -72,30 +81,119 @@ public:
       glGetShaderiv(shader_id, GL_INFO_LOG_LENGTH, &maxLength);
       std::vector<GLchar> errorLog(maxLength);
       glGetShaderInfoLog(shader_id, maxLength, &maxLength, &errorLog[0]);
-      for (auto c : errorLog) fputc(c, stderr);
+      for (auto c : errorLog)
+        fputc(c, stderr);
       glDeleteShader(shader_id);
       return 0;
     }
     return shader_id;
   }
+
+  static std::shared_ptr<ShaderProgram> create(
+      const std::filesystem::path vertex_path, const std::filesystem::path fragment_path, const std::filesystem::path geometry_path = {}
+  ) {
+    auto program_id = load_program(
+        resource::ResourceManager::get_as_cstr(vertex_path),
+        resource::ResourceManager::get_as_cstr(fragment_path),
+        resource::ResourceManager::get_as_cstr(geometry_path)
+    );
+    if (program_id == 0) return nullptr; // default shader?
+    auto program = std::make_shared<ShaderProgram>(program_id);
+    if (program) program->build_cache();
+    return program;
+  }
+
+  void build_cache() {
+    GLint size;  // size of the variable
+    GLenum type; // type of the variable (float, vec3 or mat4, etc)
+
+    const GLsizei bufSize = 64; // maximum name length //GL_ACTIVE_UNIFORM_MAX_LENGTH
+    GLchar name[bufSize];       // variable name in GLSL
+    GLsizei length;             // name length
+
+    GLint attribute_count;
+    for (auto& attr : m_attributes) {
+      attr.second.active = false; // disable all current attributes for reload
+    }
+    glGetProgramiv(m_program_id, GL_ACTIVE_ATTRIBUTES, &attribute_count);
+    for (GLint i = 0; i < attribute_count; i++) {
+      glGetActiveAttrib(m_program_id, (GLuint)i, bufSize, &length, &size, &type, (char*)name);
+      m_attributes[name] = shader_attr_t {(uint32_t)i, name, type, size};
+    }
+
+    GLint uniform_count;
+    for (auto& uniform : m_uniforms) {
+      uniform.second.active = false; // disable all current uniforms for reload
+    }
+    glGetProgramiv(m_program_id, GL_ACTIVE_UNIFORMS, &uniform_count);
+    for (GLint i = 0; i < uniform_count; i++) {
+      glGetActiveUniform(m_program_id, (GLuint)i, bufSize, &length, &size, &type, (char*)name);
+      m_uniforms[name] = shader_attr_t {(uint32_t)i, name, type, size};
+    }
+  }
+
+  GLuint m_program_id {};
+  std::map<std::string, shader_attr_t> m_attributes {};
+  std::map<std::string, shader_attr_t> m_uniforms {};
+};
+
+class ShaderProgramInstance {
+public:
+  ShaderProgramInstance(std::shared_ptr<ShaderProgram> program) : m_program {program} { }
+
+  struct shader_uniform_t {
+    shader_attr_t desc;
+    gl_uniform_t uniform_data;
+    std::function<void(shader_attr_t& uniform_desc, gl_uniform_t& uniform_data)> gl_uniform_call;
+  };
+
+  void bind_immediate() {
+    glUseProgram(m_program->m_program_id);
+    for (auto& [location, uniform] : m_uniforms) {
+      uniform.gl_uniform_call(uniform.desc, uniform.uniform_data);
+    }
+  }
+
+  template<typename T> void set_uniform(std::string name, T* value) {
+    using gl_uniform_type        = gl_uniform<type_to_gl_enum<T>::value>;
+    auto uniform                 = m_program->m_uniforms[name];
+    m_uniforms[uniform.location] = shader_uniform_t {
+        uniform,
+        gl_uniform_type {value},
+        [](shader_attr_t& uniform_desc, gl_uniform_t& uniform_data) {
+          if constexpr (gl_uniform_type::is_matrix) {
+            gl_uniform_type().invoke(uniform_desc.location, uniform_desc.size, GL_FALSE, glm::value_ptr(*std::get<gl_uniform_type>(uniform_data).value));
+          } else if constexpr (std::is_same_v<T, unsigned int> || std::is_same_v<T, int> || std::is_same_v<T, bool> || std::is_same_v<T, float>) {
+            gl_uniform_type().invoke(uniform_desc.location, uniform_desc.size, &(*std::get<gl_uniform_type>(uniform_data).value));
+          } else {
+            gl_uniform_type().invoke(uniform_desc.location, uniform_desc.size, glm::value_ptr(*std::get<gl_uniform_type>(uniform_data).value));
+          }
+        },
+    };
+    return;
+  }
+
+  std::shared_ptr<ShaderProgram> m_program {};
+  std::map<uint32_t, shader_uniform_t> m_uniforms;
 };
 
 class BufferBase {
 public:
   virtual ~BufferBase() { }
+
   virtual void destroy()  = 0;
   virtual void generate() = 0;
   virtual bool bind()     = 0;
   virtual void upload()   = 0;
   virtual void render()   = 0;
 
-  GLuint m_vao              = 0;
-  GLuint m_vbo              = 0;
-  size_t m_geometry_offset  = 0;
-  GLuint m_storage_hint     = GL_STATIC_DRAW;
-  Primitive m_geometry_type = Primitive::TRIANGLES;
-  bool m_dirty              = true;
-  bool m_generated          = false;
+  GLuint m_vao                      = 0;
+  GLuint m_vbo                      = 0;
+  size_t m_geometry_offset          = 0;
+  GLuint m_storage_hint             = GL_STATIC_DRAW;
+  GeometryPrimitive m_geometry_type = GeometryPrimitive::TRIANGLES;
+  bool m_dirty                      = true;
+  bool m_generated                  = false;
   std::mutex m_data_mutex {};
 };
 
@@ -168,8 +266,9 @@ public:
   }
 
 private:
-  std::vector<ElementType> m_data {};
   Buffer() { }
+
+  std::vector<ElementType> m_data {};
 };
 
 class Mesh {
@@ -181,12 +280,11 @@ public:
       m_transform_dirty = false;
     }
     if (m_shader_dirty) {
-      update_shader_locations();
+      m_shader_instance->set_uniform("u_mvp", &m_view_projection_transform);
       m_shader_dirty = false;
     }
-    glUseProgram(m_shader_program);
-    global_transform = global_transform * m_transform;
-    glUniformMatrix4fv(m_shader_index_mvp, 1, GL_FALSE, glm::value_ptr(global_transform));
+    m_view_projection_transform = global_transform * m_transform;
+    m_shader_instance->bind_immediate();
     for (auto buffer : m_buffer) {
       buffer->render();
     }
@@ -225,18 +323,15 @@ public:
     return *reinterpret_cast<std::vector<std::shared_ptr<Buffer<VertexType>>>*>(&m_buffer);
   }
 
-  void update_shader_locations() {
-    m_shader_index_mvp = glGetUniformLocation(m_shader_program, "u_mvp");
+  void set_shader_program(std::shared_ptr<ShaderProgram> program) {
+    m_shader_instance = std::make_shared<ShaderProgramInstance>(program);
   }
 
-  void set_shader_program(GLuint program) {
-    m_shader_program = program;
-  }
-
-  glm::mat4 m_transform { 1.0 };
-  glm::vec3 m_origin { 0.0, 0.0, 0.0 };
-  glm::vec3 m_position { 0.0, 0.0, 0.0 };
-  glm::vec3 m_scale { 1.0, 1.0, 1.0 };
+  glm::mat4 m_view_projection_transform {1.0};
+  glm::mat4 m_transform {1.0};
+  glm::vec3 m_origin {0.0, 0.0, 0.0};
+  glm::vec3 m_position {0.0, 0.0, 0.0};
+  glm::vec3 m_scale {1.0, 1.0, 1.0};
   glm::quat m_rotation {};
   bool m_visible         = true;
   bool m_transform_dirty = true;
@@ -245,8 +340,7 @@ public:
   std::mutex m_buffer_modification_mutex {};
   std::vector<std::shared_ptr<BufferBase>> m_buffer {};
 
-  GLuint m_shader_program   = 0;
-  GLuint m_shader_index_mvp = 0;
+  std::shared_ptr<ShaderProgramInstance> m_shader_instance = 0;
 
 private:
   Mesh() { }
@@ -257,7 +351,8 @@ public:
   void render(glm::mat4 global_transform) {
     m_mesh.erase(
         std::remove_if(
-            m_mesh.begin(), m_mesh.end(),
+            m_mesh.begin(),
+            m_mesh.end(),
             [](auto& mesh) {
               if (mesh->m_delete) {
                 mesh->free_gpu_resources();

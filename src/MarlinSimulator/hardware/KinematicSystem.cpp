@@ -144,7 +144,7 @@ void KinematicSystem::collect_steppers() {
   #endif
 }
 
-CartesianKinematicSystem::CartesianKinematicSystem(std::function<void(kinematic_state)> on_kinematic_update) : KinematicSystem(on_kinematic_update) {
+CartesianKinematicSystem::CartesianKinematicSystem(std::function<void(kinematic_state&)> on_kinematic_update) : KinematicSystem(on_kinematic_update) {
   collect_steppers();
 
   srand(time(0));
@@ -200,7 +200,7 @@ void CartesianKinematicSystem::kinematic_update() {
     std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::Z])->steps() / steps_per_unit[2] * (((INVERT_Z_DIR * 2) - 1) * -1.0)
   };
 
-  std::vector<double> extruder {};
+  extruder.clear();
   for (size_t i = 0; i < EXTRUDERS; ++i) {
     extruder.push_back(std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::E0 + i])->steps() / steps_per_unit[3 + (i * distinct_e_factors)] * (((extruder_invert_dir[i] * 2) - 1) * -1.0));
   }
@@ -341,7 +341,7 @@ glm::vec3 DeltaKinematicSystem::forward_kinematics(const double z1, const double
   };
 }
 
-DeltaKinematicSystem::DeltaKinematicSystem(std::function<void(kinematic_state)> on_kinematic_update) : KinematicSystem(on_kinematic_update) {
+DeltaKinematicSystem::DeltaKinematicSystem(std::function<void(kinematic_state&)> on_kinematic_update) : KinematicSystem(on_kinematic_update) {
 
   #ifdef DELTA_HEIGHT
     delta_height = DELTA_HEIGHT;

@@ -1,10 +1,8 @@
 #pragma once
 
-namespace renderer {
+namespace resource {
 
-// todo : Y axis change fix, worked around by not joining
-// todo : very spiky corners after 45 degs, again just worked around by not joining
-static const char * geometry_shader = R"SHADERSTR(
+static const char * data_shader_extrusion_gs = R"SHADERSTR(
   #version 330 core
   layout (lines_adjacency) in;
   layout (triangle_strip, max_vertices = 28) out;
@@ -29,7 +27,7 @@ static const char * geometry_shader = R"SHADERSTR(
     EndPrimitive();
   }
 
-  const float epsilon = 0.000001;
+  const float epsilon = 0.0004;
 
   void main() {
     vec3 prev = gl_in[0].gl_Position.xyz;
@@ -118,7 +116,7 @@ static const char * geometry_shader = R"SHADERSTR(
     //emit(0, 1, 8, 0); //show up normal
   })SHADERSTR";
 
-static const char * path_vertex_shader = R"SHADERSTR(
+static const char * data_shader_extrusion_vs = R"SHADERSTR(
   #version 330 core
   in vec3 i_position;
   in vec3 i_normal;
@@ -131,7 +129,7 @@ static const char * path_vertex_shader = R"SHADERSTR(
       gl_Position = vec4( i_position, 1.0 );
   })SHADERSTR";
 
-static const char * path_fragment_shader = R"SHADERSTR(
+static const char * data_shader_extrusion_fs = R"SHADERSTR(
   #version 330 core
   in vec4 v_color;
   out vec4 o_color;
@@ -170,7 +168,7 @@ static const char * path_fragment_shader = R"SHADERSTR(
       }
   })SHADERSTR";
 
-static const char * vertex_shader = R"SHADERSTR(
+static const char * data_shader_default_vs = R"SHADERSTR(
   #version 330 core
   in vec3 i_position;
   in vec3 i_normal;
@@ -186,7 +184,7 @@ static const char * vertex_shader = R"SHADERSTR(
       gl_Position = u_mvp * vec4( i_position, 1.0 );
   })SHADERSTR";
 
-static const char * fragment_shader = R"SHADERSTR(
+static const char * data_shader_default_fs = R"SHADERSTR(
   #version 330 core
   in vec4 v_color;
   in vec3 v_normal;

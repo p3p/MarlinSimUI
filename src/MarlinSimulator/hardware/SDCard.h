@@ -31,12 +31,12 @@ public:
   virtual ~SDCard() {};
 
   void update() {}
-
+  const std::string file_dialog_key = "ChooseSDFileDlgKey";
   void ui_widget() {
     if (ImGui::Button("Select Image (FAT32)")) {
-      ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", "FAT32 Disk Image(*.img){.img},.*", ".");
+      ImGuiFileDialog::Instance()->OpenDialog(file_dialog_key, "Choose File", "FAT32 Disk Image(*.img){.img},.*", ".");
     }
-    if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey", ImGuiWindowFlags_NoDocking))  {
+    if (ImGuiFileDialog::Instance()->Display(file_dialog_key, ImGuiWindowFlags_NoDocking))  {
       if (ImGuiFileDialog::Instance()->IsOk()) {
         image_filename = ImGuiFileDialog::Instance()->GetFilePathName();
         sd_present = image_exists();

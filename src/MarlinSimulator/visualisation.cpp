@@ -13,15 +13,10 @@
 #include <imgui_internal.h>
 #include <implot.h>
 
-
-static GLfloat * SetBedVertexAndAdvance(GLfloat * dest, GLfloat x, GLfloat y) {
-  const GLfloat new_vertex[VERTEX_FLOAT_COUNT] = { BED_VERTEX(x, y) };
-  memcpy(dest, new_vertex, sizeof(new_vertex));
-  return dest + VERTEX_FLOAT_COUNT;
-}
+#include "resources/resources.h"
 
 Visualisation::Visualisation(VirtualPrinter& virtual_printer) : virtual_printer(virtual_printer) {
-  virtual_printer.on_kinematic_update = [this](kinematic_state state){
+  virtual_printer.on_kinematic_update = [this](kinematic_state& state){
     for (size_t i = 0; i < state.effector_position.size(); ++i) {
       this->set_head_position(i, state.effector_position[i]);
     }
@@ -37,8 +32,8 @@ Visualisation::~Visualisation() {
 }
 
 void Visualisation::create() {
-  path_program = renderer::ShaderProgram::loadProgram(renderer::path_vertex_shader, renderer::path_fragment_shader, renderer::geometry_shader);
-  program = renderer::ShaderProgram::loadProgram(renderer::vertex_shader, renderer::fragment_shader);
+  extrusion_program = renderer::ShaderProgram::create("data/shaders/extrusion.vs", "data/shaders/extrusion.fs", "data/shaders/extrusion.gs");
+  default_program = renderer::ShaderProgram::create("data/shaders/default.vs","data/shaders/default.fs");
 
   framebuffer = new opengl_util::MsaaFrameBuffer();
   if (!((opengl_util::MsaaFrameBuffer*)framebuffer)->create(100, 100, 4)) {
@@ -57,24 +52,24 @@ void Visualisation::create() {
     auto mesh = renderer::Mesh::create<renderer::vertex_data_t>();
     auto buffer = mesh->buffer<renderer::vertex_data_t>();
     buffer->data() = {
-        renderer::vertex_data_t EFFECTOR_VERTEX2(0.0, 0.0, 0.0, EFFECTOR_COLOR_1),
-        EFFECTOR_VERTEX2(-0.5, 0.5, 0.5, EFFECTOR_COLOR_2),
-        EFFECTOR_VERTEX2(-0.5, 0.5, -0.5, EFFECTOR_COLOR_3),
-        EFFECTOR_VERTEX2(0.0, 0.0, 0.0, EFFECTOR_COLOR_1),
-        EFFECTOR_VERTEX2(-0.5, 0.5, -0.5, EFFECTOR_COLOR_3),
-        EFFECTOR_VERTEX2(0.5, 0.5, -0.5, EFFECTOR_COLOR_2),
-        EFFECTOR_VERTEX2(0.0, 0.0, 0.0, EFFECTOR_COLOR_1),
-        EFFECTOR_VERTEX2(0.5, 0.5, -0.5, EFFECTOR_COLOR_2),
-        EFFECTOR_VERTEX2(0.5, 0.5, 0.5, EFFECTOR_COLOR_3),
-        EFFECTOR_VERTEX2(0.0, 0.0, 0.0, EFFECTOR_COLOR_1),
-        EFFECTOR_VERTEX2(0.5, 0.5, 0.5, EFFECTOR_COLOR_3),
-        EFFECTOR_VERTEX2(-0.5, 0.5, 0.5, EFFECTOR_COLOR_2),
-        EFFECTOR_VERTEX2(0.5, 0.5, -0.5, EFFECTOR_COLOR_2),
-        EFFECTOR_VERTEX2(-0.5, 0.5, -0.5, EFFECTOR_COLOR_3),
-        EFFECTOR_VERTEX2(-0.5, 0.5, 0.5, EFFECTOR_COLOR_2),
-        EFFECTOR_VERTEX2(0.5, 0.5, -0.5, EFFECTOR_COLOR_2),
-        EFFECTOR_VERTEX2(-0.5, 0.5, 0.5, EFFECTOR_COLOR_2),
-        EFFECTOR_VERTEX2(0.5, 0.5, 0.5, EFFECTOR_COLOR_3),
+        renderer::vertex_data_t EFFECTOR_VERTEX(0.0, 0.0, 0.0, EFFECTOR_COLOR_1),
+        EFFECTOR_VERTEX(-0.5, 0.5, 0.5, EFFECTOR_COLOR_2),
+        EFFECTOR_VERTEX(-0.5, 0.5, -0.5, EFFECTOR_COLOR_3),
+        EFFECTOR_VERTEX(0.0, 0.0, 0.0, EFFECTOR_COLOR_1),
+        EFFECTOR_VERTEX(-0.5, 0.5, -0.5, EFFECTOR_COLOR_3),
+        EFFECTOR_VERTEX(0.5, 0.5, -0.5, EFFECTOR_COLOR_2),
+        EFFECTOR_VERTEX(0.0, 0.0, 0.0, EFFECTOR_COLOR_1),
+        EFFECTOR_VERTEX(0.5, 0.5, -0.5, EFFECTOR_COLOR_2),
+        EFFECTOR_VERTEX(0.5, 0.5, 0.5, EFFECTOR_COLOR_3),
+        EFFECTOR_VERTEX(0.0, 0.0, 0.0, EFFECTOR_COLOR_1),
+        EFFECTOR_VERTEX(0.5, 0.5, 0.5, EFFECTOR_COLOR_3),
+        EFFECTOR_VERTEX(-0.5, 0.5, 0.5, EFFECTOR_COLOR_2),
+        EFFECTOR_VERTEX(0.5, 0.5, -0.5, EFFECTOR_COLOR_2),
+        EFFECTOR_VERTEX(-0.5, 0.5, -0.5, EFFECTOR_COLOR_3),
+        EFFECTOR_VERTEX(-0.5, 0.5, 0.5, EFFECTOR_COLOR_2),
+        EFFECTOR_VERTEX(0.5, 0.5, -0.5, EFFECTOR_COLOR_2),
+        EFFECTOR_VERTEX(-0.5, 0.5, 0.5, EFFECTOR_COLOR_2),
+        EFFECTOR_VERTEX(0.5, 0.5, 0.5, EFFECTOR_COLOR_3),
     };
 
     m_extruder_mesh.push_back(mesh);
@@ -84,13 +79,13 @@ void Visualisation::create() {
   }
 
   for (auto m : m_extruder_mesh) {
-    m->set_shader_program(program);
+    m->set_shader_program(default_program);
     m->m_scale = effector_scale;
     m_renderer.m_mesh.push_back(m);
   }
 
   m_bed_mesh = renderer::Mesh::create<renderer::vertex_data_t>();
-  m_bed_mesh->set_shader_program(program);
+  m_bed_mesh->set_shader_program(default_program);
   m_bed_mesh_buffer = m_bed_mesh->buffer<renderer::vertex_data_t>();
   m_renderer.m_mesh.push_back(m_bed_mesh);
 
@@ -113,15 +108,15 @@ void Visualisation::create() {
       // |--/
       // | /
       // |/
-      m_bed_mesh_buffer->add_vertex(BED_VERTEX2(x2, y2));
-      m_bed_mesh_buffer->add_vertex(BED_VERTEX2(x1, y2));
-      m_bed_mesh_buffer->add_vertex(BED_VERTEX2(x1, y1));
+      m_bed_mesh_buffer->add_vertex(BED_VERTEX(x2, y2));
+      m_bed_mesh_buffer->add_vertex(BED_VERTEX(x1, y2));
+      m_bed_mesh_buffer->add_vertex(BED_VERTEX(x1, y1));
       //    /|
       //   / |
       //  /--|
-      m_bed_mesh_buffer->add_vertex(BED_VERTEX2(x2, y2));
-      m_bed_mesh_buffer->add_vertex(BED_VERTEX2(x1, y1));
-      m_bed_mesh_buffer->add_vertex(BED_VERTEX2(x2, y1));
+      m_bed_mesh_buffer->add_vertex(BED_VERTEX(x2, y2));
+      m_bed_mesh_buffer->add_vertex(BED_VERTEX(x1, y1));
+      m_bed_mesh_buffer->add_vertex(BED_VERTEX(x2, y1));
     }
   }
 
@@ -204,11 +199,6 @@ void Visualisation::update() {
     mesh_id ++;
   }
 
-  // TODO:  Shaders need this internalised
-  glUseProgram( path_program );
-  glUniform1f( glGetUniformLocation( path_program, "u_layer_thickness" ), extrude_thickness);
-  glUniform1f( glGetUniformLocation( path_program, "u_layer_width" ), extrude_width);
-  glUniform3fv( glGetUniformLocation( path_program, "u_view_position" ), 1, glm::value_ptr(camera.position));
   m_renderer.render(camera.proj * camera.view);
 }
 
@@ -219,7 +209,7 @@ void Visualisation::destroy() {
   }
 }
 
-void Visualisation::set_head_position(size_t hotend_index, extruder_state state) {
+void Visualisation::set_head_position(size_t hotend_index, extruder_state& state) {
   if (!m_initialised || hotend_index >= extrusion.size()) return;
   glm::vec4 sim_pos = state.position;
   glm::vec4 position = {sim_pos.x, sim_pos.z, sim_pos.y * -1.0, sim_pos.w}; // correct for opengl coordinate system
@@ -258,10 +248,14 @@ void Visualisation::set_head_position(size_t hotend_index, extruder_state state)
     } else { // need to change geometry buffer
       if (extruder.active_mesh_buffer == nullptr) {
         auto mesh = renderer::Mesh::create<renderer::vertex_data_t>();
-        mesh->set_shader_program(path_program);
+        mesh->set_shader_program(extrusion_program);
+        mesh->m_shader_instance->set_uniform("u_layer_thickness", &extrude_thickness);
+        mesh->m_shader_instance->set_uniform("u_layer_width", &extrude_width);
+        mesh->m_shader_instance->set_uniform("u_view_position", &camera.position);
+
         extruder.active_mesh_buffer = mesh->buffer<renderer::vertex_data_t>();
         extruder.active_mesh_buffer->data().reserve(renderer::Renderer::MAX_BUFFER_SIZE);
-        extruder.active_mesh_buffer->m_geometry_type = renderer::Primitive::LINE_STRIP_ADJACENCY;
+        extruder.active_mesh_buffer->m_geometry_type = renderer::GeometryPrimitive::LINE_STRIP_ADJACENCY;
         extruder.mesh = mesh;
         extruder.last_extrusion_check = position;
         m_renderer.m_mesh.push_back(mesh);
@@ -271,7 +265,7 @@ void Visualisation::set_head_position(size_t hotend_index, extruder_state state)
         renderer::vertex_data_t last_vertex = extruder.active_mesh_buffer->cdata().back();
         auto buffer = renderer::Buffer<renderer::vertex_data_t>::create();
         buffer->data().reserve(renderer::Renderer::MAX_BUFFER_SIZE);
-        buffer->m_geometry_type = renderer::Primitive::LINE_STRIP_ADJACENCY;
+        buffer->m_geometry_type = renderer::GeometryPrimitive::LINE_STRIP_ADJACENCY;
         extruder.active_mesh_buffer = buffer;
         extruder.mesh->buffer_vector<renderer::vertex_data_t>().push_back(buffer);
 
@@ -412,6 +406,16 @@ void Visualisation::ui_info_callback(UiWindow* w) {
         extruder.mesh->m_delete = true;
       }
     }
+  }
+
+  if (ImGui::Button("Reload Shaders")) {
+    // path_program = renderer::ShaderProgram::loadProgram(resource::ResourceManager::get_as_cstr("data/shaders/extrusion.vs"), resource::ResourceManager::get_as_cstr("data/shaders/extrusion.fs"), resource::ResourceManager::get_as_cstr("data/shaders/extrusion.gs"));
+    // glUniform1f( glGetUniformLocation( path_program, "u_layer_thickness" ), extrude_thickness);
+    // glUniform1f( glGetUniformLocation( path_program, "u_layer_width" ), extrude_width);
+    // glUniform3fv( glGetUniformLocation( path_program, "u_view_position" ), 1, glm::value_ptr(camera.position));
+    // for (auto& ex : extrusion) {
+    //   ex.mesh->m_shader_program = path_program;
+    // }
   }
 
   ImGui::PushItemWidth(150);
