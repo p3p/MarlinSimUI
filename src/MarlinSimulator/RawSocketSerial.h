@@ -36,8 +36,8 @@ public:
         exit(-1);
     }
     start_listen(ip);
-    server_thread = std::thread(&RawSocketSerial::execute, this);
     thread_active = true;
+    server_thread = std::thread(&RawSocketSerial::execute, this);
   }
 
   void stop() {
@@ -115,6 +115,7 @@ public:
           }
           return 0;
       } else {
+          std::scoped_lock buffer_lock(buffer_mutex);
           rx_buffer.write(receive_buffer, length);
           return length;
       }
@@ -188,4 +189,5 @@ public:
   RingBuffer<uint8_t, ServerInfo::max_packet_size> rx_buffer;
   RingBuffer<uint8_t, ServerInfo::max_packet_size> tx_buffer;
   std::thread server_thread;
+  std::mutex buffer_mutex {};
 };

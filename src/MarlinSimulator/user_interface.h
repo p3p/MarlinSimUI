@@ -220,6 +220,7 @@ struct SerialMonitor : public UiWindow {
   uint8_t scroll_follow_state = false;
   bool streaming = false;
   std::size_t stream_sent = 0, stream_total = 0;
+  std::mutex buffer_mutex {};
 
   MSerialT& serial_stream;
   std::ifstream input_file;
@@ -273,6 +274,7 @@ struct SerialMonitor : public UiWindow {
   }
 
   void show() {
+    std::scoped_lock buffer_lock(buffer_mutex);
     // File read into serial port
     if (input_file.is_open() && serial_stream.receive_buffer.free() && streaming) {
       size_t read_size = std::min(serial_stream.receive_buffer.free(), stream_total - stream_sent);
