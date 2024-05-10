@@ -4,7 +4,6 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include "../resources/resources.h"
 #include <functional>
 #include <map>
 #include <memory>
@@ -12,9 +11,21 @@
 #include <string>
 #include <vector>
 
+#include "../resources/resources.h"
 #include "gl.h"
 
 namespace renderer {
+
+using mesh_id_t = size_t;
+class Mesh;
+extern mesh_id_t next_mesh_index;
+extern std::map<mesh_id_t, std::shared_ptr<Mesh>> global_mesh_list;
+extern std::mutex global_mesh_list_mutex;
+inline constexpr size_t MAX_BUFFER_SIZE = 100000;
+
+void gl_defer_call(std::function<void(void)> fn);
+void render(glm::mat4 global_transform);
+void destroy();
 
 struct vertex_data_t {
   glm::vec3 position;
@@ -40,6 +51,13 @@ struct shader_attr_t {
 class ShaderProgram {
 public:
   ShaderProgram(GLuint program_id) : m_program_id {program_id} { }
+
+  ~ShaderProgram() {
+    auto id = m_program_id;
+    gl_defer_call([id]() {
+      glDeleteShader(id);
+    });
+  }
 
   static GLuint load_program(char const* vertex_string, char const* fragment_string, char const* geometry_string = nullptr) {
     GLuint vertex_shader = 0, fragment_shader = 0, geometry_shader = 0;
@@ -79,10 +97,10 @@ public:
     if (status == GL_FALSE) {
       GLint maxLength = 0;
       glGetShaderiv(shader_id, GL_INFO_LOG_LENGTH, &maxLength);
-      std::vector<GLchar> errorLog(maxLength);
-      glGetShaderInfoLog(shader_id, maxLength, &maxLength, &errorLog[0]);
-      for (auto c : errorLog)
-        fputc(c, stderr);
+      std::vector<GLchar> errorLog(maxLength + 1);
+      errorLog[maxLength] = 0;
+      glGetShaderInfoLog(shader_id, maxLength, &maxLength, errorLog.data());
+      printf("%s\n", errorLog.data());
       glDeleteShader(shader_id);
       return 0;
     }
@@ -104,8 +122,8 @@ public:
   }
 
   void build_cache() {
-    GLint size;  // size of the variable
-    GLenum type; // type of the variable (float, vec3 or mat4, etc)
+    GLint size {};  // size of the variable
+    GLenum type {}; // type of the variable (float, vec3 or mat4, etc)
 
     const GLsizei bufSize = 64; // maximum name length //GL_ACTIVE_UNIFORM_MAX_LENGTH
     GLchar name[bufSize];       // variable name in GLSL
@@ -194,7 +212,6 @@ public:
   GeometryPrimitive m_geometry_type = GeometryPrimitive::TRIANGLES;
   bool m_dirty                      = true;
   bool m_generated                  = false;
-  std::mutex m_data_mutex {};
 };
 
 template<typename ElementType> class Buffer : public BufferBase {
@@ -216,9 +233,15 @@ public:
   }
 
   virtual void destroy() override {
-    if (m_vbo) glDeleteBuffers(1, &m_vbo);
-    if (m_vao) glDeleteBuffers(1, &m_vao);
+    GLuint vbo = m_vbo;
+    GLuint vao = m_vao;
+    if (m_vbo) gl_defer_call([vbo]() { glDeleteBuffers(1, &vbo); });
+    if (m_vao) gl_defer_call([vao]() { glDeleteBuffers(1, &vao); });
     m_vbo = m_vao = 0;
+  }
+
+  ~Buffer() {
+    destroy();
   }
 
   virtual bool bind() override {
@@ -230,7 +253,7 @@ public:
   }
 
   virtual void upload() override {
-    if (m_dirty) {
+    if (m_dirty && m_data.size() > 0) {
       glBufferData(GL_ARRAY_BUFFER, m_data.size() * sizeof(ElementType), &m_data[0], m_storage_hint);
       m_dirty = false;
     }
@@ -271,10 +294,11 @@ private:
   std::vector<ElementType> m_data {};
 };
 
+
 class Mesh {
 public:
   void render(glm::mat4 global_transform) {
-    if (!m_visible) return;
+    if ((!m_visible) || m_shader_instance == nullptr) return;
     if (m_transform_dirty) {
       build_transform();
       m_transform_dirty = false;
@@ -290,12 +314,6 @@ public:
     }
   }
 
-  void free_gpu_resources() {
-    for (auto buffer : m_buffer) {
-      buffer->destroy();
-    }
-  }
-
   void build_transform() {
     m_transform = glm::translate(glm::mat4(1.0), m_position);
     m_transform = m_transform * glm::mat4_cast(m_rotation);
@@ -303,20 +321,18 @@ public:
     m_transform = glm::translate(m_transform, m_origin);
   }
 
-  template<typename VertexType> static std::shared_ptr<Mesh> create(std::shared_ptr<VertexType> buffer) {
+  static std::shared_ptr<Mesh> create(std::shared_ptr<BufferBase> buffer) {
     auto mesh = std::shared_ptr<Mesh>(new Mesh());
     mesh->m_buffer.push_back(buffer);
     return mesh;
   }
 
-  template<typename VertexType> static std::shared_ptr<Mesh> create() {
-    auto mesh = std::shared_ptr<Mesh>(new Mesh());
-    mesh->m_buffer.push_back(Buffer<VertexType>::create());
-    return mesh;
+  static std::shared_ptr<Mesh> create() {
+    return std::shared_ptr<Mesh>(new Mesh());
   }
 
   template<typename VertexType> std::shared_ptr<Buffer<VertexType>> buffer() {
-    return std::reinterpret_pointer_cast<Buffer<VertexType>>(m_buffer.back());
+    return m_buffer.size() ? std::reinterpret_pointer_cast<Buffer<VertexType>>(m_buffer.back()) : nullptr;
   }
 
   template<typename VertexType> std::vector<std::shared_ptr<Buffer<VertexType>>>& buffer_vector() {
@@ -325,6 +341,10 @@ public:
 
   void set_shader_program(std::shared_ptr<ShaderProgram> program) {
     m_shader_instance = std::make_shared<ShaderProgramInstance>(program);
+  }
+
+  void set_shader_program(std::shared_ptr<ShaderProgramInstance> program_instance) {
+    m_shader_instance = program_instance;
   }
 
   glm::mat4 m_view_projection_transform {1.0};
@@ -337,40 +357,21 @@ public:
   bool m_transform_dirty = true;
   bool m_shader_dirty    = true;
   bool m_delete          = false;
-  std::mutex m_buffer_modification_mutex {};
   std::vector<std::shared_ptr<BufferBase>> m_buffer {};
-
   std::shared_ptr<ShaderProgramInstance> m_shader_instance = 0;
 
 private:
   Mesh() { }
 };
 
-class Renderer {
-public:
-  void render(glm::mat4 global_transform) {
-    m_mesh.erase(
-        std::remove_if(
-            m_mesh.begin(),
-            m_mesh.end(),
-            [](auto& mesh) {
-              if (mesh->m_delete) {
-                mesh->free_gpu_resources();
-                return true;
-              }
-              return false;
-            }
-        ),
-        m_mesh.end()
-    );
+template<typename... Args> mesh_id_t create_mesh(Args... args) {
+  std::scoped_lock global_lock(global_mesh_list_mutex);
+  global_mesh_list.emplace(next_mesh_index, Mesh::create(std::forward(args)...));
+  return next_mesh_index++;
+}
 
-    for (auto& mesh : m_mesh) {
-      mesh->render(global_transform);
-    }
-  }
-
-  std::vector<std::shared_ptr<Mesh>> m_mesh;
-  static constexpr size_t MAX_BUFFER_SIZE = 100000;
-};
-
+std::shared_ptr<Mesh> get_mesh_by_id(mesh_id_t resource_index);
+void destroy_mesh(mesh_id_t resource_index);
+void render_mesh(mesh_id_t resource_index);
+void render_list_is_ready();
 }
