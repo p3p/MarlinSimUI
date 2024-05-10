@@ -54,9 +54,7 @@ public:
 
   ~ShaderProgram() {
     auto id = m_program_id;
-    gl_defer_call([id]() {
-      glDeleteShader(id);
-    });
+    gl_defer_call([id]() { glDeleteShader(id); });
   }
 
   static GLuint load_program(char const* vertex_string, char const* fragment_string, char const* geometry_string = nullptr) {
@@ -293,7 +291,6 @@ private:
 
   std::vector<ElementType> m_data {};
 };
-
 
 class Mesh {
 public:

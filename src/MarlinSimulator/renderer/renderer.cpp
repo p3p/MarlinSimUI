@@ -5,7 +5,6 @@ namespace renderer {
 mesh_id_t next_mesh_index = 1;
 std::map<mesh_id_t, std::shared_ptr<Mesh>> global_mesh_list {};
 std::vector<std::function<void(void)>> deferred_call_list {};
-std::vector<mesh_id_t> mesh_destroy_list {};
 
 std::vector<std::shared_ptr<Mesh>> render_list {};
 std::vector<std::shared_ptr<Mesh>> render_list_next {};
@@ -60,10 +59,10 @@ void render_list_swap() {
   if (!is_render_list_ready()) return;
   if (active_render_list == &render_list_next) {
     active_render_list = &render_list;
-    back_render_list = &render_list_next;
+    back_render_list   = &render_list_next;
   } else {
     active_render_list = &render_list_next;
-    back_render_list = &render_list;
+    back_render_list   = &render_list;
   }
   back_render_list->clear();
   render_list_ready = false;
