@@ -452,13 +452,9 @@ void Visualisation::ui_info_callback(UiWindow* w) {
   }
 
   if (ImGui::Button("Reload Shaders")) {
-    // path_program = renderer::ShaderProgram::loadProgram(resource::ResourceManager::get_as_cstr("data/shaders/extrusion.vs"), resource::ResourceManager::get_as_cstr("data/shaders/extrusion.fs"), resource::ResourceManager::get_as_cstr("data/shaders/extrusion.gs"));
-    // glUniform1f( glGetUniformLocation( path_program, "u_layer_thickness" ), extrude_thickness);
-    // glUniform1f( glGetUniformLocation( path_program, "u_layer_width" ), extrude_width);
-    // glUniform3fv( glGetUniformLocation( path_program, "u_view_position" ), 1, glm::value_ptr(camera.position));
-    // for (auto& ex : extrusion) {
-    //   ex.mesh->m_shader_program = path_program;
-    // }
+    if (!extrusion_program->reload()) {
+      printf("Shader Reload Failed!\n");
+    }
   }
 
   ImGui::PushItemWidth(150);

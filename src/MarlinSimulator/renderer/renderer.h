@@ -75,7 +75,15 @@ public:
     if (geometry_shader) glAttachShader(shader_program, geometry_shader);
 
     glLinkProgram(shader_program);
-    glUseProgram(shader_program);
+
+    GLint result = 0;
+    glGetProgramiv(shader_program, GL_LINK_STATUS, &result);
+    if (result == GL_TRUE) {
+      glUseProgram(shader_program);
+    } else {
+      glDeleteProgram(shader_program);
+      shader_program = 0;
+    }
 
     if (vertex_shader) glDeleteShader(vertex_shader);
     if (fragment_shader) glDeleteShader(fragment_shader);
@@ -116,7 +124,22 @@ public:
     if (program_id == 0) return nullptr; // default shader?
     auto program = std::make_shared<ShaderProgram>(program_id);
     if (program) program->build_cache();
+    program->m_vertex_path = vertex_path;
+    program->m_fragment_path = fragment_path;
+    program->m_geometry_path = geometry_path;
     return program;
+  }
+
+  bool reload() {
+    auto program_id = load_program(
+        resource::ResourceManager::get_as_cstr(m_vertex_path),
+        resource::ResourceManager::get_as_cstr(m_fragment_path),
+        resource::ResourceManager::get_as_cstr(m_geometry_path)
+    );
+    if (program_id == 0) return false;
+    m_program_id = program_id;
+    build_cache();
+    return true;
   }
 
   void build_cache() {
@@ -151,6 +174,9 @@ public:
   GLuint m_program_id {};
   std::map<std::string, shader_attr_t> m_attributes {};
   std::map<std::string, shader_attr_t> m_uniforms {};
+  std::filesystem::path m_vertex_path;
+  std::filesystem::path m_fragment_path;
+  std::filesystem::path m_geometry_path;
 };
 
 class ShaderProgramInstance {
