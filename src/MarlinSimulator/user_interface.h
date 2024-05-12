@@ -298,7 +298,7 @@ struct SerialMonitor : public UiWindow {
     if (ImGui::BeginMenuBar()) {
       if (ImGui::BeginMenu("Stream")) {
         if (ImGui::MenuItem("Select GCode File")) {
-          ImGuiFileDialog::Instance()->OpenDialog(file_dialog_key, file_dialog_title, file_dialog_filters, file_dialog_path);
+          ImGuiFileDialog::Instance()->OpenModal(file_dialog_key, file_dialog_title, file_dialog_filters, file_dialog_path);
         }
         if (input_file.is_open() && streaming)
           if (ImGui::MenuItem("Pause")) {
