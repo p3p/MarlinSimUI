@@ -106,9 +106,11 @@ struct Extrusion {
   float extrude_width = 0.4;
   float extrude_thickness = 0.3;
   glm::vec4 position = {};
+  bool is_visible = true;
+  bool should_clear = true;
 
   std::shared_ptr<renderer::Buffer<renderer::vertex_data_t>> active_mesh_buffer {};
-  std::shared_ptr<renderer::Mesh> mesh {};
+  renderer::mesh_id_t mesh {};
 };
 struct visualisation_config {
   double extrusion_check_min_line_length {0.5};
@@ -132,12 +134,14 @@ public:
   void on_position_update();
 
   void ui_viewport_callback(UiWindow*);
+  void ui_viewport_menu_callback(UiWindow*);
   void ui_info_callback(UiWindow*);
 
   std::vector<Extrusion> extrusion {};
+  std::mutex extrusion_mutex {};
 
   void set_head_position(size_t hotend_index, extruder_state& position);
-  bool points_are_collinear(const glm::vec3 a, const glm::vec3 b, const glm::vec3 c, const double threshold) const;
+  bool points_are_collinear(const glm::vec3 a, const glm::vec3 b, const glm::vec3 c, double const threshold) const;
 
   FollowMode follow_mode = FOLLOW_NONE;
   bool render_full_path = true;
@@ -150,10 +154,9 @@ public:
 
   PerspectiveCamera camera;
   opengl_util::FrameBuffer* framebuffer = nullptr;
-  std::vector<std::shared_ptr<renderer::Mesh>> m_extruder_mesh;
+  std::vector<renderer::mesh_id_t> m_extruder_mesh;
+  renderer::mesh_id_t m_bed_mesh;
 
-  std::shared_ptr<renderer::Buffer<renderer::vertex_data_t>> m_bed_mesh_buffer {};
-  std::shared_ptr<renderer::Mesh> m_bed_mesh;
   std::shared_ptr<renderer::ShaderProgram> extrusion_program;
   std::shared_ptr<renderer::ShaderProgram> default_program;
 
@@ -178,7 +181,6 @@ public:
 
   bool m_initialised = false;
   visualisation_config m_config {};
-  renderer::Renderer m_renderer {};
 };
 
 struct Viewport : public UiWindow {
@@ -186,25 +188,28 @@ struct Viewport : public UiWindow {
   bool focused = false;
   ImVec2 viewport_size;
   GLuint texture_id = 0;
-  bool dirty = false;
+  bool dirty        = false;
 
-  template<class... Args>
-  Viewport(std::string name, Args... args) : UiWindow(name, args...) {}
+  template<class... Args> Viewport(std::string name, Args... args) : UiWindow(name, args...) { }
+
   void show() {
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{0, 0});
-    ImGui::Begin((char *)name.c_str(), nullptr);
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2 {0, 0});
+    ImGui::Begin((char*)name.c_str(), nullptr, ImGuiWindowFlags_MenuBar);
+    ImGui::PopStyleVar();
+    if (menu_callback) menu_callback(this);
+
     auto size = ImGui::GetContentRegionAvail();
     if (viewport_size.x != size.x || viewport_size.y != size.y) {
       viewport_size = size;
-      dirty = true;
+      dirty         = true;
     }
-    ImGui::Image((ImTextureID)(intptr_t)texture_id, viewport_size, ImVec2(0,1), ImVec2(1,0));
+    ImGui::Image((ImTextureID)(intptr_t)texture_id, viewport_size, ImVec2(0, 1), ImVec2(1, 0));
     hovered = ImGui::IsItemHovered();
     focused = ImGui::IsWindowFocused();
 
     if (show_callback) show_callback(this);
 
     ImGui::End();
-    ImGui::PopStyleVar();
   }
 };

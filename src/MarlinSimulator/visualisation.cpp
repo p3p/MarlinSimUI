@@ -49,8 +49,8 @@ void Visualisation::create() {
   camera.generate();
 
   if (EXTRUDERS > 0) {
-    auto mesh = renderer::Mesh::create<renderer::vertex_data_t>();
-    auto buffer = mesh->buffer<renderer::vertex_data_t>();
+    auto mesh = renderer::create_mesh();
+    auto buffer = renderer::Buffer<renderer::vertex_data_t>::create();
     buffer->data() = {
         renderer::vertex_data_t EFFECTOR_VERTEX(0.0, 0.0, 0.0, EFFECTOR_COLOR_1),
         EFFECTOR_VERTEX(-0.5, 0.5, 0.5, EFFECTOR_COLOR_2),
@@ -71,25 +71,27 @@ void Visualisation::create() {
         EFFECTOR_VERTEX(-0.5, 0.5, 0.5, EFFECTOR_COLOR_2),
         EFFECTOR_VERTEX(0.5, 0.5, 0.5, EFFECTOR_COLOR_3),
     };
+    renderer::get_mesh_by_id(mesh)->buffer_vector<renderer::vertex_data_t>().push_back(buffer);
 
     m_extruder_mesh.push_back(mesh);
     for (int i = 1; i < EXTRUDERS; ++i) {
-      m_extruder_mesh.push_back(renderer::Mesh::create(buffer));
+      m_extruder_mesh.push_back(mesh);
     }
   }
 
-  for (auto m : m_extruder_mesh) {
-    m->set_shader_program(default_program);
-    m->m_scale = effector_scale;
-    m_renderer.m_mesh.push_back(m);
+  for (auto& m : m_extruder_mesh) {
+    auto mesh_object = renderer::get_mesh_by_id(m);
+    mesh_object->set_shader_program(default_program);
+    mesh_object->m_scale = effector_scale;
   }
 
-  m_bed_mesh = renderer::Mesh::create<renderer::vertex_data_t>();
-  m_bed_mesh->set_shader_program(default_program);
-  m_bed_mesh_buffer = m_bed_mesh->buffer<renderer::vertex_data_t>();
-  m_renderer.m_mesh.push_back(m_bed_mesh);
+  m_bed_mesh = renderer::create_mesh();
+  auto mesh_object = renderer::get_mesh_by_id(m_bed_mesh);
+  mesh_object->set_shader_program(default_program);
+  auto bed_mesh_buffer = renderer::Buffer<renderer::vertex_data_t>::create();
+  mesh_object->buffer_vector<renderer::vertex_data_t>().push_back(bed_mesh_buffer);
+  bed_mesh_buffer->data().reserve((BED_NUM_VERTEXES_PER_AXIS * BED_NUM_VERTEXES_PER_AXIS * 6));
 
-  m_bed_mesh_buffer->data().reserve(BED_NUM_VERTEXES_PER_AXIS * BED_NUM_VERTEXES_PER_AXIS);
   // Calculate the number of divisions (line segments) along each axis.
   const GLfloat x_div = GLfloat(build_plate_dimension.x) / (BED_NUM_VERTEXES_PER_AXIS - 1);
   const GLfloat y_div = GLfloat(-build_plate_dimension.y) / (BED_NUM_VERTEXES_PER_AXIS - 1);
@@ -108,15 +110,15 @@ void Visualisation::create() {
       // |--/
       // | /
       // |/
-      m_bed_mesh_buffer->add_vertex(BED_VERTEX(x2, y2));
-      m_bed_mesh_buffer->add_vertex(BED_VERTEX(x1, y2));
-      m_bed_mesh_buffer->add_vertex(BED_VERTEX(x1, y1));
+      bed_mesh_buffer->add_vertex(BED_VERTEX(x2, y2));
+      bed_mesh_buffer->add_vertex(BED_VERTEX(x1, y2));
+      bed_mesh_buffer->add_vertex(BED_VERTEX(x1, y1));
       //    /|
       //   / |
       //  /--|
-      m_bed_mesh_buffer->add_vertex(BED_VERTEX(x2, y2));
-      m_bed_mesh_buffer->add_vertex(BED_VERTEX(x1, y1));
-      m_bed_mesh_buffer->add_vertex(BED_VERTEX(x2, y1));
+      bed_mesh_buffer->add_vertex(BED_VERTEX(x2, y2));
+      bed_mesh_buffer->add_vertex(BED_VERTEX(x1, y1));
+      bed_mesh_buffer->add_vertex(BED_VERTEX(x2, y1));
     }
   }
 
@@ -132,8 +134,12 @@ void Visualisation::create() {
     }
   }
 
+  renderer::render_mesh(m_bed_mesh);
+  for (auto mesh : m_extruder_mesh) {
+    renderer::render_mesh(mesh);
+  }
+  renderer::render_list_is_ready();
   m_initialised = true;
-
 }
 
 void Visualisation::process_event(SDL_Event& e) { }
@@ -142,6 +148,7 @@ void Visualisation::on_position_update() { }
 
 using millisec = std::chrono::duration<float, std::milli>;
 void Visualisation::update() {
+  std::scoped_lock extrusion_lock(extrusion_mutex);
   // auto now = clock.now();
   // float delta = std::chrono::duration_cast<std::chrono::duration<float>>(now - last_update).count();
   // last_update = now;
@@ -156,16 +163,19 @@ void Visualisation::update() {
 
   auto print_bed = virtual_printer.get_component<PrintBed>("Print Bed");
 
+  auto bed_mesh = renderer::get_mesh_by_id(m_bed_mesh);
   if (print_bed->dirty) {
     GLfloat max_abs_z = 0.0f;
     // todo: move vertex generation
-    for (auto& v : m_bed_mesh_buffer->data()) {
+    auto bed_mesh_buffer = bed_mesh->buffer<renderer::vertex_data_t>();
+
+    for (auto& v : bed_mesh_buffer->data()) {
       GLfloat z = print_bed->calculate_z({v.position.x, -v.position.z});
       v.position.y = z;
       max_abs_z = std::max(max_abs_z, abs(z));
     }
 
-    for (auto&v : m_bed_mesh_buffer->data()) {
+    for (auto&v : bed_mesh_buffer->data()) {
       GLfloat r = 0.0, g = 0.0, b = 0.0;
 
       if (print_bed->gradient_enabled) {
@@ -189,17 +199,55 @@ void Visualisation::update() {
 
   // update the position of the extruder mesh for visualisation
   size_t mesh_id = 0;
+  bool draw_list_update = false;
   for (auto& ext : extrusion ) {
     auto pos = glm::vec3(ext.position.x, ext.position.y, ext.position.z);
-    if (m_extruder_mesh[mesh_id]->m_position != pos) {
-      m_extruder_mesh[mesh_id]->m_position = pos;
-      m_extruder_mesh[mesh_id]->m_transform_dirty = true;
+    auto mesh_object = renderer::get_mesh_by_id(m_extruder_mesh[mesh_id]);
+    if (mesh_object->m_position != pos) {
+      mesh_object->m_position = pos;
+      mesh_object->m_transform_dirty = true;
     }
-    m_extruder_mesh[mesh_id]->m_visible = (follow_mode != FOLLOW_Z);
+    mesh_object->m_visible = (follow_mode != FOLLOW_Z);
+
+    if (ext.should_clear) {
+      draw_list_update = true;
+      ext.should_clear = false;
+      auto obj = renderer::get_mesh_by_id(ext.mesh);
+      auto old_mesh_index = ext.mesh;
+      ext.mesh = renderer::create_mesh();
+      auto new_mesh_object = renderer::get_mesh_by_id(ext.mesh);
+
+      if (obj != nullptr) {
+        new_mesh_object->set_shader_program(obj->m_shader_instance);
+        renderer::destroy_mesh(old_mesh_index);
+      } else {
+        new_mesh_object->set_shader_program(extrusion_program);
+        new_mesh_object->m_shader_instance->set_uniform("u_layer_thickness", &extrude_thickness);
+        new_mesh_object->m_shader_instance->set_uniform("u_layer_width", &extrude_width);
+        new_mesh_object->m_shader_instance->set_uniform("u_view_position", &camera.position);
+      }
+
+    }
+    auto extrusion_mesh_object = renderer::get_mesh_by_id(ext.mesh);
+    if (extrusion_mesh_object != nullptr) {
+      extrusion_mesh_object->m_visible = ext.is_visible;
+    }
+
     mesh_id ++;
   }
 
-  m_renderer.render(camera.proj * camera.view);
+  if (draw_list_update) {
+    renderer::render_mesh(m_bed_mesh);
+    for (auto mesh : m_extruder_mesh) {
+      renderer::render_mesh(mesh);
+    }
+    for (auto& ext : extrusion) {
+      renderer::render_mesh(ext.mesh);
+    }
+    renderer::render_list_is_ready();
+  }
+
+  renderer::render(camera.proj * camera.view);
 }
 
 void Visualisation::destroy() {
@@ -207,19 +255,22 @@ void Visualisation::destroy() {
     framebuffer->release();
     delete framebuffer;
   }
+  extrusion_program.reset();
+  default_program.reset();
+  renderer::destroy();
 }
 
 void Visualisation::set_head_position(size_t hotend_index, extruder_state& state) {
   if (!m_initialised || hotend_index >= extrusion.size()) return;
   glm::vec4 sim_pos = state.position;
   glm::vec4 position = {sim_pos.x, sim_pos.z, sim_pos.y * -1.0, sim_pos.w}; // correct for opengl coordinate system
+  std::scoped_lock extrusion_lock(extrusion_mutex);
   auto& extruder = extrusion[hotend_index];
   glm::vec3 extrude_color = state.color;
 
-  if (extruder.mesh != nullptr && extruder.mesh->m_delete) {
-    extruder.active_mesh_buffer.reset();
-    extruder.mesh.reset();
-  }
+  auto active_mesh = renderer::get_mesh_by_id(extruder.mesh);
+  if (!active_mesh) return;
+  auto active_buffer = active_mesh->buffer<renderer::vertex_data_t>();
 
   if (position != extruder.position) {
 
@@ -230,52 +281,45 @@ void Visualisation::set_head_position(size_t hotend_index, extruder_state& state
       extruder.last_extrusion_check = position;
     }
 
-    if (extruder.active_mesh_buffer != nullptr && extruder.active_mesh_buffer->size() > 1 && extruder.active_mesh_buffer->size() < renderer::Renderer::MAX_BUFFER_SIZE) {
+    if (active_buffer != nullptr && active_buffer->size() > 1 && active_buffer->size() < renderer::MAX_BUFFER_SIZE) {
 
       if (glm::length(glm::vec3(position) - glm::vec3(extruder.last_position)) > m_config.extrusion_segment_minimum_length) { // smooth out the path so the model renders with less geometry, rendering each individual step hurts the fps
-        if((points_are_collinear(position, extruder.active_mesh_buffer->cdata().end()[-3].position, extruder.active_mesh_buffer->cdata().end()[-2].position, m_config.extrusion_segment_collinearity_max_deviation) && extruder.extruding == extruder.last_extruding) || ( extruder.extruding == false && extruder.last_extruding == false)) {
+        if((points_are_collinear(position, active_buffer->cdata().end()[-3].position, active_buffer->cdata().end()[-2].position, m_config.extrusion_segment_collinearity_max_deviation) && extruder.extruding == extruder.last_extruding) || ( extruder.extruding == false && extruder.last_extruding == false)) {
           // collinear and extrusion state has not changed so we can just change the current point.
-          extruder.active_mesh_buffer->data().end()[-2].position = position;
-          extruder.active_mesh_buffer->data().end()[-1].position = position;
+          active_buffer->data().end()[-2].position = position;
+          active_buffer->data().end()[-1].position = position;
         } else { // new point is not collinear with current path add new point
-          extruder.active_mesh_buffer->data().end()[-1] = {position, {0.0, 1.0, 0.0}, {extrude_color, extruder.extruding}};
-          extruder.active_mesh_buffer->add_vertex(extruder.active_mesh_buffer->cdata().back());
+          active_buffer->data().end()[-1] = {position, {0.0, 1.0, 0.0}, {extrude_color, extruder.extruding}};
+          active_buffer->add_vertex(active_buffer->cdata().back());
         }
         extruder.last_position = position;
         extruder.last_extruding = extruder.extruding;
       }
 
     } else { // need to change geometry buffer
-      if (extruder.active_mesh_buffer == nullptr) {
-        auto mesh = renderer::Mesh::create<renderer::vertex_data_t>();
-        mesh->set_shader_program(extrusion_program);
-        mesh->m_shader_instance->set_uniform("u_layer_thickness", &extrude_thickness);
-        mesh->m_shader_instance->set_uniform("u_layer_width", &extrude_width);
-        mesh->m_shader_instance->set_uniform("u_view_position", &camera.position);
-
-        extruder.active_mesh_buffer = mesh->buffer<renderer::vertex_data_t>();
-        extruder.active_mesh_buffer->data().reserve(renderer::Renderer::MAX_BUFFER_SIZE);
-        extruder.active_mesh_buffer->m_geometry_type = renderer::GeometryPrimitive::LINE_STRIP_ADJACENCY;
-        extruder.mesh = mesh;
-        extruder.last_extrusion_check = position;
-        m_renderer.m_mesh.push_back(mesh);
-
-        extruder.active_mesh_buffer->data().push_back({position, {0.0, 1.0, 0.0}, {extrude_color, 0.0}});
-      } else {
-        renderer::vertex_data_t last_vertex = extruder.active_mesh_buffer->cdata().back();
+      if (active_buffer == nullptr) {
         auto buffer = renderer::Buffer<renderer::vertex_data_t>::create();
-        buffer->data().reserve(renderer::Renderer::MAX_BUFFER_SIZE);
+        buffer->data().reserve(renderer::MAX_BUFFER_SIZE);
         buffer->m_geometry_type = renderer::GeometryPrimitive::LINE_STRIP_ADJACENCY;
-        extruder.active_mesh_buffer = buffer;
-        extruder.mesh->buffer_vector<renderer::vertex_data_t>().push_back(buffer);
-
+        buffer->data().push_back({position, {0.0, 1.0, 0.0}, {extrude_color, 0.0}});
+        active_mesh->buffer_vector<renderer::vertex_data_t>().push_back(buffer);
+        active_buffer = buffer;
+        extruder.last_extrusion_check = position;
+      } else {
+        renderer::vertex_data_t last_vertex = active_buffer->cdata().back();
+        auto buffer = renderer::Buffer<renderer::vertex_data_t>::create();
+        buffer->data().reserve(renderer::MAX_BUFFER_SIZE);
+        buffer->m_geometry_type = renderer::GeometryPrimitive::LINE_STRIP_ADJACENCY;
         buffer->add_vertex(last_vertex);
         buffer->add_vertex({position, {0.0, 1.0, 0.0}, {extrude_color, extruder.extruding}});
         buffer->add_vertex(buffer->cdata().back());
+
+        active_buffer = buffer;
+        active_mesh->buffer_vector<renderer::vertex_data_t>().push_back(buffer);
       }
       // extra dummy verticies for line strip adjacency
-      extruder.active_mesh_buffer->add_vertex(extruder.active_mesh_buffer->cdata().back());
-      extruder.active_mesh_buffer->add_vertex(extruder.active_mesh_buffer->cdata().back());
+      active_buffer->add_vertex(active_buffer->cdata().back());
+      active_buffer->add_vertex(active_buffer->cdata().back());
       extruder.last_position = position;
     }
     extruder.position = position;
@@ -286,7 +330,82 @@ bool Visualisation::points_are_collinear(const glm::vec3 a, const glm::vec3 b, c
   return glm::abs(glm::dot(b - a, c - a) - (glm::length(b - a) * glm::length(c - a))) < threshold;
 }
 
+void Visualisation::ui_viewport_menu_callback(UiWindow*) {
+  std::scoped_lock extrusion_lock(extrusion_mutex);
+  bool open_settings = false;
+  if (ImGui::BeginMenuBar()) {
+    if (ImGui::BeginMenu("Camera")) {
+      if (ImGui::MenuItem("Reset")) {
+        camera.position = {37.0f, 121.0f, 129.0f};
+        camera.rotation = {-192.0f, -25.0, 0.0f};
+        camera.up       = {0.0f, 1.0f, 0.0f};
+      }
+      if (ImGui::BeginMenu("Mode")) {
+        if (ImGui::MenuItem("Fly", nullptr, true, true)) { }
+        if (ImGui::MenuItem("Orbit", nullptr, false, true)) { }
+        ImGui::EndMenu();
+      }
+      if (ImGui::BeginMenu("Focus View")) {
+        if (ImGui::MenuItem("Centre X (Right)")) {
+          camera.position = {build_plate_dimension.x, 10.0f, -(build_plate_dimension.y / 2.0f)};
+          camera.rotation = {-90.0f, 0.0, 0.0f};
+        }
+        if (ImGui::MenuItem("Centre Y (Front)")) {
+          camera.position = {build_plate_dimension.x / 2.0f, 10.0f, 0.0f};
+          camera.rotation = {-180.0f, 0.0, 0.0f};
+        }
+        if (ImGui::MenuItem("Centre Z (Top)")) {
+          camera.position = {build_plate_dimension.x / 2.0, 200.0f, -(build_plate_dimension.y / 2.0f)};
+          camera.rotation = {90.0f, -90.0, 0.0f};
+        }
+        ImGui::EndMenu();
+      }
+      ImGui::EndMenu();
+    }
+    if (ImGui::BeginMenu("Extrusion")) {
+      if (ImGui::MenuItem("Settings")) {
+        open_settings = true;
+      }
+      if (ImGui::MenuItem("Hide All")) {
+        for (auto& ext : extrusion) {
+          ext.is_visible = false;
+        }
+      }
+      if (ImGui::MenuItem("Show All")) {
+        for (auto& ext : extrusion) {
+          ext.is_visible = true;
+        }
+      }
+      if (ImGui::MenuItem("Clear Bed")) {
+        for (auto& ext : extrusion) {
+          ext.should_clear = true;
+        }
+      }
+      if (ImGui::BeginMenu("Visible")) {
+        size_t count = 0;
+        for (auto& extruder : extrusion) {
+          bool vis          = extruder.is_visible;
+          std::string label = "Extrusion ";
+          label += std::to_string(count);
+          if (ImGui::Checkbox(label.c_str(), &vis)) {
+            extruder.is_visible = vis;
+          }
+          ++count;
+        }
+        ImGui::EndMenu();
+      }
+      ImGui::EndMenu();
+    }
+    ImGui::EndMenuBar();
+  }
+
+  if (open_settings) {
+    ImGui::OpenPopup("Extrusion Settings");
+  }
+}
+
 void Visualisation::ui_viewport_callback(UiWindow* window) {
+  std::scoped_lock extrusion_lock(extrusion_mutex);
   auto now = clock.now();
   float delta = std::chrono::duration_cast<std::chrono::duration<float>>(now- last_update).count();
   last_update = now;
@@ -336,17 +455,6 @@ void Visualisation::ui_viewport_callback(UiWindow* window) {
     }
   }
 
-  if (ImGui::IsKeyPressed(SDL_SCANCODE_F1)) {
-    for (auto& mesh : m_renderer.m_mesh) {
-      mesh->m_visible = false;
-    }
-  }
-  if (ImGui::IsKeyPressed(SDL_SCANCODE_F2)) {
-    for (auto& mesh : m_renderer.m_mesh) {
-      mesh->m_visible = true;
-    }
-  }
-
   bool last_mouse_captured = mouse_captured;
   if (ImGui::IsMouseDown(0) && viewport.hovered) {
     mouse_captured = true;
@@ -369,109 +477,61 @@ void Visualisation::ui_viewport_callback(UiWindow* window) {
     if (camera.rotation.y > 89.0f) camera.rotation.y = 89.0f;
     else if (camera.rotation.y < -89.0f) camera.rotation.y = -89.0f;
   }
-};
 
+  if (!ImGui::BeginPopup("Extrusion Settings")) {
+    ImGui::EndPopup();
+  } else {
+    ImGui::PushItemWidth(150);
+    ImGui::Text("Extrude Width    ");
+    ImGui::PopItemWidth();
+    ImGui::PushItemWidth(50);
+    ImGui::SameLine();
+    ImGui::InputFloat("##Extrude_Width", &extrude_width);
+    ImGui::PopItemWidth();
 
-// Test graph
+    ImGui::PushItemWidth(150);
+    ImGui::Text("Extrude Thickness");
+    ImGui::PopItemWidth();
+    ImGui::PushItemWidth(50);
+    ImGui::SameLine();
+    ImGui::InputFloat("##Extrude_Thickness", &extrude_thickness);
+    ImGui::PopItemWidth();
 
-struct ScrollingData {
-    int MaxSize;
-    int Offset;
-    ImVector<ImPlotPoint> Data;
-    ScrollingData() {
-        MaxSize = 2000;
-        Offset  = 0;
-        Data.reserve(MaxSize);
-    }
-    void AddPoint(float x, float y) {
-        if (Data.size() < MaxSize)
-            Data.push_back(ImPlotPoint(x,y));
-        else {
-            Data[Offset] = ImPlotPoint(x,y);
-            Offset =  (Offset + 1) % MaxSize;
-        }
-    }
-    void Erase() {
-        if (Data.size() > 0) {
-            Data.shrink(0);
-            Offset  = 0;
-        }
-    }
+    ImGui::PushItemWidth(150);
+    ImGui::Text("Extrusion Check Min");
+    ImGui::PopItemWidth();
+    ImGui::PushItemWidth(100);
+    ImGui::InputDouble("##Extrusion_Check_Min", &m_config.extrusion_check_min_line_length);
+    ImGui::PopItemWidth();
+
+    ImGui::PushItemWidth(150);
+    ImGui::Text("Extrusion Check Vertical Max");
+    ImGui::PopItemWidth();
+    ImGui::PushItemWidth(100);
+    ImGui::InputDouble("##Extrusion_Check_Vertical_Max", &m_config.extrusion_check_max_vertical_deviation);
+    ImGui::PopItemWidth();
+
+    ImGui::PushItemWidth(150);
+    ImGui::Text("Extrusion Segment Min Length");
+    ImGui::PopItemWidth();
+    ImGui::PushItemWidth(100);
+    ImGui::InputDouble("##Extrusion_Segment_Min_Length", &m_config.extrusion_segment_minimum_length);
+    ImGui::PopItemWidth();
+
+    ImGui::PushItemWidth(150);
+    ImGui::Text("Extrusion Collinearity Max Deviation");
+    ImGui::PopItemWidth();
+    ImGui::PushItemWidth(100);
+    ImGui::InputDouble("##Extrusion_Collinearity_Max_Deviation", &m_config.extrusion_segment_collinearity_max_deviation);
+    ImGui::PopItemWidth();
+    ImGui::EndPopup();
+  }
 };
 
 void Visualisation::ui_info_callback(UiWindow* w) {
-  if (ImGui::Button("Clear Print Area")) {
-    for (auto& extruder : extrusion) {
-      if (extruder.mesh != nullptr) {
-        extruder.mesh->m_delete = true;
-      }
-    }
-  }
-
   if (ImGui::Button("Reload Shaders")) {
-    // path_program = renderer::ShaderProgram::loadProgram(resource::ResourceManager::get_as_cstr("data/shaders/extrusion.vs"), resource::ResourceManager::get_as_cstr("data/shaders/extrusion.fs"), resource::ResourceManager::get_as_cstr("data/shaders/extrusion.gs"));
-    // glUniform1f( glGetUniformLocation( path_program, "u_layer_thickness" ), extrude_thickness);
-    // glUniform1f( glGetUniformLocation( path_program, "u_layer_width" ), extrude_width);
-    // glUniform3fv( glGetUniformLocation( path_program, "u_view_position" ), 1, glm::value_ptr(camera.position));
-    // for (auto& ex : extrusion) {
-    //   ex.mesh->m_shader_program = path_program;
-    // }
-  }
-
-  ImGui::PushItemWidth(150);
-  ImGui::Text("Extrude Width    ");
-  ImGui::PopItemWidth();
-  ImGui::PushItemWidth(50);
-  ImGui::SameLine();
-  ImGui::InputFloat("##Extrude_Width", &extrude_width);
-  ImGui::PopItemWidth();
-
-  ImGui::PushItemWidth(150);
-  ImGui::Text("Extrude Thickness");
-  ImGui::PopItemWidth();
-  ImGui::PushItemWidth(50);
-  ImGui::SameLine();
-  ImGui::InputFloat("##Extrude_Thickness", &extrude_thickness);
-  ImGui::PopItemWidth();
-
-  ImGui::PushItemWidth(150);
-  ImGui::Text("Extrusion Check Min");
-  ImGui::PopItemWidth();
-  ImGui::PushItemWidth(100);
-  ImGui::InputDouble("##Extrusion_Check_Min", &m_config.extrusion_check_min_line_length);
-  ImGui::PopItemWidth();
-
-  ImGui::PushItemWidth(150);
-  ImGui::Text("Extrusion Check Vertical Max");
-  ImGui::PopItemWidth();
-  ImGui::PushItemWidth(100);
-  ImGui::InputDouble("##Extrusion_Check_Vertical_Max", &m_config.extrusion_check_max_vertical_deviation);
-  ImGui::PopItemWidth();
-
-  ImGui::PushItemWidth(150);
-  ImGui::Text("Extrusion Segment Min Length");
-  ImGui::PopItemWidth();
-  ImGui::PushItemWidth(100);
-  ImGui::InputDouble("##Extrusion_Segment_Min_Length", &m_config.extrusion_segment_minimum_length);
-  ImGui::PopItemWidth();
-
-  ImGui::PushItemWidth(150);
-  ImGui::Text("Extrusion Collinearity Max Deviation");
-  ImGui::PopItemWidth();
-  ImGui::PushItemWidth(100);
-  ImGui::InputDouble("##Extrusion_Collinearity_Max_Deviation", &m_config.extrusion_segment_collinearity_max_deviation);
-  ImGui::PopItemWidth();
-
-  size_t count = 0;
-  for (auto& extruder : extrusion) {
-    if (extruder.mesh != nullptr) {
-      bool vis = extruder.mesh->m_visible;
-      std::string label = "Extrusion ";
-      label += std::to_string(count);
-      if (ImGui::Checkbox(label.c_str(), &vis)) {
-        extruder.mesh->m_visible = vis;
-      }
+    if (!extrusion_program->reload()) {
+      printf("Shader Reload Failed!\n");
     }
-    ++count;
   }
 }

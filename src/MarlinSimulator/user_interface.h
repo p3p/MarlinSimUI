@@ -25,8 +25,8 @@
  * |-----------|------|
  */
 
-static constexpr const char* ImGuiDefaultLayout =
-R"(
+static constexpr char const* ImGuiDefaultLayout =
+    R"(
 [Window][DockSpaceWindwow]
 Pos=0,0
 Size=1280,720
@@ -133,28 +133,68 @@ DockSpace         ID=0x6F13380E Window=0x49B6D357 Pos=0,0 Size=1280,720 Split=X
 
 class UiWindow {
 public:
+  UiWindow(std::string name, std::function<void(UiWindow*)> show_callback = {}, std::function<void(UiWindow*)> menu_callback = {}) :
+      name(name),
+      show_callback(show_callback),
+      menu_callback(menu_callback) { }
 
-  template<class... Args>
-  UiWindow(std::string name, Args... args) : name(name), show_callback(args...) {}
   virtual void show() {
-    //if (!active) return;
-    if (!ImGui::Begin((char*)name.c_str())) { //, &active)) {
+    if (!active) return;
+    if (!ImGui::Begin((char*)name.c_str(), &active, flags)) {
       ImGui::End();
       return;
     }
+    if (menu_callback) menu_callback(this);
     if (show_callback) show_callback(this);
     ImGui::End();
   }
-  std::string name;
-  //bool active = true;
-  std::function<void(UiWindow*)> show_callback;
+
+  virtual void enable() {
+    active = true;
+  }
+
+  virtual void disable() {
+    active = false;
+  }
 
   virtual void select() {
     ImGuiWindow* window = ImGui::FindWindowByName(name.c_str());
-    if (window == NULL || window->DockNode == NULL || window->DockNode->TabBar == NULL)
-        return;
-    window->DockNode->TabBar->NextSelectedTabId = window->ID;;
+    if (window == NULL || window->DockNode == NULL || window->DockNode->TabBar == NULL) return;
+    window->DockNode->TabBar->NextSelectedTabId = window->ID;
+    ;
   }
+
+  std::string name;
+  bool active            = true;
+  ImGuiWindowFlags flags = 0;
+  std::function<void(UiWindow*)> show_callback;
+  std::function<void(UiWindow*)> menu_callback;
+};
+
+class UiPopup : public UiWindow {
+public:
+  template<class... Args> UiPopup(std::string name, bool is_modal, Args... args) : m_is_modal{is_modal}, UiWindow(name, args...) { }
+
+  virtual void show() override {
+    if (m_will_open) {
+      ImGui::OpenPopup(name.c_str());
+      m_will_open = false;
+    }
+    if (!((m_is_modal && ImGui::BeginPopupModal((char*)name.c_str(), &active, flags)) || ImGui::BeginPopup((char*)name.c_str(), flags))) {
+      ImGui::EndPopup();
+      return;
+    }
+    if (menu_callback) menu_callback(this);
+    if (show_callback) show_callback(this);
+    ImGui::EndPopup();
+  }
+
+  void enable() override {
+    m_will_open = true;
+    UiWindow::enable();
+  }
+  bool m_is_modal = false;
+  bool m_will_open = false;
 };
 
 class UserInterface {
@@ -220,13 +260,14 @@ struct SerialMonitor : public UiWindow {
   uint8_t scroll_follow_state = false;
   bool streaming = false;
   std::size_t stream_sent = 0, stream_total = 0;
+  std::mutex buffer_mutex {};
 
   MSerialT& serial_stream;
   std::ifstream input_file;
   uint8_t buffer[HalSerial::receive_buffer_size]{};
   const std::string file_dialog_key = "ChooseFileDlgKey";
   const std::string file_dialog_title = "Choose File";
-  const char* file_dialog_filters = "GCode(*.gcode *.gc *.g){.gcode,.gc,.g},.*";
+  char const* file_dialog_filters     = "GCode(*.gcode *.gc *.g){.gcode,.gc,.g},.*";
   const std::string file_dialog_path = ".";
 
   int input_callback(ImGuiInputTextCallbackData* data) {
@@ -273,6 +314,7 @@ struct SerialMonitor : public UiWindow {
   }
 
   void show() {
+    std::scoped_lock buffer_lock(buffer_mutex);
     // File read into serial port
     if (input_file.is_open() && serial_stream.receive_buffer.free() && streaming) {
       size_t read_size = std::min(serial_stream.receive_buffer.free(), stream_total - stream_sent);
@@ -295,7 +337,7 @@ struct SerialMonitor : public UiWindow {
     if (ImGui::BeginMenuBar()) {
       if (ImGui::BeginMenu("Stream")) {
         if (ImGui::MenuItem("Select GCode File")) {
-          ImGuiFileDialog::Instance()->OpenDialog(file_dialog_key, file_dialog_title, file_dialog_filters, file_dialog_path);
+          ImGuiFileDialog::Instance()->OpenModal(file_dialog_key, file_dialog_title, file_dialog_filters, file_dialog_path);
         }
         if (input_file.is_open() && streaming)
           if (ImGui::MenuItem("Pause")) {

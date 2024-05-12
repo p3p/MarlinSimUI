@@ -92,17 +92,35 @@ template<> struct gl_uniform<GL_FLOAT_MAT2x4> { using value_type = decltype(glUn
 template<> struct gl_uniform<GL_FLOAT_MAT3x2> { using value_type = decltype(glUniformMatrix3x2fv); static constexpr bool is_matrix = true; gl_enum_to_type<GL_FLOAT_MAT3x2>::value_type *value; value_type invoke = glUniformMatrix3x2fv; };
 template<> struct gl_uniform<GL_FLOAT_MAT3x4> { using value_type = decltype(glUniformMatrix3x4fv); static constexpr bool is_matrix = true; gl_enum_to_type<GL_FLOAT_MAT3x4>::value_type *value; value_type invoke = glUniformMatrix3x4fv; };
 template<> struct gl_uniform<GL_FLOAT_MAT4x2> { using value_type = decltype(glUniformMatrix4x2fv); static constexpr bool is_matrix = true; gl_enum_to_type<GL_FLOAT_MAT4x2>::value_type *value; value_type invoke = glUniformMatrix4x2fv; };
-template<> struct gl_uniform<GL_FLOAT_MAT4x3> { using value_type = decltype(glUniformMatrix4x3fv); static constexpr bool is_matrix = true; gl_enum_to_type<GL_FLOAT_MAT4x3>::value_type *value; value_type invoke = glUniformMatrix4x3fv; };
+template<> struct gl_uniform<GL_FLOAT_MAT4x3> { using value_type = decltype(glUniformMatrix4x3fv); static constexpr bool is_matrix = true; gl_enum_to_type<GL_FLOAT_MAT4x3>::value_type *value; value_type invoke = glUniformMatrix4x3fv;
+};
+
 using gl_uniform_t = std::variant<
-    gl_uniform<GL_FLOAT>, gl_uniform<GL_FLOAT_VEC2>, gl_uniform<GL_FLOAT_VEC3>,
-    gl_uniform<GL_FLOAT_VEC4>, gl_uniform<GL_INT>, gl_uniform<GL_INT_VEC2>,
-    gl_uniform<GL_INT_VEC3>, gl_uniform<GL_INT_VEC4>, gl_uniform<GL_UNSIGNED_INT>,
-    gl_uniform<GL_UNSIGNED_INT_VEC2>, gl_uniform<GL_UNSIGNED_INT_VEC3>, gl_uniform<GL_UNSIGNED_INT_VEC4>,
-    gl_uniform<GL_BOOL>, gl_uniform<GL_BOOL_VEC2>, gl_uniform<GL_BOOL_VEC3>, gl_uniform<GL_BOOL_VEC4>,
-    gl_uniform<GL_FLOAT_MAT2>, gl_uniform<GL_FLOAT_MAT3>, gl_uniform<GL_FLOAT_MAT4>,
-    gl_uniform<GL_FLOAT_MAT2x3>, gl_uniform<GL_FLOAT_MAT2x4>, gl_uniform<GL_FLOAT_MAT3x2>,
-    gl_uniform<GL_FLOAT_MAT3x4>, gl_uniform<GL_FLOAT_MAT4x2>, gl_uniform<GL_FLOAT_MAT4x3>
->;
+    gl_uniform<GL_FLOAT>,
+    gl_uniform<GL_FLOAT_VEC2>,
+    gl_uniform<GL_FLOAT_VEC3>,
+    gl_uniform<GL_FLOAT_VEC4>,
+    gl_uniform<GL_INT>,
+    gl_uniform<GL_INT_VEC2>,
+    gl_uniform<GL_INT_VEC3>,
+    gl_uniform<GL_INT_VEC4>,
+    gl_uniform<GL_UNSIGNED_INT>,
+    gl_uniform<GL_UNSIGNED_INT_VEC2>,
+    gl_uniform<GL_UNSIGNED_INT_VEC3>,
+    gl_uniform<GL_UNSIGNED_INT_VEC4>,
+    gl_uniform<GL_BOOL>,
+    gl_uniform<GL_BOOL_VEC2>,
+    gl_uniform<GL_BOOL_VEC3>,
+    gl_uniform<GL_BOOL_VEC4>,
+    gl_uniform<GL_FLOAT_MAT2>,
+    gl_uniform<GL_FLOAT_MAT3>,
+    gl_uniform<GL_FLOAT_MAT4>,
+    gl_uniform<GL_FLOAT_MAT2x3>,
+    gl_uniform<GL_FLOAT_MAT2x4>,
+    gl_uniform<GL_FLOAT_MAT3x2>,
+    gl_uniform<GL_FLOAT_MAT3x4>,
+    gl_uniform<GL_FLOAT_MAT4x2>,
+    gl_uniform<GL_FLOAT_MAT4x3>>;
 
 template<uint32_t V> struct gl_texture_parameter;
 template<> struct gl_texture_parameter<GL_FLOAT> { using value_type = decltype(glTexParameterfv); value_type invoke = glTexParameterfv; };
