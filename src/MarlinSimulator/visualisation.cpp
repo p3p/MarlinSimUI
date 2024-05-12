@@ -330,6 +330,72 @@ bool Visualisation::points_are_collinear(const glm::vec3 a, const glm::vec3 b, c
   return glm::abs(glm::dot(b - a, c - a) - (glm::length(b - a) * glm::length(c - a))) < threshold;
 }
 
+void Visualisation::ui_viewport_menu_callback(UiWindow*) {
+  std::scoped_lock extrusion_lock(extrusion_mutex);
+  if (ImGui::BeginMenuBar()) {
+    if (ImGui::BeginMenu("Camera")) {
+      if (ImGui::MenuItem("Reset")) {
+        camera.position = {37.0f, 121.0f, 129.0f};
+        camera.rotation = {-192.0f, -25.0, 0.0f};
+        camera.up       = {0.0f, 1.0f, 0.0f};
+      }
+      if (ImGui::BeginMenu("Mode")) {
+        if (ImGui::MenuItem("Fly", nullptr, true, true)) { }
+        if (ImGui::MenuItem("Orbit", nullptr, false, true)) { }
+        ImGui::EndMenu();
+      }
+      if (ImGui::BeginMenu("Focus View")) {
+        if (ImGui::MenuItem("Centre X (Right)")) {
+          camera.position = {build_plate_dimension.x, 10.0f, -(build_plate_dimension.y / 2.0f)};
+          camera.rotation = {-90.0f, 0.0, 0.0f};
+        }
+        if (ImGui::MenuItem("Centre Y (Front)")) {
+          camera.position = {build_plate_dimension.x / 2.0f, 10.0f, 0.0f};
+          camera.rotation = {-180.0f, 0.0, 0.0f};
+        }
+        if (ImGui::MenuItem("Centre Z (Top)")) {
+          camera.position = {build_plate_dimension.x / 2.0, 200.0f, -(build_plate_dimension.y / 2.0f)};
+          camera.rotation = {90.0f, -90.0, 0.0f};
+        }
+        ImGui::EndMenu();
+      }
+      ImGui::EndMenu();
+    }
+    if (ImGui::BeginMenu("Extrusion")) {
+      if (ImGui::MenuItem("Hide All")) {
+        for (auto& ext : extrusion) {
+          ext.is_visible = false;
+        }
+      }
+      if (ImGui::MenuItem("Show All")) {
+        for (auto& ext : extrusion) {
+          ext.is_visible = true;
+        }
+      }
+      if (ImGui::MenuItem("Clear Bed")) {
+        for (auto& ext : extrusion) {
+          ext.should_clear = true;
+        }
+      }
+      if (ImGui::BeginMenu("Extruder")) {
+        size_t count = 0;
+        for (auto& extruder : extrusion) {
+          bool vis          = extruder.is_visible;
+          std::string label = "Extrusion ";
+          label += std::to_string(count);
+          if (ImGui::Checkbox(label.c_str(), &vis)) {
+            extruder.is_visible = vis;
+          }
+          ++count;
+        }
+        ImGui::EndMenu();
+      }
+      ImGui::EndMenu();
+    }
+    ImGui::EndMenuBar();
+  }
+}
+
 void Visualisation::ui_viewport_callback(UiWindow* window) {
   std::scoped_lock extrusion_lock(extrusion_mutex);
   auto now = clock.now();
@@ -381,17 +447,6 @@ void Visualisation::ui_viewport_callback(UiWindow* window) {
     }
   }
 
-  if (ImGui::IsKeyPressed(SDL_SCANCODE_F1)) {
-    for (auto& ext : extrusion) {
-        ext.is_visible = false;
-    }
-  }
-  if (ImGui::IsKeyPressed(SDL_SCANCODE_F2)) {
-    for (auto& ext : extrusion) {
-      ext.is_visible = true;
-    }
-  }
-
   bool last_mouse_captured = mouse_captured;
   if (ImGui::IsMouseDown(0) && viewport.hovered) {
     mouse_captured = true;
@@ -416,46 +471,16 @@ void Visualisation::ui_viewport_callback(UiWindow* window) {
   }
 };
 
-
-// Test graph
-
-struct ScrollingData {
-    int MaxSize;
-    int Offset;
-    ImVector<ImPlotPoint> Data;
-    ScrollingData() {
-        MaxSize = 2000;
-        Offset  = 0;
-        Data.reserve(MaxSize);
-    }
-    void AddPoint(float x, float y) {
-        if (Data.size() < MaxSize)
-            Data.push_back(ImPlotPoint(x,y));
-        else {
-            Data[Offset] = ImPlotPoint(x,y);
-            Offset =  (Offset + 1) % MaxSize;
-        }
-    }
-    void Erase() {
-        if (Data.size() > 0) {
-            Data.shrink(0);
-            Offset  = 0;
-        }
-    }
-};
-
 void Visualisation::ui_info_callback(UiWindow* w) {
-  if (ImGui::Button("Clear Print Area")) {
-    for (auto& extruder : extrusion) {
-      extruder.should_clear = true;
-    }
-  }
-
   if (ImGui::Button("Reload Shaders")) {
     if (!extrusion_program->reload()) {
       printf("Shader Reload Failed!\n");
     }
   }
+
+  ImGui::Text("Camera P: {%f, %f, %f}", camera.position.x, camera.position.y, camera.position.z);
+  ImGui::Text("Camera R: {%f, %f, %f}", camera.rotation.x, camera.rotation.y, camera.rotation.z);
+
 
   ImGui::PushItemWidth(150);
   ImGui::Text("Extrude Width    ");
@@ -501,14 +526,4 @@ void Visualisation::ui_info_callback(UiWindow* w) {
   ImGui::InputDouble("##Extrusion_Collinearity_Max_Deviation", &m_config.extrusion_segment_collinearity_max_deviation);
   ImGui::PopItemWidth();
 
-  size_t count = 0;
-  for (auto& extruder : extrusion) {
-    bool vis = extruder.is_visible;
-    std::string label = "Extrusion ";
-    label += std::to_string(count);
-    if (ImGui::Checkbox(label.c_str(), &vis)) {
-      extruder.is_visible = vis;
-    }
-    ++count;
-  }
 }

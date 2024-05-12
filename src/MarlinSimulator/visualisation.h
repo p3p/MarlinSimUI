@@ -134,13 +134,14 @@ public:
   void on_position_update();
 
   void ui_viewport_callback(UiWindow*);
+  void ui_viewport_menu_callback(UiWindow*);
   void ui_info_callback(UiWindow*);
 
   std::vector<Extrusion> extrusion {};
   std::mutex extrusion_mutex {};
 
   void set_head_position(size_t hotend_index, extruder_state& position);
-  bool points_are_collinear(const glm::vec3 a, const glm::vec3 b, const glm::vec3 c, const double threshold) const;
+  bool points_are_collinear(const glm::vec3 a, const glm::vec3 b, const glm::vec3 c, double const threshold) const;
 
   FollowMode follow_mode = FOLLOW_NONE;
   bool render_full_path = true;
@@ -187,25 +188,28 @@ struct Viewport : public UiWindow {
   bool focused = false;
   ImVec2 viewport_size;
   GLuint texture_id = 0;
-  bool dirty = false;
+  bool dirty        = false;
 
-  template<class... Args>
-  Viewport(std::string name, Args... args) : UiWindow(name, args...) {}
+  template<class... Args> Viewport(std::string name, Args... args) : UiWindow(name, args...) { }
+
   void show() {
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{0, 0});
-    ImGui::Begin((char *)name.c_str(), nullptr);
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2 {0, 0});
+    ImGui::Begin((char*)name.c_str(), nullptr, ImGuiWindowFlags_MenuBar);
+    ImGui::PopStyleVar();
+    if (menu_callback) menu_callback(this);
+
     auto size = ImGui::GetContentRegionAvail();
     if (viewport_size.x != size.x || viewport_size.y != size.y) {
       viewport_size = size;
-      dirty = true;
+      dirty         = true;
     }
-    ImGui::Image((ImTextureID)(intptr_t)texture_id, viewport_size, ImVec2(0,1), ImVec2(1,0));
+    ImGui::Image((ImTextureID)(intptr_t)texture_id, viewport_size, ImVec2(0, 1), ImVec2(1, 0));
     hovered = ImGui::IsItemHovered();
     focused = ImGui::IsWindowFocused();
 
     if (show_callback) show_callback(this);
 
     ImGui::End();
-    ImGui::PopStyleVar();
   }
 };

@@ -133,21 +133,22 @@ DockSpace         ID=0x6F13380E Window=0x49B6D357 Pos=0,0 Size=1280,720 Split=X
 
 class UiWindow {
 public:
-
-  template<class... Args>
-  UiWindow(std::string name, Args... args) : name(name), show_callback(args...) {}
+  UiWindow(std::string name, std::function<void(UiWindow*)> show_callback = {},  std::function<void(UiWindow*)> menu_callback = {}) : name(name), show_callback(show_callback), menu_callback(menu_callback) {}
   virtual void show() {
-    //if (!active) return;
-    if (!ImGui::Begin((char*)name.c_str())) { //, &active)) {
+    if (!active) return;
+    if (!ImGui::Begin((char*)name.c_str(), &active, flags)) {
       ImGui::End();
       return;
     }
+    if (menu_callback) menu_callback(this);
     if (show_callback) show_callback(this);
     ImGui::End();
   }
   std::string name;
-  //bool active = true;
+  bool active = true;
+  ImGuiWindowFlags flags = 0;
   std::function<void(UiWindow*)> show_callback;
+  std::function<void(UiWindow*)> menu_callback;
 
   virtual void select() {
     ImGuiWindow* window = ImGui::FindWindowByName(name.c_str());
