@@ -59,8 +59,6 @@ Application::Application() {
     ImGui::SameLine();
     if (ImGui::Button("Break")) Kernel::execution_break();
     Kernel::TimeControl::realtime_scale.store(ui_realtime_scale);
-
-    if (ImGui::Button("Preferences")) { user_interface.ui_elements["Preferences"]->enable(); }
   });
 
   user_interface.addElement<UiPopup>("Preferences", true, [this](UiWindow* window){

@@ -332,6 +332,7 @@ bool Visualisation::points_are_collinear(const glm::vec3 a, const glm::vec3 b, c
 
 void Visualisation::ui_viewport_menu_callback(UiWindow*) {
   std::scoped_lock extrusion_lock(extrusion_mutex);
+  bool open_settings = false;
   if (ImGui::BeginMenuBar()) {
     if (ImGui::BeginMenu("Camera")) {
       if (ImGui::MenuItem("Reset")) {
@@ -362,6 +363,9 @@ void Visualisation::ui_viewport_menu_callback(UiWindow*) {
       ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("Extrusion")) {
+      if (ImGui::MenuItem("Settings")) {
+        open_settings = true;
+      }
       if (ImGui::MenuItem("Hide All")) {
         for (auto& ext : extrusion) {
           ext.is_visible = false;
@@ -377,7 +381,7 @@ void Visualisation::ui_viewport_menu_callback(UiWindow*) {
           ext.should_clear = true;
         }
       }
-      if (ImGui::BeginMenu("Extruder")) {
+      if (ImGui::BeginMenu("Visible")) {
         size_t count = 0;
         for (auto& extruder : extrusion) {
           bool vis          = extruder.is_visible;
@@ -393,6 +397,10 @@ void Visualisation::ui_viewport_menu_callback(UiWindow*) {
       ImGui::EndMenu();
     }
     ImGui::EndMenuBar();
+  }
+
+  if (open_settings) {
+    ImGui::OpenPopup("Extrusion Settings");
   }
 }
 
@@ -469,6 +477,55 @@ void Visualisation::ui_viewport_callback(UiWindow* window) {
     if (camera.rotation.y > 89.0f) camera.rotation.y = 89.0f;
     else if (camera.rotation.y < -89.0f) camera.rotation.y = -89.0f;
   }
+
+  if (!ImGui::BeginPopup("Extrusion Settings")) {
+    ImGui::EndPopup();
+  } else {
+    ImGui::PushItemWidth(150);
+    ImGui::Text("Extrude Width    ");
+    ImGui::PopItemWidth();
+    ImGui::PushItemWidth(50);
+    ImGui::SameLine();
+    ImGui::InputFloat("##Extrude_Width", &extrude_width);
+    ImGui::PopItemWidth();
+
+    ImGui::PushItemWidth(150);
+    ImGui::Text("Extrude Thickness");
+    ImGui::PopItemWidth();
+    ImGui::PushItemWidth(50);
+    ImGui::SameLine();
+    ImGui::InputFloat("##Extrude_Thickness", &extrude_thickness);
+    ImGui::PopItemWidth();
+
+    ImGui::PushItemWidth(150);
+    ImGui::Text("Extrusion Check Min");
+    ImGui::PopItemWidth();
+    ImGui::PushItemWidth(100);
+    ImGui::InputDouble("##Extrusion_Check_Min", &m_config.extrusion_check_min_line_length);
+    ImGui::PopItemWidth();
+
+    ImGui::PushItemWidth(150);
+    ImGui::Text("Extrusion Check Vertical Max");
+    ImGui::PopItemWidth();
+    ImGui::PushItemWidth(100);
+    ImGui::InputDouble("##Extrusion_Check_Vertical_Max", &m_config.extrusion_check_max_vertical_deviation);
+    ImGui::PopItemWidth();
+
+    ImGui::PushItemWidth(150);
+    ImGui::Text("Extrusion Segment Min Length");
+    ImGui::PopItemWidth();
+    ImGui::PushItemWidth(100);
+    ImGui::InputDouble("##Extrusion_Segment_Min_Length", &m_config.extrusion_segment_minimum_length);
+    ImGui::PopItemWidth();
+
+    ImGui::PushItemWidth(150);
+    ImGui::Text("Extrusion Collinearity Max Deviation");
+    ImGui::PopItemWidth();
+    ImGui::PushItemWidth(100);
+    ImGui::InputDouble("##Extrusion_Collinearity_Max_Deviation", &m_config.extrusion_segment_collinearity_max_deviation);
+    ImGui::PopItemWidth();
+    ImGui::EndPopup();
+  }
 };
 
 void Visualisation::ui_info_callback(UiWindow* w) {
@@ -477,53 +534,4 @@ void Visualisation::ui_info_callback(UiWindow* w) {
       printf("Shader Reload Failed!\n");
     }
   }
-
-  ImGui::Text("Camera P: {%f, %f, %f}", camera.position.x, camera.position.y, camera.position.z);
-  ImGui::Text("Camera R: {%f, %f, %f}", camera.rotation.x, camera.rotation.y, camera.rotation.z);
-
-
-  ImGui::PushItemWidth(150);
-  ImGui::Text("Extrude Width    ");
-  ImGui::PopItemWidth();
-  ImGui::PushItemWidth(50);
-  ImGui::SameLine();
-  ImGui::InputFloat("##Extrude_Width", &extrude_width);
-  ImGui::PopItemWidth();
-
-  ImGui::PushItemWidth(150);
-  ImGui::Text("Extrude Thickness");
-  ImGui::PopItemWidth();
-  ImGui::PushItemWidth(50);
-  ImGui::SameLine();
-  ImGui::InputFloat("##Extrude_Thickness", &extrude_thickness);
-  ImGui::PopItemWidth();
-
-  ImGui::PushItemWidth(150);
-  ImGui::Text("Extrusion Check Min");
-  ImGui::PopItemWidth();
-  ImGui::PushItemWidth(100);
-  ImGui::InputDouble("##Extrusion_Check_Min", &m_config.extrusion_check_min_line_length);
-  ImGui::PopItemWidth();
-
-  ImGui::PushItemWidth(150);
-  ImGui::Text("Extrusion Check Vertical Max");
-  ImGui::PopItemWidth();
-  ImGui::PushItemWidth(100);
-  ImGui::InputDouble("##Extrusion_Check_Vertical_Max", &m_config.extrusion_check_max_vertical_deviation);
-  ImGui::PopItemWidth();
-
-  ImGui::PushItemWidth(150);
-  ImGui::Text("Extrusion Segment Min Length");
-  ImGui::PopItemWidth();
-  ImGui::PushItemWidth(100);
-  ImGui::InputDouble("##Extrusion_Segment_Min_Length", &m_config.extrusion_segment_minimum_length);
-  ImGui::PopItemWidth();
-
-  ImGui::PushItemWidth(150);
-  ImGui::Text("Extrusion Collinearity Max Deviation");
-  ImGui::PopItemWidth();
-  ImGui::PushItemWidth(100);
-  ImGui::InputDouble("##Extrusion_Collinearity_Max_Deviation", &m_config.extrusion_segment_collinearity_max_deviation);
-  ImGui::PopItemWidth();
-
 }
