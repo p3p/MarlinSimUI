@@ -164,6 +164,7 @@ public:
     ;
   }
 
+  bool listed_on_main_menu = true;
   std::string name;
   bool active            = true;
   ImGuiWindowFlags flags = 0;
@@ -173,7 +174,9 @@ public:
 
 class UiPopup : public UiWindow {
 public:
-  template<class... Args> UiPopup(std::string name, bool is_modal, Args... args) : m_is_modal{is_modal}, UiWindow(name, args...) { }
+  template<class... Args> UiPopup(std::string name, bool is_modal, Args... args) : m_is_modal{is_modal}, UiWindow(name, args...) {
+    listed_on_main_menu = false;
+   }
 
   virtual void show() override {
     if (m_will_open) {
@@ -216,26 +219,7 @@ public:
   bool post_init_complete = false;
   std::function<void(void)> post_init;
 
-  //std::vector<std::shared_ptr<UiWindow>> ui_elements;
   static std::map<std::string, std::shared_ptr<UiWindow>> ui_elements;
-};
-
-struct StatusWindow : public UiWindow {
-  template<class... Args>
-  StatusWindow( std::string name, ImVec4* clear_color, Args... args) : UiWindow{name, args...}, clear_color{clear_color} {}
-  void show() override {
-    if (!ImGui::Begin((char*)name.c_str())) {
-      ImGui::End();
-      return;
-    }
-
-    if (show_callback) show_callback(this);
-
-    ImGui::Text("Application average %.3f ms/frame", 1000.0f / ImGui::GetIO().Framerate);
-    ImGui::Text("%.1f FPS", ImGui::GetIO().Framerate);
-    ImGui::End();
-  }
-  ImVec4* clear_color = nullptr;
 };
 
 #include <serial.h>

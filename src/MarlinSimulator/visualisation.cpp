@@ -6,7 +6,6 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/epsilon.hpp>
-#include <glm/gtx/euler_angles.hpp>
 
 #include <vector>
 #include <array>
@@ -529,6 +528,9 @@ void Visualisation::ui_viewport_callback(UiWindow* window) {
 };
 
 void Visualisation::ui_info_callback(UiWindow* w) {
+  ImGui::Text("Application average %.3f ms/frame", 1000.0f / ImGui::GetIO().Framerate);
+  ImGui::Text("%.1f FPS", ImGui::GetIO().Framerate);
+
   if (ImGui::Button("Reload Shaders")) {
     if (!extrusion_program->reload()) {
       printf("Shader Reload Failed!\n");

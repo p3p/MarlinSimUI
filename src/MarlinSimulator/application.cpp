@@ -20,11 +20,45 @@ Application::Application() {
   user_interface.addElement<SerialMonitor>("Serial Monitor(2)", serial_stream_2);
   user_interface.addElement<SerialMonitor>("Serial Monitor(3)", serial_stream_3);
 
-  user_interface.addElement<StatusWindow>("Status", &clear_color, [this](UiWindow* window){ this->sim.ui_info_callback(window); });
+  user_interface.addElement<UiWindow>("Debug", [this](UiWindow* window){ this->sim.ui_info_callback(window); });
   user_interface.addElement<UiWindow>("Components", [this](UiWindow* window){ this->sim.testPrinter.ui_widgets(); });
   user_interface.addElement<Viewport>("Viewport", [this](UiWindow* window){ this->sim.vis.ui_viewport_callback(window); }, [this](UiWindow* window){ this->sim.vis.ui_viewport_menu_callback(window); });
 
   user_interface.addElement<UiWindow>("Simulation", [this](UiWindow* window){
+    if (ImGui::BeginMainMenuBar()) {
+      if (ImGui::BeginMenu("File")) {
+        if (ImGui::MenuItem("Preferences")) {
+          user_interface.ui_elements["Preferences"]->enable();
+        }
+        if (ImGui::MenuItem("Quit")) {
+          Kernel::quit_requested = true;
+          active = false;
+        }
+        ImGui::EndMenu();
+      }
+      if (ImGui::BeginMenu("View")) {
+        if (ImGui::BeginMenu("Panel")) {
+          for (auto& panel : user_interface.ui_elements) {
+            if (panel.second->listed_on_main_menu) {
+              bool panel_active = panel.second->active;
+              if (ImGui::Checkbox(panel.first.c_str(), &panel_active)) {
+                if (panel_active != panel.second->active) {
+                  if (panel_active) {
+                    panel.second->enable();
+                  } else {
+                    panel.second->disable();
+                  }
+                }
+              }
+            }
+          }
+          ImGui::EndMenu();
+        }
+        ImGui::EndMenu();
+      }
+      ImGui::EndMainMenuBar();
+    }
+
     //Simulation Time
     uint64_t time_source = Kernel::SimulationRuntime::nanos();
     uint64_t hours = (time_source / (Kernel::TimeControl::ONE_BILLION * 60 * 60)) ;
