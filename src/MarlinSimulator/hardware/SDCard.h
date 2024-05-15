@@ -34,7 +34,9 @@ public:
   const std::string file_dialog_key = "ChooseSDFileDlgKey";
   void ui_widget() {
     if (ImGui::Button("Select Image (FAT32)")) {
-      ImGuiFileDialog::Instance()->OpenModal(file_dialog_key, "Choose File", "FAT32 Disk Image(*.img){.img},.*", ".");
+      IGFD::FileDialogConfig config { "." };
+      config.flags |= ImGuiFileDialogFlags_Modal;
+      ImGuiFileDialog::Instance()->OpenDialog(file_dialog_key, "Choose File", "FAT32 Disk Image(*.img){.img},.*", config);
     }
     if (ImGuiFileDialog::Instance()->Display(file_dialog_key, ImGuiWindowFlags_NoDocking))  {
       if (ImGuiFileDialog::Instance()->IsOk()) {

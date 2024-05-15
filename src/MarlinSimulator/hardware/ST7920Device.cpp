@@ -183,15 +183,15 @@ void ST7920Device::ui_widget() {
 
     ImGui::Image((ImTextureID)(intptr_t)texture_id, size, ImVec2(0,0), ImVec2(1,1));
     if (ImGui::IsWindowFocused()) {
-      key_pressed[KeyName::KILL_BUTTON]    = ImGui::IsKeyDown(SDL_SCANCODE_K);
-      key_pressed[KeyName::ENCODER_BUTTON] = ImGui::IsKeyDown(SDL_SCANCODE_SPACE) || ImGui::IsKeyDown(SDL_SCANCODE_RETURN) || ImGui::IsKeyDown(SDL_SCANCODE_RIGHT);
-      key_pressed[KeyName::BACK_BUTTON]    = ImGui::IsKeyDown(SDL_SCANCODE_LEFT);
+      key_pressed[KeyName::KILL_BUTTON]    = ImGui::IsKeyDown(ImGuiKey_K);
+      key_pressed[KeyName::ENCODER_BUTTON] = ImGui::IsKeyDown(ImGuiKey_Space) || ImGui::IsKeyDown(ImGuiKey_Enter) || ImGui::IsKeyDown(ImGuiKey_RightArrow);
+      key_pressed[KeyName::BACK_BUTTON]    = ImGui::IsKeyDown(ImGuiKey_LeftArrow);
 
       // Turn keypresses (and repeat) into encoder clicks
       if (up_held) { up_held--; encoder_position--; }
-      else if (ImGui::IsKeyPressed(SDL_SCANCODE_UP)) up_held = 4;
+      else if (ImGui::IsKeyPressed(ImGuiKey_UpArrow)) up_held = 4;
       if (down_held) { down_held--; encoder_position++; }
-      else if (ImGui::IsKeyPressed(SDL_SCANCODE_DOWN)) down_held = 4;
+      else if (ImGui::IsKeyPressed(ImGuiKey_DownArrow)) down_held = 4;
 
       if (ImGui::IsItemHovered()) {
         key_pressed[KeyName::ENCODER_BUTTON] |= ImGui::IsMouseClicked(0);

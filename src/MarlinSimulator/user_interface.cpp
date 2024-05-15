@@ -1,7 +1,7 @@
 #include <SDL2/SDL.h>
 #include <gl.h>
 #include <imgui.h>
-#include <imgui_impl_sdl.h>
+#include <imgui_impl_sdl2.h>
 #include <imgui_impl_opengl3.h>
 #include "user_interface.h"
 
@@ -43,7 +43,7 @@ UserInterface::~UserInterface() {
 
 void UserInterface::show() {
   ImGui_ImplOpenGL3_NewFrame();
-  ImGui_ImplSDL2_NewFrame(SDL_GL_GetCurrentWindow());
+  ImGui_ImplSDL2_NewFrame();
   ImGui::NewFrame();
 
   DockSpace();
@@ -76,4 +76,3 @@ void UserInterface::render() {
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
   }
 }
-

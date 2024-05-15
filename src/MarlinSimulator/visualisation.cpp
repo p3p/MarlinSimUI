@@ -419,32 +419,32 @@ void Visualisation::ui_viewport_callback(UiWindow* window) {
   }
 
   if (viewport.focused) {
-    if (ImGui::IsKeyDown(SDL_SCANCODE_W)) {
+    if (ImGui::IsKeyDown(ImGuiKey_W)) {
       camera.position += camera.speed * camera.direction * delta;
     }
-    if (ImGui::IsKeyDown(SDL_SCANCODE_S)) {
+    if (ImGui::IsKeyDown(ImGuiKey_S)) {
       camera.position -= camera.speed * camera.direction * delta;
     }
-    if (ImGui::IsKeyDown(SDL_SCANCODE_A)) {
+    if (ImGui::IsKeyDown(ImGuiKey_A)) {
       camera.position -= glm::normalize(glm::cross(camera.direction, camera.up)) * camera.speed * delta;
     }
-    if (ImGui::IsKeyDown(SDL_SCANCODE_D)) {
+    if (ImGui::IsKeyDown(ImGuiKey_D)) {
       camera.position += glm::normalize(glm::cross(camera.direction, camera.up)) * camera.speed * delta;
     }
-    if (ImGui::IsKeyDown(SDL_SCANCODE_SPACE)) {
+    if (ImGui::IsKeyDown(ImGuiKey_Space)) {
       camera.position += camera.world_up * camera.speed * delta;
     }
-    if (ImGui::IsKeyDown(SDL_SCANCODE_LSHIFT)) {
+    if (ImGui::IsKeyDown(ImGuiKey_LeftShift)) {
       camera.position -= camera.world_up * camera.speed * delta;
     }
-    if (ImGui::IsKeyPressed(SDL_SCANCODE_F)) {
+    if (ImGui::IsKeyPressed(ImGuiKey_F)) {
       follow_mode = follow_mode == FOLLOW_Z ? FOLLOW_NONE : FOLLOW_Z;
       if (follow_mode != FOLLOW_NONE) {
         camera.position = glm::vec3(ex.position.x, ex.position.y + 10.0, ex.position.z);
         camera.rotation.y = -89.99999;
       }
     }
-    if (ImGui::IsKeyPressed(SDL_SCANCODE_G)) {
+    if (ImGui::IsKeyPressed(ImGuiKey_G)) {
       follow_mode = follow_mode == FOLLOW_XY ? FOLLOW_NONE : FOLLOW_XY;
       if (follow_mode != FOLLOW_NONE)
         follow_offset = camera.position - glm::vec3(ex.position);

@@ -10,8 +10,8 @@
 
 #include <gl.h>
 #include <imgui.h>
-#include "imgui_internal.h"
-#include "../ImGuiFileDialog/ImGuiFileDialog.h"
+#include <imgui_internal.h>
+#include <ImGuiFileDialog.h>
 
 #include "execution_control.h"
 
@@ -321,7 +321,9 @@ struct SerialMonitor : public UiWindow {
     if (ImGui::BeginMenuBar()) {
       if (ImGui::BeginMenu("Stream")) {
         if (ImGui::MenuItem("Select GCode File")) {
-          ImGuiFileDialog::Instance()->OpenModal(file_dialog_key, file_dialog_title, file_dialog_filters, file_dialog_path);
+          IGFD::FileDialogConfig config { file_dialog_path };
+          config.flags |= ImGuiFileDialogFlags_Modal;
+          ImGuiFileDialog::Instance()->OpenDialog(file_dialog_key, file_dialog_title, file_dialog_filters, config);
         }
         if (input_file.is_open() && streaming)
           if (ImGui::MenuItem("Pause")) {

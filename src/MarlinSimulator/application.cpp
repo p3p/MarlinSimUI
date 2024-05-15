@@ -1,6 +1,6 @@
 #include <SDL2/SDL.h>
 #include <imgui.h>
-#include <imgui_impl_sdl.h>
+#include <imgui_impl_sdl2.h>
 
 #include "user_interface.h"
 #include "application.h"
@@ -183,25 +183,28 @@ Application::Application() {
         ImGui::SliderFloat("X offset", &offset, 0.f, 10000000000.f,"%.0f ns");
         ImGui::SliderFloat("X offset", &offset, 0.f, 100000000000.f,"%.0f ns");
         if (!ImPlot::GetCurrentContext()) ImPlot::CreateContext();
-        ImPlot::SetNextPlotLimitsX(Kernel::SimulationRuntime::nanos() - window - offset, Kernel::SimulationRuntime::nanos() - offset, ImGuiCond_Always);
-        ImPlot::SetNextPlotLimitsY(0.0f, 1.2f, ImGuiCond_Always);
-        static int rt_axis = ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_LockMin;
-        if (ImPlot::BeginPlot("##Scrolling", "Time (ns)", NULL, ImVec2(-1,150), ImPlotAxisFlags_NoTickLabels | ImPlotFlags_Query, rt_axis, rt_axis)) {
-          ImPlot::PlotLine("pin", &sdata.Data[0].x, &sdata.Data[0].y, sdata.Data.size(), sdata.Offset, sizeof(ImPlotPoint));
+        if (ImPlot::BeginPlot("##Scrolling", ImVec2(-1,150))) {
+          ImPlot::SetupAxes(NULL, NULL, ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_LockMin, ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_LockMin);
+          ImPlot::SetupAxisLimits(ImAxis_X1, Kernel::SimulationRuntime::nanos() - window - offset, Kernel::SimulationRuntime::nanos() - offset, ImGuiCond_Always);
+          ImPlot::SetupAxisLimits(ImAxis_Y1,0,1);
+          ImPlot::SetNextFillStyle(IMPLOT_AUTO_COL,0.5f);
+          ImPlot::PlotLine(active_label, &sdata.Data[0].x, &sdata.Data[0].y, sdata.Data.size(), 0, sdata.Offset, sizeof(ImPlotPoint));
           ImPlot::EndPlot();
         }
       }
 
+      IGFD::FileDialogConfig config { "." };
+      config.flags |= ImGuiFileDialogFlags_Modal;
       static bool export_single_pin = false;
       if (ImGui::Button("Export selected pin to file")) {
         export_single_pin = true;
-        ImGuiFileDialog::Instance()->OpenDialog("PulseExportDlgKey", "Choose File", "Value Change Dump (*.vcd){.vcd},.*", ".");
-      }
 
+        ImGuiFileDialog::Instance()->OpenDialog("PulseExportDlgKey", "Choose File", "Value Change Dump (*.vcd){.vcd},.*", config);
+      }
 
       if (ImGui::Button("Export pins matching regex to file")) {
         export_single_pin = false;
-        ImGuiFileDialog::Instance()->OpenDialog("PulseExportDlgKey", "Choose File", "Value Change Dump (*.vcd){.vcd},.*", ".");
+        ImGuiFileDialog::Instance()->OpenDialog("PulseExportDlgKey", "Choose File", "Value Change Dump (*.vcd){.vcd},.*", config);
       }
 
       static char export_regex[128] = "";
@@ -216,7 +219,7 @@ Application::Application() {
           using namespace vcd;
 
           HeadPtr head = makeVCDHeader(static_cast<TimeScale>(50), TimeScaleUnit::ns, utils::now());
-          VCDWriter writer{image_filename, std::move(head)};
+          VCDWriter writer{image_filename, head};
 
           if (export_single_pin) {
             std::string pin_name(active_label);

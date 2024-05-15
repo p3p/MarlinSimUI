@@ -7,7 +7,7 @@
     "type": "git",
     "url": "https://github.com/p3p/MarlinSimulator.git"
   },
-  "version": "0.0.4",
+  "version": "0.1.0",
   "authors":
   [
     {
@@ -17,16 +17,31 @@
         "name": "Chris Pepper"
     }
   ],
-  "dependencies":
-  {
-    "imgui": "https://github.com/p3p/imgui.git#pio_docking",
-    "implot": "https://github.com/p3p/implot.git#pio_master",
-    "vcd-writer": "https://github.com/favorart/vcd-writer.git#28e19a1bfe632535e69787a978ba9d001aee5987"
-  },
   "build": {
-    "libLDFMode": "deep"
+    "libLDFMode": "deep",
+    "srcDir": "",
+    "includeDir": "",
+    "srcFilter": [
+      "+<src/**/*.cpp>",
+      "+<vendor/imgui-1.90.6-docking/*.cpp>",
+      "+<vendor/imgui-1.90.6-docking/backends/*.cpp>",
+      "+<vendor/implot-f156599/*.cpp>",
+      "+<vendor/ImGuiFileDialog-0.6.7/*.cpp>",
+      "+<vendor/vcd-writer-b4fe347/src/*.cpp>",
+      "+<vendor/glad/glad.c>"
+    ],
+    "flags": [
+      "-Isrc",
+      "-Iinclude",
+      "-Ivendor/imgui-1.90.6-docking",
+      "-Ivendor/imgui-1.90.6-docking/backends",
+      "-Ivendor/implot-f156599",
+      "-Ivendor/ImGuiFileDialog-0.6.7",
+      "-Ivendor/vcd-writer-b4fe347/include",
+      "-Ivendor/glad/include",
+      "-DIMGUI_IMPL_OPENGL_LOADER_GLAD"
+    ]
   },
   "frameworks": "*",
   "platforms": "native"
 }
-
