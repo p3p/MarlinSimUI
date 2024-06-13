@@ -19,7 +19,7 @@ public:
     data = new uint8_t[flash_size];
     memset(data, 0xFF, flash_size);
 
-    fp = fopen(SPI_FLASH_IMAGE, "rb");
+    fp = fopen(SPI_FLASH_IMAGE, "rb+");
     if (fp == nullptr) {
       fp = fopen(SPI_FLASH_IMAGE, "wb+");
       assert(fp);
