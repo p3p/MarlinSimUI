@@ -372,13 +372,16 @@ void DeltaKinematicSystem::kinematic_update() {
     extruder.push_back(std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::E0 + i])->steps() / steps_per_unit[3 + (i * distinct_e_factors)] * (((extruder_invert_dir[i] * 2) - 1) * -1.0));
   }
 
+  auto cartesian_pos = forward_kinematics(hardware_offset[0].x + carriage.x, hardware_offset[0].y + carriage.y, hardware_offset[0].z + carriage.z) + glm::vec3{X_BED_SIZE / 2, Y_BED_SIZE / 2, 0.0};
+
 #ifdef SINGLENOZZLE
   for (size_t i = 0; i < EXTRUDERS; ++i) {
-    auto cartesian_pos = forward_kinematics(hardware_offset[0].x + carriage.x, hardware_offset[0].y + carriage.y, hardware_offset[0].z + carriage.z) + glm::vec3{X_BED_SIZE / 2, Y_BED_SIZE / 2, 0.0};
     state.effector_position[i] = {carriage, glm::vec4(cartesian_pos, extruder[i]), filament_color[i]};
   }
 #else
-  #error Implement Offset kinematics for multiple offset hotends on a delta carriage ...
+  for (size_t i = 0; i < HOTENDS; ++i) {
+    state.effector_position[i] = {carriage, glm::vec4{hotend_offset_x[i], hotend_offset_y[i], hotend_offset_z[i], 0.0} + glm::vec4(cartesian_pos, extruder[i]), filament_color[i]};
+  }
 #endif
 
   state.position = state.effector_position[0].position;
