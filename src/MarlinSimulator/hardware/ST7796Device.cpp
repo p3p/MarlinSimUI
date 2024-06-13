@@ -76,6 +76,16 @@ void ST7796Device::interrupt(GpioEvent& ev) {
     //start new command, execute last one
     process_command({command, data});
     data.clear();
+  } else if (ev.pin_id == kill_pin) {
+    Gpio::set_pin_value(kill_pin,  !key_pressed[KeyName::KILL_BUTTON]);
+  } else if (ev.pin_id == enc_but_pin) {
+    Gpio::set_pin_value(enc_but_pin,  !key_pressed[KeyName::ENCODER_BUTTON]);
+  } else if (ev.pin_id == back_pin) {
+    Gpio::set_pin_value(back_pin,  !key_pressed[KeyName::BACK_BUTTON]);
+  } else if (ev.pin_id == enc1_pin || ev.pin_id == enc2_pin) {
+    const uint8_t encoder_state = encoder_position % 4;
+    Gpio::set_pin_value(enc1_pin,  encoder_table[encoder_state] & 0x01);
+    Gpio::set_pin_value(enc2_pin,  encoder_table[encoder_state] & 0x02);
   }
 }
 
@@ -126,6 +136,7 @@ void ST7796Device::ui_init() {
 
 void ST7796Device::ui_widget() {
   bool popout_begin = false;
+  static uint8_t up_held = 0, down_held = 0;
   auto size = ImGui::GetContentRegionAvail();
   size.y = ((size.x / (width / (float)height)) * !render_popout) + 60;
 
@@ -153,6 +164,21 @@ void ST7796Device::ui_widget() {
     size = imgui_custom::scale_proportionally(size, width, height, render_integer_scaling);
 
     ImGui::Image((ImTextureID)(intptr_t)texture_id, size, ImVec2(0,0), ImVec2(1,1));
+    if (ImGui::IsWindowFocused()) {
+      key_pressed[KeyName::KILL_BUTTON]    = ImGui::IsKeyDown(ImGuiKey_K);
+      key_pressed[KeyName::ENCODER_BUTTON] = ImGui::IsKeyDown(ImGuiKey_Space) || ImGui::IsKeyDown(ImGuiKey_Enter) || ImGui::IsKeyDown(ImGuiKey_RightArrow);
+      key_pressed[KeyName::BACK_BUTTON]    = ImGui::IsKeyDown(ImGuiKey_LeftArrow);
+
+      // Turn keypresses (and repeat) into encoder clicks
+      if (up_held) { up_held--; encoder_position--; }
+      else if (ImGui::IsKeyPressed(ImGuiKey_UpArrow)) up_held = 4;
+      if (down_held) { down_held--; encoder_position++; }
+      else if (ImGui::IsKeyPressed(ImGuiKey_DownArrow)) down_held = 4;
+
+      if (ImGui::IsItemHovered()) {
+        encoder_position += ImGui::GetIO().MouseWheel > 0 ? 1 : ImGui::GetIO().MouseWheel < 0 ? -1 : 0;
+      }
+    }
     touch->ui_callback();
 
     if (popout_begin) ImGui::End();

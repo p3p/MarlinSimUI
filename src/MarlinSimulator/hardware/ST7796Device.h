@@ -20,9 +20,8 @@
 
 class ST7796Device: public SPISlavePeripheral {
 public:
-  //TODO: support encoder in the TFT
   enum KeyName {
-    KILL_BUTTON, ENCODER_BUTTON, COUNT
+    KILL_BUTTON, ENCODER_BUTTON, BACK_BUTTON, COUNT
   };
 
   struct Command {
