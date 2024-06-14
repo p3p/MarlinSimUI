@@ -36,11 +36,11 @@ void Visualisation::create() {
 
   framebuffer = new opengl_util::MsaaFrameBuffer();
   if (!((opengl_util::MsaaFrameBuffer*)framebuffer)->create(100, 100, 4)) {
-    fprintf(stderr, "Failed to initialise MSAA Framebuffer falling back to TextureFramebuffer\n");
+    logger::warning("Failed to initialise MSAA Framebuffer falling back to TextureFramebuffer\n");
     delete framebuffer;
     framebuffer = new opengl_util::TextureFrameBuffer();
     if (!((opengl_util::TextureFrameBuffer*)framebuffer)->create(100,100)) {
-      fprintf(stderr, "Unable to initialise a Framebuffer\n");
+      logger::error("Unable to initialise a Framebuffer\n");
     }
   }
 
@@ -413,6 +413,8 @@ void Visualisation::ui_viewport_callback(UiWindow* window) {
   auto& ex = extrusion[0];
 
   if (viewport.dirty) {
+    viewport.viewport_size.x = viewport.viewport_size.x > 0 ? viewport.viewport_size.x : 0;
+    viewport.viewport_size.y = viewport.viewport_size.y > 0 ? viewport.viewport_size.y : 0;
     framebuffer->update(viewport.viewport_size.x, viewport.viewport_size.y);
     viewport.texture_id = framebuffer->texture_id();
     camera.update_aspect_ratio(viewport.viewport_size.x / viewport.viewport_size.y);
@@ -533,7 +535,7 @@ void Visualisation::ui_info_callback(UiWindow* w) {
 
   if (ImGui::Button("Reload Shaders")) {
     if (!extrusion_program->reload()) {
-      printf("Shader Reload Failed!\n");
+      logger::warning("Shader Reload Failed!\n");
     }
   }
 }

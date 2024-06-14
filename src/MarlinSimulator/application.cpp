@@ -4,6 +4,7 @@
 
 #include "user_interface.h"
 #include "application.h"
+#include "logger.h"
 
 #include "../HAL.h"
 #include <src/MarlinCore.h>
@@ -13,18 +14,14 @@
 #include <regex>
 
 Application::Application() {
+  auto log_window = user_interface.addElement<LoggerWindow>("Log");
+  logger::set_logger_callback([log_window](const std::string_view value){
+    log_window->add_log(value);
+  });
+
   sim.vis.create();
 
-  user_interface.addElement<SerialMonitor>("Serial Monitor(0)", serial_stream_0);
-  user_interface.addElement<SerialMonitor>("Serial Monitor(1)", serial_stream_1);
-  user_interface.addElement<SerialMonitor>("Serial Monitor(2)", serial_stream_2);
-  user_interface.addElement<SerialMonitor>("Serial Monitor(3)", serial_stream_3);
-
-  user_interface.addElement<UiWindow>("Debug", [this](UiWindow* window){ this->sim.ui_info_callback(window); });
-  user_interface.addElement<UiWindow>("Components", [this](UiWindow* window){ this->sim.testPrinter.ui_widgets(); });
-  user_interface.addElement<Viewport>("Viewport", [this](UiWindow* window){ this->sim.vis.ui_viewport_callback(window); }, [this](UiWindow* window){ this->sim.vis.ui_viewport_menu_callback(window); });
-
-  user_interface.addElement<UiWindow>("Simulation", [this](UiWindow* window){
+  user_interface.addElement<UiWindow>("MainMenu", [this](UiWindow* window){
     if (ImGui::BeginMainMenuBar()) {
       if (ImGui::BeginMenu("File")) {
         if (ImGui::MenuItem("Preferences")) {
@@ -58,7 +55,19 @@ Application::Application() {
       }
       ImGui::EndMainMenuBar();
     }
+  });
 
+  user_interface.addElement<SerialMonitor>("Serial Monitor(0)", serial_stream_0);
+  user_interface.addElement<SerialMonitor>("Serial Monitor(1)", serial_stream_1);
+  user_interface.addElement<SerialMonitor>("Serial Monitor(2)", serial_stream_2);
+  user_interface.addElement<SerialMonitor>("Serial Monitor(3)", serial_stream_3);
+
+  user_interface.addElement<UiWindow>("Debug", [this](UiWindow* window){ this->sim.ui_info_callback(window); });
+
+  user_interface.addElement<UiWindow>("Components", [this](UiWindow* window){ this->sim.testPrinter.ui_widgets(); });
+  user_interface.addElement<Viewport>("Viewport", [this](UiWindow* window){ this->sim.vis.ui_viewport_callback(window); }, [this](UiWindow* window){ this->sim.vis.ui_viewport_menu_callback(window); });
+
+  user_interface.addElement<UiWindow>("Simulation", [this](UiWindow* window){
     //Simulation Time
     uint64_t time_source = Kernel::SimulationRuntime::nanos();
     uint64_t hours = (time_source / (Kernel::TimeControl::ONE_BILLION * 60 * 60)) ;
@@ -308,8 +317,10 @@ void Application::update() {
 
 void Application::render() {
   sim.vis.framebuffer->bind();
-  glClearColor(clear_color.x, clear_color.y, clear_color.z, 1.0);
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+  renderer::gl_assert_call(glClearColor, clear_color.x, clear_color.y, clear_color.z, 1.0);
+  renderer::gl_assert_call(glClear, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
   sim.vis.update();               // Update and render
   sim.vis.framebuffer->render();  // Render and unbind framebuffer
 

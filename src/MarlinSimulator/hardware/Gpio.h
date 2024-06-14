@@ -111,7 +111,7 @@ public:
       pin_map[pin].value = value;
       GpioEvent evt(Kernel::TimeControl::getTicks(), pin, evt_type);
       if (logging_enabled) {
-        pin_map[pin].event_log.push_back(pin_log_data{Kernel::TimeControl::nanos(), pin_map[pin].value});
+        pin_map[pin].event_log.push_back(pin_log_data{Kernel::SimulationRuntime::nanos(), pin_map[pin].value});
         if (pin_map[pin].event_log.size() > 100000) pin_map[pin].event_log.pop_front();
       }
       for (auto callback : pin_map[pin].callbacks) callback(evt);

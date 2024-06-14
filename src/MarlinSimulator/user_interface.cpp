@@ -3,7 +3,10 @@
 #include <imgui.h>
 #include <imgui_impl_sdl2.h>
 #include <imgui_impl_opengl3.h>
+
+#include "renderer/renderer.h"
 #include "user_interface.h"
+#include "resources/resources.h"
 
 std::map<std::string, std::shared_ptr<UiWindow>> UserInterface::ui_elements;
 
@@ -33,8 +36,8 @@ void DockSpace() {
 }
 
 UserInterface::UserInterface() {
-  ImGui::LoadIniSettingsFromMemory(ImGuiDefaultLayout, strlen(ImGuiDefaultLayout));
-  ImGui::LoadIniSettingsFromDisk("imgui.ini"); // Load early
+  auto imgui_ini = resource::ResourceManager::get_as_sv("imgui.ini");
+  ImGui::LoadIniSettingsFromMemory(imgui_ini.data(), imgui_ini.size());
 }
 
 UserInterface::~UserInterface() {
@@ -45,6 +48,7 @@ void UserInterface::show() {
   ImGui_ImplOpenGL3_NewFrame();
   ImGui_ImplSDL2_NewFrame();
   ImGui::NewFrame();
+  renderer::gl_log_error();
 
   DockSpace();
   for (auto element : ui_elements) {
@@ -60,11 +64,12 @@ void UserInterface::show() {
 
 void UserInterface::render() {
   ImGui::Render();
+  renderer::gl_log_error();
   {
     ImGuiIO& io = ImGui::GetIO();
-    glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    renderer::gl_assert_call(glViewport, 0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
+    renderer::gl_assert_call(glClearColor, 0.0f, 0.0f, 0.0f, 1.0);
+    renderer::gl_assert_call(glClear, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
       SDL_Window* backup_current_window = SDL_GL_GetCurrentWindow();
@@ -73,6 +78,8 @@ void UserInterface::render() {
       ImGui::RenderPlatformWindowsDefault();
       SDL_GL_MakeCurrent(backup_current_window, backup_current_context);
     }
+
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    renderer::gl_log_error();
   }
 }

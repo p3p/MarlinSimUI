@@ -13,123 +13,8 @@
 #include <imgui_internal.h>
 #include <ImGuiFileDialog.h>
 
+#include "logger.h"
 #include "execution_control.h"
-
-/**
- * |-----|-----|------|
- * |Stat | LCD |      |
- * |           |      |
- * |           |  3D  |
- * |-----------|      |
- * |Ser        |      |
- * |-----------|------|
- */
-
-static constexpr char const* ImGuiDefaultLayout =
-    R"(
-[Window][DockSpaceWindwow]
-Pos=0,0
-Size=1280,720
-Collapsed=0
-
-[Window][Debug##Default]
-Pos=60,60
-Size=400,400
-Collapsed=0
-
-[Window][Components]
-Pos=1003,0
-Size=277,720
-Collapsed=0
-DockId=0x00000006,0
-
-[Window][Simulation]
-Pos=0,0
-Size=313,107
-Collapsed=0
-DockId=0x00000003,0
-
-[Window][Viewport]
-Pos=315,0
-Size=686,482
-Collapsed=0
-DockId=0x00000009,0
-
-[Window][Status]
-Pos=0,109
-Size=313,611
-Collapsed=0
-DockId=0x00000004,0
-
-[Window][Signal Analyser]
-Pos=315,0
-Size=686,482
-Collapsed=0
-DockId=0x00000009,1
-
-[Window][Pin List]
-Pos=1003,0
-Size=277,720
-Collapsed=0
-DockId=0x00000006,1
-
-[Window][Serial Monitor(0)]
-Pos=315,484
-Size=686,236
-Collapsed=0
-DockId=0x0000000A,0
-
-[Window][Serial Monitor(1)]
-Pos=315,484
-Size=686,236
-Collapsed=0
-DockId=0x0000000A,1
-
-[Window][Serial Monitor(2)]
-Pos=315,484
-Size=686,236
-Collapsed=0
-DockId=0x0000000A,2
-
-[Window][Serial Monitor(3)]
-Pos=315,484
-Size=686,236
-Collapsed=0
-DockId=0x0000000A,3
-
-[Window][Serial Monitor]
-Pos=272,453
-Size=623,267
-Collapsed=0
-DockId=0x00000008,0
-
-[Window][Choose File##ChooseFileDlgKey]
-Pos=271,95
-Size=678,431
-Collapsed=0
-
-[Table][0x5E7B4F09,4]
-RefScale=13
-Column 0  Sort=0v
-Column 1
-Column 2
-Column 3
-
-[Docking][Data]
-DockSpace         ID=0x6F13380E Window=0x49B6D357 Pos=0,0 Size=1280,720 Split=X
-  DockNode        ID=0x00000005 Parent=0x6F13380E SizeRef=1001,720 Split=X
-    DockNode      ID=0x00000001 Parent=0x00000005 SizeRef=313,720 Split=Y Selected=0x7CAC602A
-      DockNode    ID=0x00000003 Parent=0x00000001 SizeRef=637,107 Selected=0x848745AB
-      DockNode    ID=0x00000004 Parent=0x00000001 SizeRef=637,611 Selected=0x7CAC602A
-    DockNode      ID=0x00000002 Parent=0x00000005 SizeRef=686,720 Split=Y Selected=0x995B0CF8
-      DockNode    ID=0x00000007 Parent=0x00000002 SizeRef=448,451 Split=Y Selected=0x995B0CF8
-        DockNode  ID=0x00000009 Parent=0x00000007 SizeRef=623,482 CentralNode=1 Selected=0x995B0CF8
-        DockNode  ID=0x0000000A Parent=0x00000007 SizeRef=623,236 Selected=0xB516B7B1
-      DockNode    ID=0x00000008 Parent=0x00000002 SizeRef=448,267 Selected=0xB42549D5
-  DockNode        ID=0x00000006 Parent=0x6F13380E SizeRef=277,720 Selected=0xA115F62D
-
-
-)";
 
 class UiWindow {
 public:
@@ -354,7 +239,7 @@ struct SerialMonitor : public UiWindow {
     if (ImGuiFileDialog::Instance()->IsOpened() &&  ImGuiFileDialog::Instance()->Display(file_dialog_key, ImGuiWindowFlags_NoDocking))  {
       if (ImGuiFileDialog::Instance()->IsOk()) {
         std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
-        //printf("Streaming file: %s\n", filePathName.c_str());
+        logger::info("Streaming file: %s\n", filePathName.c_str());
         input_file.open(filePathName);
         input_file.seekg(0, std::ios::end);
         stream_total = input_file.tellg();
@@ -445,6 +330,152 @@ struct TextureWindow : public UiWindow {
     hovered = ImGui::IsItemHovered();
     focused = ImGui::IsWindowFocused();
     if (show_callback) show_callback((UiWindow*)this);
+    ImGui::End();
+    ImGui::PopStyleVar();
+  }
+};
+
+// todo: write a better one, taken from the demo just added colour
+struct LoggerWindow : public UiWindow {
+  ImGuiTextBuffer     Buf;
+  ImGuiTextFilter     Filter;
+  ImVector<int>       LineOffsets; // Index to lines offset. We maintain this with AddLog() calls.
+  bool                AutoScroll;  // Keep scrolling if already at the bottom.
+
+  template<class... Args>
+  LoggerWindow(std::string name, Args... args) : UiWindow(name, args...) {
+    AutoScroll = true;
+    clear();
+  }
+
+  void clear() {
+    Buf.clear();
+    LineOffsets.clear();
+    LineOffsets.push_back(0);
+  }
+
+  // todo: return span information and colour only the log level indicator?
+  ImVec4 get_color(const char* start, const char* end) {
+    const ImVec4 colors[6] = {
+      ImVec4{1.0f, 1.0f, 1.0f, 1.0f},
+      ImVec4{0.2f, 0.6f, 1.0f, 1.0f},
+      ImVec4{0.0f, 1.0f, 0.0f, 1.0f},
+      ImVec4{1.0f, 1.0f, 0.4f, 1.0f},
+      ImVec4{1.0f, 0.0f, 0.0f, 1.0f},
+      ImVec4{1.0f, 0.0f, 0.0f, 1.0f}
+    };
+
+    std::string_view view(start, end - start);
+    auto result = view.find("trace]");
+    if (result != std::string::npos) return colors[0];
+    result = view.find("debug]");
+    if (result != std::string::npos) return colors[1];
+    result = view.find("info]");
+    if (result != std::string::npos) return colors[2];
+    result = view.find("warning]");
+    if (result != std::string::npos) return colors[3];
+    result = view.find("error]");
+    if (result != std::string::npos) return colors[4];
+    result = view.find("critical]");
+    if (result != std::string::npos) return colors[5];
+
+    return colors[0];
+  }
+
+  void add_log(const std::string_view value) {
+    int old_size = Buf.size();
+    Buf.append(value.cbegin(), value.cend());
+    Buf.append("\n");
+    for (int new_size = Buf.size(); old_size < new_size; old_size++) {
+      if (Buf[old_size] == '\n') LineOffsets.push_back(old_size + 1);
+    }
+  }
+
+  void show() {
+    if (!active) return;
+    if (!ImGui::Begin((char *)name.c_str(), &active, flags)) {
+      ImGui::End();
+      return;
+    }
+
+    // Options menu
+    if (ImGui::BeginPopup("Options")) {
+      ImGui::Checkbox("Auto-scroll", &AutoScroll);
+      ImGui::EndPopup();
+    }
+
+    // Main window
+    if (ImGui::Button("Options"))
+        ImGui::OpenPopup("Options");
+    ImGui::SameLine();
+    bool clear_button = ImGui::Button("Clear");
+    ImGui::SameLine();
+    bool copy_button = ImGui::Button("Copy");
+    ImGui::SameLine();
+    Filter.Draw("Filter", -100.0f);
+
+    ImGui::Separator();
+    ImGui::BeginChild("scrolling", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
+
+    if (clear_button)
+      clear();
+    if (copy_button)
+      ImGui::LogToClipboard();
+
+
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+    const char* buf = Buf.begin();
+    const char* buf_end = Buf.end();
+    if (Filter.IsActive()) {
+      for (int line_no = 0; line_no < LineOffsets.Size; line_no++) {
+        const char* line_start = buf + LineOffsets[line_no];
+        const char* line_end = (line_no + 1 < LineOffsets.Size) ? (buf + LineOffsets[line_no + 1] - 1) : buf_end;
+        if (Filter.PassFilter(line_start, line_end)) {
+          ImGui::PushStyleColor(ImGuiCol_Text, get_color(line_start, line_end));
+          ImGui::TextUnformatted(line_start, line_end);
+          ImGui::PopStyleColor();
+        }
+      }
+    } else {
+      ImGuiListClipper clipper;
+      clipper.Begin(LineOffsets.Size);
+      while (clipper.Step()) {
+        for (int line_no = clipper.DisplayStart; line_no < clipper.DisplayEnd; line_no++) {
+          const char* line_start = buf + LineOffsets[line_no];
+          const char* line_end = (line_no + 1 < LineOffsets.Size) ? (buf + LineOffsets[line_no + 1] - 1) : buf_end;
+          ImGui::PushStyleColor(ImGuiCol_Text, get_color(line_start, line_end));
+          ImGui::TextUnformatted(line_start, line_end);
+          ImGui::PopStyleColor();
+        }
+      }
+      clipper.End();
+    }
+    ImGui::PopStyleVar();
+
+    if (AutoScroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
+      ImGui::SetScrollHereY(1.0f);
+
+    ImGui::EndChild();
+    ImGui::End();
+  }
+};
+
+struct GraphWindow : public UiWindow {
+  bool hovered = false;
+  bool focused = false;
+  GLuint texture_id = 0;
+  float aspect_ratio = 0.0f;
+
+  template<class... Args>
+  GraphWindow(std::string name, GLuint texture_id, float aratio, Args... args) : UiWindow(name, args...), texture_id{texture_id}, aspect_ratio(aratio) {}
+  void show() {
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{2, 2});
+    ImGui::Begin((char *)name.c_str(), nullptr);
+    auto size = ImGui::GetContentRegionAvail();
+    size.y = size.x / aspect_ratio;
+    ImGui::Image((ImTextureID)(intptr_t)texture_id, size, ImVec2(0,0), ImVec2(1,1));
+    hovered = ImGui::IsItemHovered();
+    focused = ImGui::IsWindowFocused();
     ImGui::End();
     ImGui::PopStyleVar();
   }

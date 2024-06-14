@@ -10,9 +10,15 @@
 #include <mutex>
 #include <string>
 #include <vector>
+#include <map>
+
+#include "../logger.h"
+#include "../utility.h"
 
 #include "../resources/resources.h"
 #include "gl.h"
+
+#include <debugbreak.h>
 
 namespace renderer {
 
@@ -54,7 +60,7 @@ public:
 
   ~ShaderProgram() {
     auto id = m_program_id;
-    gl_defer_call([id]() { glDeleteShader(id); });
+    gl_defer_call([id]() { renderer::gl_assert_call(glDeleteShader, id); });
   }
 
   static GLuint load_program(char const* vertex_string, char const* fragment_string, char const* geometry_string = nullptr) {
@@ -69,45 +75,50 @@ public:
       geometry_shader = load_shader(GL_GEOMETRY_SHADER, geometry_string);
     }
 
-    GLuint shader_program = glCreateProgram();
-    glAttachShader(shader_program, vertex_shader);
-    glAttachShader(shader_program, fragment_shader);
-    if (geometry_shader) glAttachShader(shader_program, geometry_shader);
-
-    glLinkProgram(shader_program);
-
-    GLint result = 0;
-    glGetProgramiv(shader_program, GL_LINK_STATUS, &result);
-    if (result == GL_TRUE) {
-      glUseProgram(shader_program);
-    } else {
-      glDeleteProgram(shader_program);
-      shader_program = 0;
+    GLuint shader_program = renderer::gl_assert_call(glCreateProgram);
+    renderer::gl_assert_call(glAttachShader, shader_program, vertex_shader);
+    renderer::gl_assert_call(glAttachShader, shader_program, fragment_shader);
+    if (geometry_shader) {
+      renderer::gl_assert_call(glAttachShader, shader_program, geometry_shader);
     }
 
-    if (vertex_shader) glDeleteShader(vertex_shader);
-    if (fragment_shader) glDeleteShader(fragment_shader);
-    if (geometry_shader) glDeleteShader(geometry_shader);
+    renderer::gl_assert_call(glLinkProgram, shader_program);
+
+    GLint result = 0;
+    renderer::gl_assert_call(glGetProgramiv, shader_program, GL_LINK_STATUS, &result);
+    if (result == GL_TRUE) {
+      renderer::gl_assert_call(glUseProgram, shader_program);
+      logger::debug("ShaderProgram::load_program: shader program(%d) linked and activated", shader_program);
+
+    } else {
+      renderer::gl_assert_call(glDeleteProgram, shader_program);
+      shader_program = 0;
+      logger::error("ShaderProgram::load_program: unable to link shaders");
+    }
+
+    if (vertex_shader) renderer::gl_assert_call(glDeleteShader, vertex_shader);
+    if (fragment_shader) renderer::gl_assert_call(glDeleteShader, fragment_shader);
+    if (geometry_shader) renderer::gl_assert_call(glDeleteShader, geometry_shader);
 
     return shader_program;
   }
 
   static GLuint load_shader(GLuint shader_type, char const* shader_string) {
-    GLuint shader_id = glCreateShader(shader_type);
+    GLuint shader_id = renderer::gl_assert_call(glCreateShader, shader_type);
     int length       = strlen(shader_string);
-    glShaderSource(shader_id, 1, (GLchar const**)&shader_string, &length);
-    glCompileShader(shader_id);
+    renderer::gl_assert_call(glShaderSource, shader_id, 1, (GLchar const**)&shader_string, &length);
+    renderer::gl_assert_call(glCompileShader, shader_id);
 
     GLint status;
-    glGetShaderiv(shader_id, GL_COMPILE_STATUS, &status);
+    renderer::gl_assert_call(glGetShaderiv, shader_id, GL_COMPILE_STATUS, &status);
     if (status == GL_FALSE) {
       GLint maxLength = 0;
-      glGetShaderiv(shader_id, GL_INFO_LOG_LENGTH, &maxLength);
+      renderer::gl_assert_call(glGetShaderiv, shader_id, GL_INFO_LOG_LENGTH, &maxLength);
       std::vector<GLchar> errorLog(maxLength + 1);
       errorLog[maxLength] = 0;
-      glGetShaderInfoLog(shader_id, maxLength, &maxLength, errorLog.data());
-      printf("%s\n", errorLog.data());
-      glDeleteShader(shader_id);
+      renderer::gl_assert_call(glGetShaderInfoLog, shader_id, maxLength, &maxLength, errorLog.data());
+      logger::error("%s", errorLog.data());
+      renderer::gl_assert_call(glDeleteShader, shader_id);
       return 0;
     }
     return shader_id;
@@ -124,7 +135,7 @@ public:
     if (program_id == 0) return nullptr; // default shader?
     auto program = std::make_shared<ShaderProgram>(program_id);
     if (program) program->build_cache();
-    program->m_vertex_path = vertex_path;
+    program->m_vertex_path   = vertex_path;
     program->m_fragment_path = fragment_path;
     program->m_geometry_path = geometry_path;
     return program;
@@ -143,6 +154,7 @@ public:
   }
 
   void build_cache() {
+    logger::debug("ShaderProgram::build_cache");
     GLint size {};  // size of the variable
     GLenum type {}; // type of the variable (float, vec3 or mat4, etc)
 
@@ -154,20 +166,30 @@ public:
     for (auto& attr : m_attributes) {
       attr.second.active = false; // disable all current attributes for reload
     }
-    glGetProgramiv(m_program_id, GL_ACTIVE_ATTRIBUTES, &attribute_count);
+    renderer::gl_assert_call(glGetProgramiv, m_program_id, GL_ACTIVE_ATTRIBUTES, &attribute_count);
+    logger::debug("attribute:");
     for (GLint i = 0; i < attribute_count; i++) {
-      glGetActiveAttrib(m_program_id, (GLuint)i, bufSize, &length, &size, &type, (char*)name);
-      m_attributes[name] = shader_attr_t {(uint32_t)i, name, type, size};
+      renderer::gl_assert_call(glGetActiveAttrib, m_program_id, (GLuint)i, bufSize, &length, &size, &type, (char*)name);
+
+      auto attrib_loc = renderer::gl_assert_call(glGetAttribLocation, m_program_id, name);
+
+      logger::debug("index: %d, location: %d, name: %s, type: %d, size: %d", i, attrib_loc, name, type, size);
+      m_attributes[name] = shader_attr_t {(uint32_t)attrib_loc, name, type, size};
     }
 
     GLint uniform_count;
     for (auto& uniform : m_uniforms) {
       uniform.second.active = false; // disable all current uniforms for reload
     }
-    glGetProgramiv(m_program_id, GL_ACTIVE_UNIFORMS, &uniform_count);
+    renderer::gl_assert_call(glGetProgramiv, m_program_id, GL_ACTIVE_UNIFORMS, &uniform_count);
+    logger::debug("uniform:");
     for (GLint i = 0; i < uniform_count; i++) {
-      glGetActiveUniform(m_program_id, (GLuint)i, bufSize, &length, &size, &type, (char*)name);
-      m_uniforms[name] = shader_attr_t {(uint32_t)i, name, type, size};
+      renderer::gl_assert_call(glGetActiveUniform, m_program_id, (GLuint)i, bufSize, &length, &size, &type, (char*)name);
+
+      auto uniform_loc = renderer::gl_assert_call(glGetUniformLocation, m_program_id, name);
+
+      logger::debug("index: %d, location: %d, name: %s, type: %d, size: %d", i, uniform_loc, name, type, size);
+      m_uniforms[name] = shader_attr_t {(uint32_t)uniform_loc, name, type, size};
     }
   }
 
@@ -190,14 +212,17 @@ public:
   };
 
   void bind_immediate() {
-    glUseProgram(m_program->m_program_id);
+    if (m_program == nullptr) return;
+    renderer::gl_assert_call(glUseProgram, m_program->m_program_id);
     for (auto& [location, uniform] : m_uniforms) {
       uniform.gl_uniform_call(uniform.desc, uniform.uniform_data);
     }
   }
 
   template<typename T> void set_uniform(std::string name, T* value) {
-    using gl_uniform_type        = gl_uniform<type_to_gl_enum<T>::value>;
+    using gl_uniform_type = gl_uniform<type_to_gl_enum<T>::value>;
+    if (m_program == nullptr) return;
+    if (!m_program->m_uniforms.count(name)) return;
     auto uniform                 = m_program->m_uniforms[name];
     m_uniforms[uniform.location] = shader_uniform_t {
         uniform,
@@ -241,15 +266,17 @@ public:
 template<typename ElementType> class Buffer : public BufferBase {
 public:
   virtual void generate() override {
-    glGenVertexArrays(1, &m_vao);
-    glGenBuffers(1, &m_vbo);
-    glBindVertexArray(m_vao);
-    glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
+    renderer::gl_assert_call(glGenVertexArrays, 1, &m_vao);
+    renderer::gl_assert_call(glGenBuffers, 1, &m_vbo);
+    renderer::gl_assert_call(glBindVertexArray, m_vao);
+    renderer::gl_assert_call(glBindBuffer, GL_ARRAY_BUFFER, m_vbo);
 
     size_t index = 0, offset = 0;
     for (auto& attrib : ElementType::descriptor) {
-      glEnableVertexAttribArray(index);
-      glVertexAttribPointer(index, attrib.elements, attrib.gl_enum, GL_FALSE, sizeof(ElementType), (void*)offset);
+      renderer::gl_assert_call(glEnableVertexAttribArray, index);
+
+      renderer::gl_assert_call(glVertexAttribPointer, index, attrib.elements, attrib.gl_enum, GL_FALSE, sizeof(ElementType), (void*)offset);
+
       ++index;
       offset += attrib.length;
     }
@@ -259,8 +286,8 @@ public:
   virtual void destroy() override {
     GLuint vbo = m_vbo;
     GLuint vao = m_vao;
-    if (m_vbo) gl_defer_call([vbo]() { glDeleteBuffers(1, &vbo); });
-    if (m_vao) gl_defer_call([vao]() { glDeleteBuffers(1, &vao); });
+    if (m_vbo) gl_defer_call([vbo]() { renderer::gl_assert_call(glDeleteBuffers, 1, &vbo); });
+    if (m_vao) gl_defer_call([vao]() { renderer::gl_assert_call(glDeleteBuffers, 1, &vao); });
     m_vbo = m_vao = 0;
   }
 
@@ -271,14 +298,15 @@ public:
   virtual bool bind() override {
     if (!m_generated) generate();
     if (m_vao == 0 || m_vbo == 0) return false;
-    glBindVertexArray(m_vao);
-    glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
+    renderer::gl_assert_call(glBindVertexArray, m_vao);
+    renderer::gl_assert_call(glBindBuffer, GL_ARRAY_BUFFER, m_vbo);
     return true;
   }
 
   virtual void upload() override {
     if (m_dirty && m_data.size() > 0) {
-      glBufferData(GL_ARRAY_BUFFER, m_data.size() * sizeof(ElementType), &m_data[0], m_storage_hint);
+      renderer::gl_assert_call(glBufferData, GL_ARRAY_BUFFER, m_data.size() * sizeof(ElementType), &m_data[0], m_storage_hint);
+
       m_dirty = false;
     }
   }
@@ -286,7 +314,7 @@ public:
   virtual void render() override {
     if (bind()) {
       upload();
-      glDrawArrays((GLenum)m_geometry_type, m_geometry_offset, m_data.size());
+      renderer::gl_assert_call(glDrawArrays, (GLenum)m_geometry_type, m_geometry_offset, m_data.size());
     }
   }
 
@@ -381,7 +409,7 @@ public:
   bool m_shader_dirty    = true;
   bool m_delete          = false;
   std::vector<std::shared_ptr<BufferBase>> m_buffer {};
-  std::shared_ptr<ShaderProgramInstance> m_shader_instance = 0;
+  std::shared_ptr<ShaderProgramInstance> m_shader_instance {};
 
 private:
   Mesh() { }

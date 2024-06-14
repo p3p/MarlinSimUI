@@ -5,6 +5,12 @@
 #include <gl.h>
 #include <glm/glm.hpp>
 
+#include <debugbreak.h>
+
+#ifndef GL_LOG_LEVEL
+  #define GL_LOG_LEVEL 0
+#endif
+
 namespace renderer {
 
 template<uint32_t V> struct gl_enum_to_type;
@@ -160,5 +166,38 @@ enum class GeometryPrimitive : uint32_t {
   TRIANGLE_STRIP_ADJACENCY = GL_TRIANGLE_STRIP_ADJACENCY,
   TRIANGLES_ADJACENCY = GL_TRIANGLES_ADJACENCY
 };
+
+inline constexpr int gl_log_level = GL_LOG_LEVEL;
+
+const std::map<GLuint, std::string_view> gl_error_to_sv_lookup {
+  {GL_NO_ERROR, "GL_NO_ERROR"},
+  {GL_INVALID_ENUM, "GL_INVALID_ENUM"},
+  {GL_INVALID_VALUE, "GL_INVALID_VALUE"},
+  {GL_INVALID_OPERATION, "GL_INVALID_OPERATION"},
+  {GL_INVALID_FRAMEBUFFER_OPERATION, "GL_INVALID_FRAMEBUFFER_OPERATION"},
+  {GL_OUT_OF_MEMORY, "GL_OUT_OF_MEMORY"}
+};
+
+inline void gl_log_error() {
+  if constexpr (gl_log_level > 0) {
+    GLuint gl_error_value = glGetError();
+    if (gl_error_value == GL_NO_ERROR) return;
+    auto error_sv = gl_error_to_sv_lookup.at(gl_error_value);
+    logger::error("GL Error: [%d]: %*s", gl_error_value, static_cast<int>(error_sv.size()), error_sv.data());
+    if constexpr (gl_log_level > 1) debug_break();
+  }
+}
+
+template<typename callback_t, typename... Args, typename R = typename return_type<callback_t>::type, bool return_is_void = std::is_same<R, void>::value>
+[[gnu::always_inline]] inline auto gl_assert_call(callback_t fn, Args const&... args) -> R {
+  if constexpr (!return_is_void) {
+    auto value = fn(args...);
+    gl_log_error();
+    return value;
+  } else {
+    fn(args...);
+    gl_log_error();
+  }
+}
 
 }

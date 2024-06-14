@@ -24,7 +24,9 @@ public:
       fp = fopen(SPI_FLASH_IMAGE, "wb+");
       assert(fp);
       fwrite(data, 1, flash_size, fp);
-    } else fread(data, 1, flash_size, fp);
+    } else {
+      [[maybe_unused]] auto value = fread(data, 1, flash_size, fp);
+    }
   }
   virtual ~W25QxxDevice() {
     fclose(fp);

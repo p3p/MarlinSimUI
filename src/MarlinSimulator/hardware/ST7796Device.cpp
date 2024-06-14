@@ -5,6 +5,7 @@
 #include "Gpio.h"
 
 #include <gl.h>
+#include "../renderer/renderer.h"
 
 #include "../imgui_custom.h"
 
@@ -59,9 +60,9 @@ void ST7796Device::update() {
 
   if (dirty && delta > 1.0 / 30.0) {
     last_update = now;
-    glBindTexture(GL_TEXTURE_2D, texture_id);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, graphic_ram);
-    glBindTexture(GL_TEXTURE_2D, 0);
+    renderer::gl_assert_call(glBindTexture, GL_TEXTURE_2D, texture_id);
+    renderer::gl_assert_call(glTexImage2D, GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, graphic_ram);
+    renderer::gl_assert_call(glBindTexture, GL_TEXTURE_2D, 0);
   }
 }
 
@@ -125,13 +126,13 @@ void ST7796Device::onByteReceived(uint8_t _byte) {
 }
 
 void ST7796Device::ui_init() {
-  glGenTextures(1, &texture_id);
-  glBindTexture(GL_TEXTURE_2D, texture_id);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-  glBindTexture(GL_TEXTURE_2D, 0);
+  renderer::gl_assert_call(glGenTextures, 1, &texture_id);
+  renderer::gl_assert_call(glBindTexture, GL_TEXTURE_2D, texture_id);
+  renderer::gl_assert_call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  renderer::gl_assert_call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  renderer::gl_assert_call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  renderer::gl_assert_call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  renderer::gl_assert_call(glBindTexture, GL_TEXTURE_2D, 0);
 }
 
 void ST7796Device::ui_widget() {

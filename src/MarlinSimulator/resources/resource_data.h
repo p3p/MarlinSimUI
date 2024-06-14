@@ -118,9 +118,9 @@ static const char * data_shader_extrusion_gs = R"SHADERSTR(
 
 static const char * data_shader_extrusion_vs = R"SHADERSTR(
   #version 330 core
-  in vec3 i_position;
-  in vec3 i_normal;
-  in vec4 i_color;
+  layout(location = 0) in vec3 i_position;
+  layout(location = 1) in vec3 i_normal;
+  layout(location = 2) in vec4 i_color;
   out vec4 g_color;
   out vec3 g_normal;
   void main() {
@@ -170,9 +170,9 @@ static const char * data_shader_extrusion_fs = R"SHADERSTR(
 
 static const char * data_shader_default_vs = R"SHADERSTR(
   #version 330 core
-  in vec3 i_position;
-  in vec3 i_normal;
-  in vec4 i_color;
+  layout(location = 0) in vec3 i_position;
+  layout(location = 1) in vec3 i_normal;
+  layout(location = 2) in vec4 i_color;
   out vec4 v_color;
   out vec3 v_normal;
   out vec3 v_position;
@@ -200,3 +200,117 @@ static const char * data_shader_default_fs = R"SHADERSTR(
   })SHADERSTR";
 
 }
+
+/**
+ * |-----|-----|------|
+ * |Stat | LCD |      |
+ * |           |      |
+ * |           |  3D  |
+ * |-----------|      |
+ * |Ser        |      |
+ * |-----------|------|
+ */
+
+static constexpr char const* imgui_ini = R"(
+[Window][DockSpaceWindwow]
+Pos=0,0
+Size=1280,720
+Collapsed=0
+
+[Window][Debug##Default]
+Pos=60,60
+Size=400,400
+Collapsed=0
+
+[Window][Components]
+Pos=1003,0
+Size=277,720
+Collapsed=0
+DockId=0x00000006,0
+
+[Window][Simulation]
+Pos=0,0
+Size=313,107
+Collapsed=0
+DockId=0x00000003,0
+
+[Window][Viewport]
+Pos=315,0
+Size=686,482
+Collapsed=0
+DockId=0x00000009,0
+
+[Window][Status]
+Pos=0,109
+Size=313,611
+Collapsed=0
+DockId=0x00000004,0
+
+[Window][Signal Analyser]
+Pos=315,0
+Size=686,482
+Collapsed=0
+DockId=0x00000009,1
+
+[Window][Pin List]
+Pos=1003,0
+Size=277,720
+Collapsed=0
+DockId=0x00000006,1
+
+[Window][Serial Monitor(0)]
+Pos=315,484
+Size=686,236
+Collapsed=0
+DockId=0x0000000A,0
+
+[Window][Serial Monitor(1)]
+Pos=315,484
+Size=686,236
+Collapsed=0
+DockId=0x0000000A,1
+
+[Window][Serial Monitor(2)]
+Pos=315,484
+Size=686,236
+Collapsed=0
+DockId=0x0000000A,2
+
+[Window][Serial Monitor(3)]
+Pos=315,484
+Size=686,236
+Collapsed=0
+DockId=0x0000000A,3
+
+[Window][Serial Monitor]
+Pos=272,453
+Size=623,267
+Collapsed=0
+DockId=0x00000008,0
+
+[Window][Choose File##ChooseFileDlgKey]
+Pos=271,95
+Size=678,431
+Collapsed=0
+
+[Table][0x5E7B4F09,4]
+RefScale=13
+Column 0  Sort=0v
+Column 1
+Column 2
+Column 3
+
+[Docking][Data]
+DockSpace         ID=0x6F13380E Window=0x49B6D357 Pos=0,0 Size=1280,720 Split=X
+  DockNode        ID=0x00000005 Parent=0x6F13380E SizeRef=1001,720 Split=X
+    DockNode      ID=0x00000001 Parent=0x00000005 SizeRef=313,720 Split=Y Selected=0x7CAC602A
+      DockNode    ID=0x00000003 Parent=0x00000001 SizeRef=637,107 Selected=0x848745AB
+      DockNode    ID=0x00000004 Parent=0x00000001 SizeRef=637,611 Selected=0x7CAC602A
+    DockNode      ID=0x00000002 Parent=0x00000005 SizeRef=686,720 Split=Y Selected=0x995B0CF8
+      DockNode    ID=0x00000007 Parent=0x00000002 SizeRef=448,451 Split=Y Selected=0x995B0CF8
+        DockNode  ID=0x00000009 Parent=0x00000007 SizeRef=623,482 CentralNode=1 Selected=0x995B0CF8
+        DockNode  ID=0x0000000A Parent=0x00000007 SizeRef=623,236 Selected=0xB516B7B1
+      DockNode    ID=0x00000008 Parent=0x00000002 SizeRef=448,267 Selected=0xB42549D5
+  DockNode        ID=0x00000006 Parent=0x6F13380E SizeRef=277,720 Selected=0xA115F62D
+
+)";

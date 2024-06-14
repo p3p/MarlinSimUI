@@ -17,27 +17,6 @@
 
 #include "virtual_printer.h"
 
-struct GraphWindow : public UiWindow {
-  bool hovered = false;
-  bool focused = false;
-  GLuint texture_id = 0;
-  float aspect_ratio = 0.0f;
-
-  template<class... Args>
-  GraphWindow(std::string name, GLuint texture_id, float aratio, Args... args) : UiWindow(name, args...), texture_id{texture_id}, aspect_ratio(aratio) {}
-  void show() {
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{2, 2});
-    ImGui::Begin((char *)name.c_str(), nullptr);
-    auto size = ImGui::GetContentRegionAvail();
-    size.y = size.x / aspect_ratio;
-    ImGui::Image((ImTextureID)(intptr_t)texture_id, size, ImVec2(0,0), ImVec2(1,1));
-    hovered = ImGui::IsItemHovered();
-    focused = ImGui::IsWindowFocused();
-    ImGui::End();
-    ImGui::PopStyleVar();
-  }
-};
-
 class Simulation {
 public:
 

@@ -12,6 +12,7 @@ namespace resource {
     {{"data/shaders/extrusion.fs"}, std::make_shared<Resource>(data_shader_extrusion_fs)},
     {{"data/shaders/default.vs"}, std::make_shared<Resource>(data_shader_default_vs)},
     {{"data/shaders/default.fs"}, std::make_shared<Resource>(data_shader_default_fs)},
+    {{"imgui.ini"}, std::make_shared<Resource>(imgui_ini)},
   } ;
 
   FileResource::FileResource(std::filesystem::path path) : m_path{path} {
@@ -41,17 +42,27 @@ namespace resource {
     return false;
   }
 
-  const char* ResourceManager::get_as_cstr(std::filesystem::path path) {
+  std::shared_ptr<Resource> ResourceManager::get(std::filesystem::path path) {
     if (!path.empty() && std::filesystem::exists(std::filesystem::current_path() / path)) {
       if (s_loaded_resource.count(path)) {
         s_loaded_resource[path]->reload();
-        return s_loaded_resource[path]->m_buffer;
+        return s_loaded_resource[path];
       }
       auto file_buffer = std::make_shared<FileResource>(path);
       s_loaded_resource[path] = file_buffer;
-      return file_buffer->m_buffer;
+      return file_buffer;
     }
-    return s_embedded_resource.count(path) > 0 ? s_embedded_resource[path]->m_buffer : nullptr;
+    return s_embedded_resource.count(path) > 0 ? s_embedded_resource[path] : nullptr;
+  }
+
+  const char* ResourceManager::get_as_cstr(std::filesystem::path path) {
+    auto value = get(path);
+    return value != nullptr ? value->m_buffer.data() : nullptr;
+  }
+
+  std::string_view ResourceManager::get_as_sv(std::filesystem::path path) {
+    auto value = get(path);
+    return value != nullptr ? value->m_buffer : nullptr;
   }
 
 }
