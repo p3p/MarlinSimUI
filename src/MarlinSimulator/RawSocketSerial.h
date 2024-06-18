@@ -23,7 +23,7 @@ public:
     }
     SDLNet_TCP_Close(server.socket);
 
-    for (auto i = 0; i < ServerInfo::max_connections; ++i) {
+    for (uint32_t i = 0; i < ServerInfo::max_connections; ++i) {
       if (server.sockets[i] == nullptr) continue;
       close_socket(i);
     }
@@ -122,8 +122,8 @@ public:
   }
 
   int32_t send(int index) {
-    std::size_t length = tx_buffer.read(transmit_buffer, ServerInfo::max_packet_size);
-    int num_sent       = SDLNet_TCP_Send(server.sockets[index], transmit_buffer, length);
+    std::size_t length   = tx_buffer.read(transmit_buffer, ServerInfo::max_packet_size);
+    std::size_t num_sent = SDLNet_TCP_Send(server.sockets[index], transmit_buffer, length);
     if (num_sent < length) {
       fprintf(stderr, "RawSocketSerial::send: SDLNet_TCP_Send: %s\n", SDLNet_GetError());
       close_socket(index);
@@ -136,7 +136,7 @@ public:
       int num_rdy = SDLNet_CheckSockets(server.socket_set, 0);
 
       if (num_rdy <= 0) {
-        for (auto i = 0; i < server.max_connections; ++i) {
+        for (uint32_t i = 0; i < server.max_connections; ++i) {
           if (server.sockets[i] != nullptr) send(i);
         }
         std::this_thread::sleep_for(std::chrono::nanoseconds(1));
@@ -150,7 +150,7 @@ public:
           continue;
         }
 
-        int chk_count = 0;
+        uint32_t chk_count = 0;
         for (; chk_count < ServerInfo::max_connections; ++chk_count) {
           if (server.sockets[(server.next_index + chk_count) % ServerInfo::max_connections] == nullptr) break;
         }
@@ -160,7 +160,7 @@ public:
         num_rdy--;
       }
 
-      for (int ind = 0; (ind < ServerInfo::max_connections) && num_rdy; ++ind) {
+      for (uint32_t ind = 0; (ind < ServerInfo::max_connections) && num_rdy; ++ind) {
         if (server.sockets[ind] == nullptr) continue;
         if (!SDLNet_SocketReady(server.sockets[ind])) continue;
         receive(ind--);

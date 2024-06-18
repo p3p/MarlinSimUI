@@ -35,6 +35,7 @@ public:
 protected:
   void interrupt(GpioEvent& ev);
   void interrupt(SpiEvent& ev);
+  SpiBus &spi_bus;
   pin_type cs_pin;
 
 private:
@@ -50,5 +51,4 @@ private:
   uint8_t *requestedData = nullptr;
   size_t requestedDataSize = 0;
   size_t requestedDataIndex = 0;
-  SpiBus &spi_bus;
 };

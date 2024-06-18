@@ -59,7 +59,7 @@ public:
 
 class UiPopup : public UiWindow {
 public:
-  template<class... Args> UiPopup(std::string name, bool is_modal, Args... args) : m_is_modal{is_modal}, UiWindow(name, args...) {
+  template<class... Args> UiPopup(std::string name, bool is_modal, Args... args) : UiWindow(name, args...), m_is_modal{is_modal} {
     listed_on_main_menu = false;
    }
 

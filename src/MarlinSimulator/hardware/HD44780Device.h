@@ -37,7 +37,6 @@ public:
       if (active_address_space == DDRAM) {
         uint32_t max_address_counter = (display_lines == 1) ? 0x4F : 0x67;
         if (address_counter > max_address_counter) address_counter -= max_address_counter + 1;
-        else if (address_counter < 0) address_counter = max_address_counter;
         else if (display_lines == 2 && address_counter > 0x27 && address_counter < 0x40) address_counter = 0x40 + (address_counter - 0x28);
       } else address_counter &= 0x3F;
     };

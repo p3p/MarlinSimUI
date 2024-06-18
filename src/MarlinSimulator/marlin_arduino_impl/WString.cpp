@@ -290,35 +290,35 @@ unsigned char String::concat(char c)
 
 unsigned char String::concat(unsigned char num)
 {
-	char buf[1 + 3 * sizeof(unsigned char)];
+	char buf[1 + 3 * sizeof(unsigned char)] {};
 	//itoa(num, buf, 10);
 	return concat(buf, strlen(buf));
 }
 
 unsigned char String::concat(int num)
 {
-	char buf[2 + 3 * sizeof(int)];
+	char buf[2 + 3 * sizeof(int)] {};
 	//itoa(num, buf, 10);
 	return concat(buf, strlen(buf));
 }
 
 unsigned char String::concat(unsigned int num)
 {
-	char buf[1 + 3 * sizeof(unsigned int)];
+	char buf[1 + 3 * sizeof(unsigned int)] {};
 	//utoa(num, buf, 10);
 	return concat(buf, strlen(buf));
 }
 
 unsigned char String::concat(long num)
 {
-	char buf[2 + 3 * sizeof(long)];
+	char buf[2 + 3 * sizeof(long)] {};
 	//ltoa(num, buf, 10);
 	return concat(buf, strlen(buf));
 }
 
 unsigned char String::concat(unsigned long num)
 {
-	char buf[1 + 3 * sizeof(unsigned long)];
+	char buf[1 + 3 * sizeof(unsigned long)] {};
 	//ultoa(num, buf, 10);
 	return concat(buf, strlen(buf));
 }

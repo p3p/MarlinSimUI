@@ -30,7 +30,7 @@ namespace resource {
       m_data[size] = 0;
     } else {
       m_data.clear();
-      m_buffer = nullptr;
+      m_buffer = {};
     }
   }
 
@@ -62,7 +62,7 @@ namespace resource {
 
   std::string_view ResourceManager::get_as_sv(std::filesystem::path path) {
     auto value = get(path);
-    return value != nullptr ? value->m_buffer : nullptr;
+    return value != nullptr ? value->m_buffer : std::string_view {};
   }
 
 }

@@ -35,7 +35,6 @@ void PWMReader::ui_widget() {
 
 void PWMReader::interrupt(GpioEvent& ev) {
   if (ev.pin_id == pwm_pin) {
-    double time_delta = Kernel::TimeControl::ticksToNanos(ev.timestamp - pwm_last_update) / (double)Kernel::TimeControl::ONE_BILLION;
     pwm_last_update = ev.timestamp;
     if (ev.event == ev.RISE) {
       if (pwm_hightick) {
