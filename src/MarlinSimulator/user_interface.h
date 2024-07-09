@@ -130,6 +130,7 @@ struct SerialMonitor : public UiWindow {
   bool streaming = false;
   std::size_t stream_sent = 0, stream_total = 0;
   std::mutex buffer_mutex {};
+  bool copy_buffer_signal = false;
 
   MSerialT& serial_stream;
   std::ifstream input_file;
@@ -230,7 +231,10 @@ struct SerialMonitor : public UiWindow {
         ImGui::EndMenu();
       }
       if (ImGui::BeginMenu("Edit")) {
-        if (ImGui::MenuItem("Copy Buffer")) {}
+        if (ImGui::MenuItem("Copy Buffer")) {
+          copy_buffer_signal = true;
+          ImGui::LogToClipboard();
+        }
         ImGui::EndMenu();
       }
       ImGui::EndMenuBar();
@@ -257,11 +261,18 @@ struct SerialMonitor : public UiWindow {
     auto size = ImGui::GetContentRegionAvail();
     size.y -= 25; // TODO: there must be a better way to fill 2 items on a line
     if (ImGui::BeginChild(child_id, size, true, child_flags)) {
+      if (copy_buffer_signal) {
+        ImGui::LogToClipboard();
+      }
       for (auto& line : line_buffer) {
         if (line.count > 1) ImGui::TextWrapped("[%ld] %s", line.count, (char *)line.text.c_str());
         else  ImGui::TextWrapped("%s", (char *)line.text.c_str());
       }
       ImGui::TextWrapped("%s", (char *)working_buffer.c_str());
+      if (copy_buffer_signal) {
+        copy_buffer_signal = false;
+        ImGui::LogFinish();
+      }
 
       // Automatically set follow when scrolled to max
       if (ImGui::GetScrollY() != ImGui::GetScrollMaxY() || scroll_follow_state == 2) scroll_follow = false;
