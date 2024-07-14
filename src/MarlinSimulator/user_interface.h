@@ -103,6 +103,7 @@ public:
 
   bool post_init_complete = false;
   std::function<void(void)> post_init;
+  std::function<void(void)> m_main_menu;
 
   static std::map<std::string, std::shared_ptr<UiWindow>> ui_elements;
 };

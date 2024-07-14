@@ -49,8 +49,10 @@ void UserInterface::show() {
   ImGui_ImplSDL2_NewFrame();
   ImGui::NewFrame();
   renderer::gl_log_error();
-
   DockSpace();
+  if (m_main_menu) {
+    m_main_menu();
+  }
   for (auto element : ui_elements) {
     element.second->show();
   }

@@ -339,11 +339,11 @@ void Visualisation::ui_viewport_menu_callback(UiWindow*) {
         camera.rotation = {-192.0f, -25.0, 0.0f};
         camera.up       = {0.0f, 1.0f, 0.0f};
       }
-      if (ImGui::BeginMenu("Mode")) {
-        if (ImGui::MenuItem("Fly", nullptr, true, true)) { }
-        if (ImGui::MenuItem("Orbit", nullptr, false, true)) { }
-        ImGui::EndMenu();
-      }
+      // if (ImGui::BeginMenu("Mode")) {
+      //   if (ImGui::MenuItem("Fly", nullptr, true, true)) { }
+      //   if (ImGui::MenuItem("Orbit", nullptr, false, true)) { }
+      //   ImGui::EndMenu();
+      // }
       if (ImGui::BeginMenu("Focus View")) {
         if (ImGui::MenuItem("Centre X (Right)")) {
           camera.position = {build_plate_dimension.x, 10.0f, -(build_plate_dimension.y / 2.0f)};

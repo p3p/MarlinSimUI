@@ -201,20 +201,10 @@ static const char * data_shader_default_fs = R"SHADERSTR(
 
 }
 
-/**
- * |-----|-----|------|
- * |Stat | LCD |      |
- * |           |      |
- * |           |  3D  |
- * |-----------|      |
- * |Ser        |      |
- * |-----------|------|
- */
-
 static constexpr char const* imgui_ini = R"(
 [Window][DockSpaceWindwow]
-Pos=0,0
-Size=1280,720
+Pos=0,19
+Size=1280,701
 Collapsed=0
 
 [Window][Debug##Default]
@@ -223,20 +213,20 @@ Size=400,400
 Collapsed=0
 
 [Window][Components]
-Pos=1003,0
-Size=277,720
+Pos=1003,19
+Size=277,701
 Collapsed=0
 DockId=0x00000006,0
 
 [Window][Simulation]
-Pos=0,0
-Size=313,107
+Pos=0,19
+Size=313,351
 Collapsed=0
-DockId=0x00000003,0
+DockId=0x0000000B,0
 
 [Window][Viewport]
-Pos=315,0
-Size=686,482
+Pos=315,19
+Size=686,463
 Collapsed=0
 DockId=0x00000009,0
 
@@ -247,14 +237,14 @@ Collapsed=0
 DockId=0x00000004,0
 
 [Window][Signal Analyser]
-Pos=315,0
-Size=686,482
+Pos=315,19
+Size=686,463
 Collapsed=0
 DockId=0x00000009,1
 
 [Window][Pin List]
-Pos=1003,0
-Size=277,720
+Pos=1003,19
+Size=277,701
 Collapsed=0
 DockId=0x00000006,1
 
@@ -293,24 +283,48 @@ Pos=271,95
 Size=678,431
 Collapsed=0
 
+[Window][Debug]
+Pos=0,372
+Size=313,348
+Collapsed=0
+DockId=0x0000000C,0
+
+[Window][Log]
+Pos=315,484
+Size=686,236
+Collapsed=0
+DockId=0x0000000A,4
+
+[Window][Choose File##ChooseSDFileDlgKey]
+Pos=271,95
+Size=678,431
+Collapsed=0
+
 [Table][0x5E7B4F09,4]
 RefScale=13
 Column 0  Sort=0v
-Column 1
-Column 2
-Column 3
+
+[Table][0xD049C3E8,4]
+RefScale=13
+Column 0  Sort=0v
+
+[Table][0xC6018A16,4]
+RefScale=13
+Column 0  Sort=0v
 
 [Docking][Data]
-DockSpace         ID=0x6F13380E Window=0x49B6D357 Pos=0,0 Size=1280,720 Split=X
+DockSpace         ID=0x6F13380E Window=0x49B6D357 Pos=0,19 Size=1280,701 Split=X
   DockNode        ID=0x00000005 Parent=0x6F13380E SizeRef=1001,720 Split=X
     DockNode      ID=0x00000001 Parent=0x00000005 SizeRef=313,720 Split=Y Selected=0x7CAC602A
-      DockNode    ID=0x00000003 Parent=0x00000001 SizeRef=637,107 Selected=0x848745AB
+      DockNode    ID=0x00000003 Parent=0x00000001 SizeRef=637,107 Split=Y Selected=0xFBEA9FC2
+        DockNode  ID=0x0000000B Parent=0x00000003 SizeRef=313,351 Selected=0xFBEA9FC2
+        DockNode  ID=0x0000000C Parent=0x00000003 SizeRef=313,348 Selected=0x392A5ADD
       DockNode    ID=0x00000004 Parent=0x00000001 SizeRef=637,611 Selected=0x7CAC602A
     DockNode      ID=0x00000002 Parent=0x00000005 SizeRef=686,720 Split=Y Selected=0x995B0CF8
       DockNode    ID=0x00000007 Parent=0x00000002 SizeRef=448,451 Split=Y Selected=0x995B0CF8
-        DockNode  ID=0x00000009 Parent=0x00000007 SizeRef=623,482 CentralNode=1 Selected=0x995B0CF8
-        DockNode  ID=0x0000000A Parent=0x00000007 SizeRef=623,236 Selected=0xB516B7B1
+        DockNode  ID=0x00000009 Parent=0x00000007 SizeRef=623,482 CentralNode=1 Selected=0x13926F0B
+        DockNode  ID=0x0000000A Parent=0x00000007 SizeRef=623,236 Selected=0x4B8A34E6
       DockNode    ID=0x00000008 Parent=0x00000002 SizeRef=448,267 Selected=0xB42549D5
-  DockNode        ID=0x00000006 Parent=0x6F13380E SizeRef=277,720 Selected=0xA115F62D
+  DockNode        ID=0x00000006 Parent=0x6F13380E SizeRef=277,720 Selected=0xFCB30AB3
 
 )";

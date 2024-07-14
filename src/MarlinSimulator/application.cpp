@@ -21,12 +21,12 @@ Application::Application() {
 
   sim.vis.create();
 
-  user_interface.addElement<UiWindow>("MainMenu", [this](UiWindow* window){
+  user_interface.m_main_menu = [this](){
     if (ImGui::BeginMainMenuBar()) {
       if (ImGui::BeginMenu("File")) {
-        if (ImGui::MenuItem("Preferences")) {
-          user_interface.ui_elements["Preferences"]->enable();
-        }
+        // if (ImGui::MenuItem("Preferences")) {
+        //   user_interface.ui_elements["Preferences"]->enable();
+        // }
         if (ImGui::MenuItem("Quit")) {
           Kernel::quit_requested = true;
           active = false;
@@ -55,7 +55,7 @@ Application::Application() {
       }
       ImGui::EndMainMenuBar();
     }
-  });
+  };
 
   user_interface.addElement<SerialMonitor>("Serial Monitor(0)", serial_stream_0);
   user_interface.addElement<SerialMonitor>("Serial Monitor(1)", serial_stream_1);
@@ -221,57 +221,52 @@ Application::Application() {
       ImGui::InputText("Pin regex", export_regex, sizeof(export_regex));
 
       if (ImGuiFileDialog::Instance()->Display("PulseExportDlgKey", ImGuiWindowFlags_NoDocking))  {
-        try{
-        if (ImGuiFileDialog::Instance()->IsOk()) {
-          std::string image_filename = ImGuiFileDialog::Instance()->GetFilePathName();
+        try {
+          if (ImGuiFileDialog::Instance()->IsOk()) {
+            std::string image_filename = ImGuiFileDialog::Instance()->GetFilePathName();
 
-          using namespace vcd;
+            using namespace vcd;
 
-          HeadPtr head = makeVCDHeader(static_cast<TimeScale>(50), TimeScaleUnit::ns, utils::now());
-          VCDWriter writer{image_filename, head};
+            HeadPtr head = makeVCDHeader(static_cast<TimeScale>(50), TimeScaleUnit::ns, utils::now());
+            VCDWriter writer {image_filename, head};
 
-          if (export_single_pin) {
-            std::string pin_name(active_label);
-            auto scope = pin_name.substr(0, pin_name.find_first_of('_'));
-            auto var = writer.register_var(scope, pin_name, VariableType::wire, 1);
+            if (export_single_pin) {
+              std::string pin_name(active_label);
+              auto scope = pin_name.substr(0, pin_name.find_first_of('_'));
+              auto var   = writer.register_var(scope, pin_name, VariableType::wire, 1);
 
-            if (Gpio::pin_map[monitor_pin].event_log.size() && pin_array[monitor_pin].is_digital) {
-              for (const auto &value : Gpio::pin_map[monitor_pin].event_log) {
-                writer.change(var, value.timestamp / 50, utils::format("%u", value.value));
+              if (Gpio::pin_map[monitor_pin].event_log.size() && pin_array[monitor_pin].is_digital) {
+                for (const auto& value : Gpio::pin_map[monitor_pin].event_log) {
+                  writer.change(var, value.timestamp / 50, utils::format("%u", value.value));
+                }
+              }
+            } else {
+              std::map<size_t, VarPtr> pin_to_var_map;
+              std::regex expression(export_regex);
+
+              for (auto pin : pin_array) {
+                std::string pin_name(pin.name);
+                bool regex_match = strlen(export_regex) == 0 || std::regex_search(pin_name, expression);
+                auto scope       = pin_name.substr(0, pin_name.find_first_of('_'));
+                if (pin.is_digital && regex_match) pin_to_var_map[pin.pin] = writer.register_var(scope, pin_name, VariableType::wire, 1);
+              }
+
+              std::multimap<uint64_t, std::pair<pin_t, uint16_t>> timestamp_pin_change_map;
+
+              for (auto pin : pin_array) {
+                if (pin.is_digital && pin_to_var_map.find(pin.pin) != pin_to_var_map.end())
+                  for (const auto& data : Gpio::pin_map[pin.pin].event_log) {
+                    timestamp_pin_change_map.emplace(std::make_pair(data.timestamp, std::make_pair(pin.pin, data.value)));
+                  }
+              }
+
+              auto timestamp_offset = timestamp_pin_change_map.begin()->first;
+              for (const auto& timestamp : timestamp_pin_change_map) {
+                writer.change(pin_to_var_map[timestamp.second.first], (timestamp.first - timestamp_offset) / 50, utils::format("%u", timestamp.second.second));
               }
             }
           }
-          else {
-            std::map<size_t, VarPtr> pin_to_var_map;
-            std::regex expression(export_regex);
-
-            for (auto pin : pin_array) {
-              std::string pin_name(pin.name);
-              bool regex_match = strlen(export_regex) == 0 || std::regex_search(pin_name, expression);
-              auto scope = pin_name.substr(0, pin_name.find_first_of('_'));
-              if (pin.is_digital && regex_match)
-                pin_to_var_map[pin.pin] = writer.register_var(scope, pin_name, VariableType::wire, 1);
-            }
-
-            std::multimap<uint64_t, std::pair<pin_t, uint16_t> > timestamp_pin_change_map;
-
-            for (auto pin : pin_array) {
-              if (pin.is_digital && pin_to_var_map.find(pin.pin) != pin_to_var_map.end())
-                for (const auto &data : Gpio::pin_map[pin.pin].event_log)
-                {
-                  timestamp_pin_change_map.emplace(std::make_pair(data.timestamp, std::make_pair(pin.pin, data.value)));
-                }
-            }
-
-            auto timestamp_offset = timestamp_pin_change_map.begin()->first;
-            for (const auto &timestamp : timestamp_pin_change_map) {
-              writer.change(pin_to_var_map[timestamp.second.first], (timestamp.first - timestamp_offset) / 50, utils::format("%u", timestamp.second.second));
-            }
-          }
-        }
-        }
-        catch (const std::exception& e)
-        {
+        } catch (const std::exception& e) {
           auto test = e.what();
         }
         ImGuiFileDialog::Instance()->Close();
