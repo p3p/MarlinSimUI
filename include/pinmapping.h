@@ -46,10 +46,10 @@ constexpr pin_t analogInputToDigitalPin(const int8_t p) {
 int16_t GET_PIN_MAP_INDEX(const pin_t pin);
 
 // Test whether the pin is valid
-bool VALID_PIN(const pin_t p);
+bool isValidPin(const pin_t p);
 
 // Get the analog index for a digital pin
-int8_t DIGITAL_PIN_TO_ANALOG_PIN(const pin_t p);
+int8_t digitalPinToAnalogIndex(const pin_t p);
 
 // Test whether the pin is PWM
 bool PWM_PIN(const pin_t p);
