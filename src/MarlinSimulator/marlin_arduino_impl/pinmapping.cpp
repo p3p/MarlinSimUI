@@ -30,12 +30,12 @@ int16_t GET_PIN_MAP_INDEX(const pin_t pin) {
 }
 
 // Test whether the pin is valid
-bool VALID_PIN(const pin_t p) {
+bool isValidPin(const pin_t p) {
   return WITHIN(p, 0, NUM_DIGITAL_PINS);
 }
 
 // Get the analog index for a digital pin
-int8_t DIGITAL_PIN_TO_ANALOG_PIN(const pin_t p) {
+int8_t digitalPinToAnalogIndex(const pin_t p) {
   return (WITHIN(p, analog_offset, NUM_DIGITAL_PINS) ? p - analog_offset : P_NC);
 }
 
