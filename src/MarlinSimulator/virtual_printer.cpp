@@ -16,6 +16,7 @@
 #include "hardware/NeoPixelDevice.h"
 #include "hardware/KinematicSystem.h"
 #include "hardware/pwm_reader.h"
+#include "hardware/ScaraArm.h"
 
 #include "virtual_printer.h"
 
@@ -24,6 +25,10 @@
 #if HAS_TFT_XPT2046 || HAS_TOUCH_XPT2046
   #include "paths.h"
   #include MARLIN_HAL_PATH(tft/xpt2046.h)
+#endif
+
+#ifndef SD_DETECT_PIN
+  #define SD_DETECT_PIN -1
 #endif
 
 #ifndef SD_DETECT_STATE
@@ -51,7 +56,10 @@ void VirtualPrinter::Component::ui_widgets() {
 void VirtualPrinter::build() {
   root = add_component<Component>("root");
 
-  #if ENABLED(DELTA)
+  #if ENABLED(MP_SCARA)
+    auto kinematics = root->add_component<ScaraKinematicSystem>("MP Scara Kinematic System", on_kinematic_update);
+    root->add_component<ScaraArm>("ScaraArm");
+  #elif ENABLED(DELTA)
     auto kinematics = root->add_component<DeltaKinematicSystem>("Delta Kinematic System", on_kinematic_update);
     root->add_component<EndStop>("Endstop(Tower A Max)", X_MAX_PIN, !X_MAX_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->state.effector_position[0].stepper_position.x >= DELTA_HEIGHT; });
     root->add_component<EndStop>("Endstop(Tower B Max)", Y_MAX_PIN, !Y_MAX_ENDSTOP_HIT_STATE, [kinematics](){ return kinematics->state.effector_position[0].stepper_position.y >= DELTA_HEIGHT; });

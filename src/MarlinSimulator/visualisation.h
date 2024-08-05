@@ -5,6 +5,7 @@
 
 #include "hardware/print_bed.h"
 #include "hardware/bed_probe.h"
+#include "hardware/ScaraArm.h"
 #include "hardware/KinematicSystem.h"
 
 #include <gl.h>
@@ -137,11 +138,15 @@ public:
   void ui_info_callback(UiWindow*);
 
   std::vector<Extrusion> extrusion {};
+#if ENABLED(MP_SCARA)
+  std::vector<float> arm_angle {};
+  bool arm_angle_changed = false;
+#endif
   std::mutex extrusion_mutex {};
 
   void set_head_position(size_t hotend_index, extruder_state& position);
   bool points_are_collinear(const glm::vec3 a, const glm::vec3 b, const glm::vec3 c, double const threshold) const;
-
+  renderer::mesh_id_t scara_add_mesh_arm(const double link_length);
   FollowMode follow_mode = FOLLOW_NONE;
   bool render_full_path = true;
   bool render_path_line = false;
@@ -154,6 +159,9 @@ public:
   PerspectiveCamera camera;
   opengl_util::FrameBuffer* framebuffer = nullptr;
   std::vector<renderer::mesh_id_t> m_extruder_mesh;
+#if ENABLED(MP_SCARA)
+  std::vector<renderer::mesh_id_t> m_arm_mesh;
+#endif
   renderer::mesh_id_t m_bed_mesh;
 
   std::shared_ptr<renderer::ShaderProgram> extrusion_program;
