@@ -3,7 +3,6 @@
 #include <memory>
 #include <atomic>
 #include <glm/glm.hpp>
-
 #include <imgui.h>
 
 #include "Gpio.h"
@@ -19,6 +18,9 @@ struct extruder_state {
 struct kinematic_state {
   std::vector<extruder_state> effector_position {};
   glm::vec3 position {};
+#if ENABLED(MP_SCARA)
+  std::vector<double> arm_angle {};
+#endif
 };
 
 class KinematicSystem : public VirtualPrinter::Component {
@@ -60,3 +62,15 @@ public:
   glm::vec3 forward_kinematics(const double z1, const double z2, const double z3);
   void recalc_delta_settings();
 };
+
+#if ENABLED(MP_SCARA)
+class ScaraKinematicSystem : public KinematicSystem {
+public:
+  ScaraKinematicSystem(std::function<void(kinematic_state&)> on_kinematic_update);
+  virtual void ui_widget() override;
+  virtual void kinematic_update() override;
+  glm::vec3 forward_kinematics(const double a, const double b, const double z);
+  std::vector<glm::vec3> hardware_offset {};
+  std::vector<double> extruder {};
+};
+#endif

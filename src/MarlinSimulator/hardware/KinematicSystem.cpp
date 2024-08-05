@@ -413,3 +413,97 @@ void DeltaKinematicSystem::ui_widget() {
   ImGui::Text("y: %f", state.effector_position[0].position.y);
   ImGui::Text("z: %f", state.effector_position[0].position.z);
 }
+
+#if ENABLED(MP_SCARA)
+
+ScaraKinematicSystem::ScaraKinematicSystem(std::function<void(kinematic_state&)> on_kinematic_update) : KinematicSystem(on_kinematic_update) {
+  collect_steppers();
+  // if defined MP_SCARA it means degrees of arms when nozzle is at (0,0,z) position
+  // when SCARA_LINKAGE_1 = 250mm, SCARA_LINKAGE_2 = 250mm, SCARA_OFFSET_X = 75mm, SCARA_OFFSET_Y = -100mm
+  // you can calculate the degrees with following method which is copyed from Marlin-bugfix-2.1.x
+  /*
+  static constexpr xy_pos_t scara_offset = { SCARA_OFFSET_X, SCARA_OFFSET_Y  };
+  float constexpr L1 = SCARA_LINKAGE_1, L2 = SCARA_LINKAGE_2;
+  void inverse_kinematics(const xyz_pos_t &raw) {
+        // Translate SCARA to standard XY with scaling factor
+    const xy_pos_t spos = raw - scara_offset;
+    const float x = spos.x, y = spos.y, c = HYPOT(x, y),
+                THETA3 = ATAN2(y, x),
+                THETA1 = THETA3 + ACOS((sq(c) + sq(L1) - sq(L2)) / (2.0f * c * L1)),
+                THETA2 = THETA3 - ACOS((sq(c) + sq(L2) - sq(L1)) / (2.0f * c * L2));
+
+    delta.set(DEGREES(THETA1), DEGREES(THETA2), raw.z);
+  }
+  */
+  hardware_offset.push_back({ 202.39,  51.35, 0.0 });
+}
+
+glm::vec3 ScaraKinematicSystem::forward_kinematics(const double a, const double b, const double z) {
+    const float a_sin = std::sin(glm::radians(a)) * SCARA_LINKAGE_1,
+                a_cos = std::cos(glm::radians(a)) * SCARA_LINKAGE_1,
+                b_sin = std::sin(glm::radians(b)) * SCARA_LINKAGE_2,
+                b_cos = std::cos(glm::radians(b)) * SCARA_LINKAGE_2;
+
+  // return the pos to the position of Tower
+
+  return glm::vec3{ a_cos + b_cos + SCARA_OFFSET_X,
+                    a_sin + b_sin + SCARA_OFFSET_Y,
+                    z};
+}
+
+void ScaraKinematicSystem::kinematic_update() {
+  auto carriage = glm::vec3{
+    std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::X])->steps() / steps_per_unit[0] * (((INVERT_X_DIR * 2) - 1) * -1.0),
+    std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::Y])->steps() / steps_per_unit[1] * (((INVERT_Y_DIR * 2) - 1) * -1.0),
+    std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::Z])->steps() / steps_per_unit[2] * (((INVERT_Z_DIR * 2) - 1) * -1.0)
+  };
+
+  extruder.clear();
+  for (size_t i = 0; i < EXTRUDERS; ++i) {
+    extruder.push_back(std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::E0 + i])->steps() / steps_per_unit[3 + (i * distinct_e_factors)] * (((extruder_invert_dir[i] * 2) - 1) * -1.0));
+  }
+  double a = hardware_offset[0].x + carriage.x;
+  double b = hardware_offset[0].y + carriage.y;
+  auto cartesian_pos = forward_kinematics(a, b, hardware_offset[0].z + carriage.z);
+
+
+  for (size_t i = 0; i < HOTENDS; ++i) {
+    state.effector_position[i] = {carriage, glm::vec4(cartesian_pos, extruder[i]), filament_color[i]};
+  }
+
+  state.position = state.effector_position[0].position;
+  state.arm_angle.clear();
+  state.arm_angle.push_back(a);
+  state.arm_angle.push_back(b);
+  on_kinematic_update(state);
+}
+
+void ScaraKinematicSystem::ui_widget() {
+  if (state.effector_position.size() > 0) {
+    auto value = hardware_offset[0].x + state.effector_position[0].stepper_position.x;
+    if (ImGui::SliderFloat("hardware(a) offset (deg)", &value, -360,  360)) {
+      hardware_offset[0].x = value - state.effector_position[0].stepper_position.x;
+      kinematic_update();
+    }
+    value = hardware_offset[0].y + state.effector_position[0].stepper_position.y;
+    if (ImGui::SliderFloat("hardware(b) offset (deg)",  &value, -360,  360)) {
+      hardware_offset[0].y = value - state.effector_position[0].stepper_position.y;
+      kinematic_update();
+    }
+    value = hardware_offset[0].z + state.effector_position[0].stepper_position.z;
+    if (ImGui::SliderFloat("hardware(z) offset (mm)",  &value, -10,  100)) {
+      hardware_offset[0].z = value - state.effector_position[0].stepper_position.z;
+      kinematic_update();
+    }
+    ImGui::Text("Stepper Position:");
+    ImGui::Text("x: %f", state.effector_position[0].stepper_position.x);
+    ImGui::Text("y: %f", state.effector_position[0].stepper_position.y);
+    ImGui::Text("z: %f", state.effector_position[0].stepper_position.z);
+    ImGui::Text("Cartesian Position:");
+    ImGui::Text("x: %f", state.effector_position[0].position.x);
+    ImGui::Text("y: %f", state.effector_position[0].position.y);
+    ImGui::Text("z: %f", state.effector_position[0].position.z);
+  }
+}
+
+#endif
