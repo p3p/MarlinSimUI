@@ -13,6 +13,38 @@
 #include <vcd_writer.h>
 #include <regex>
 
+constexpr float steps_per_unit[] = DEFAULT_AXIS_STEPS_PER_UNIT;
+
+struct ScrollingData {
+  int MaxSize;
+  int Offset;
+  ImVector<ImPlotPoint> Data;
+  ScrollingData() {
+      MaxSize = 100000;
+      Offset  = 0;
+      Data.reserve(MaxSize);
+  }
+  void DupLastWith(double x) {
+    if (Data.size() == 0) return;
+    auto& back = Data.back();
+    AddPoint(x, back.y);
+  }
+  void AddPoint(double x, double y) {
+      if (Data.size() < MaxSize)
+          Data.push_back(ImPlotPoint(x,y));
+      else {
+          Data[Offset] = ImPlotPoint(x,y);
+          Offset =  (Offset + 1) % MaxSize;
+      }
+  }
+  void Erase() {
+      if (Data.size() > 0) {
+          Data.shrink(0);
+          Offset  = 0;
+      }
+  }
+};
+
 Application::Application() {
 
   window.init({.title = "Marlin Simulator"});
@@ -126,6 +158,98 @@ Application::Application() {
     }
   });
 
+  user_interface.addElement<UiWindow>("Motion Analyser", [this](UiWindow* window){
+    auto kin = this->sim.testPrinter.get_component<KinematicSystem>("Cartesian Kinematic System");
+    if (!kin) return;
+    auto x_stepper = kin->get_child<StepperDriver>("StepperX");
+    if (!x_stepper) return;
+
+    static float ui_time_window = 5.0f;
+    static float ui_time_window_start = 0.0f;
+
+    ImGui::PushItemWidth(-1);
+    ImGui::SliderFloat("##GraphWindowLength", &ui_time_window, 0.001f, 5.0f, "Window Length: %.3fs");
+    ImGui::SliderFloat("##GraphWindowStart", &ui_time_window_start, 0.000f, 5.0f - ui_time_window, "Window Start: %.3fs");
+    ImGui::PopItemWidth();
+    if (ui_time_window_start > (5.0 - ui_time_window)) ui_time_window_start = 5.0 - ui_time_window;
+
+    ScrollingData step_count_data;
+    ScrollingData step_velocity_data;
+    ScrollingData step_accel_data;
+
+    double time_window_length = ui_time_window;
+    double pos_max_value = 10.0;
+    double vel_max_value = 10.0;
+    double acc_max_value = 10.0;
+    double position = 0.0;
+    double point_time = 0.0;
+    double time_window_end = Kernel::SimulationRuntime::seconds() - ui_time_window_start;
+    double time_window_start = Kernel::SimulationRuntime::seconds() - (time_window_length + ui_time_window_start);
+
+    step_count_data.AddPoint(point_time, position);
+    for (auto& value : x_stepper->history) {
+      position = (double)value.count / steps_per_unit[0];
+      point_time = (double)Kernel::TimeControl::ticksToNanos(value.timestamp) / Kernel::TimeControl::ONE_BILLION;
+      if (pos_max_value < std::fabs(position)) pos_max_value = position;
+      step_count_data.AddPoint(point_time, position);
+
+      if (step_count_data.Data.size() > 1) {
+        uint64_t index = step_count_data.Data.size() - 1;
+        point_time = step_count_data.Data[index].x;
+        double time_delta = step_count_data.Data[index].x - step_count_data.Data[index - 1].x;
+        double position_delta = step_count_data.Data[index].y - step_count_data.Data[index - 1].y;
+        double velocity = position_delta / (time_delta != 0.0 ? time_delta : 0.000000001 );
+        if (vel_max_value < std::fabs(velocity)) vel_max_value = velocity;
+        step_velocity_data.AddPoint(point_time, velocity);
+
+        if (step_velocity_data.Data.size() > 1) {
+          index = step_velocity_data.Data.size() - 1;
+          point_time = step_velocity_data.Data[index].x;
+          time_delta = step_velocity_data.Data[index].x - step_velocity_data.Data[index - 1].x;
+          double velocity_delta = step_velocity_data.Data[index].y - step_velocity_data.Data[index - 1].y;
+          if (time_delta > 0.0000001) {
+            double accel = velocity_delta / time_delta;
+            if (acc_max_value < std::fabs(accel)) acc_max_value = accel;
+            step_accel_data.AddPoint(point_time, accel);
+          }
+        }
+      }
+    }
+    step_count_data.AddPoint(time_window_end, position);
+
+
+    pos_max_value *= 1.1;
+    vel_max_value *= 1.1;
+    acc_max_value *= 1.1;
+
+   static ImPlotRect limits, select;
+
+    if (ImPlot::BeginPlot("##XStepperCount", ImVec2(-1,200))) {
+      ImPlot::SetupAxes(NULL, NULL, ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_RangeFit, ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_RangeFit);
+      ImPlot::SetupAxisLimits(ImAxis_X1, time_window_start, time_window_end, ImPlotCond_Always );
+      ImPlot::SetupAxisLimits(ImAxis_Y1, -pos_max_value, pos_max_value, ImPlotCond_Always);
+      ImPlot::PlotLine("X Step", &step_count_data.Data[0].x, &step_count_data.Data[0].y, step_count_data.Data.size(), 0, step_count_data.Offset, sizeof(ImPlotPoint));
+      ImPlot::EndPlot();
+    }
+
+    if (ImPlot::BeginPlot("##XStepperVel", ImVec2(-1,200))) {
+      ImPlot::SetupAxes(NULL, NULL, ImPlotAxisFlags_NoTickLabels, ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_RangeFit);
+      ImPlot::SetupAxisLimits(ImAxis_X1, time_window_start, time_window_end, ImPlotCond_Always );
+      ImPlot::SetupAxisLimits(ImAxis_Y1, -vel_max_value, vel_max_value, ImPlotCond_Always);
+      ImPlot::PlotLine("X Step/s", &step_velocity_data.Data[0].x, &step_velocity_data.Data[0].y, step_velocity_data.Data.size(), 0, step_velocity_data.Offset, sizeof(ImPlotPoint));
+      ImPlot::EndPlot();
+    }
+
+    if (ImPlot::BeginPlot("##XStepperAcc", ImVec2(-1,200))) {
+      ImPlot::SetupAxes(NULL, NULL, ImPlotAxisFlags_NoTickLabels, ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_RangeFit);
+      ImPlot::SetupAxisLimits(ImAxis_X1, time_window_start, time_window_end, ImPlotCond_Always );
+      ImPlot::SetupAxisLimits(ImAxis_Y1, -acc_max_value, acc_max_value, ImPlotCond_Always);
+      ImPlot::PlotLine("X Step/s/s", &step_accel_data.Data[0].x, &step_accel_data.Data[0].y, step_accel_data.Data.size(), 0, step_accel_data.Offset, sizeof(ImPlotPoint));
+      ImPlot::EndPlot();
+    }
+
+  });
+
   user_interface.addElement<UiWindow>("Signal Analyser", [this](UiWindow* window){
     if (!Gpio::isLoggingEnabled()) {
       if (ImGui::Button("Enable Pin Logging")) {
@@ -140,31 +264,6 @@ Application::Application() {
       if (ImGui::Button("Reset logs")) {
         Gpio::resetLogs();
       }
-
-      struct ScrollingData {
-        int MaxSize;
-        int Offset;
-        ImVector<ImPlotPoint> Data;
-        ScrollingData() {
-            MaxSize = 100000;
-            Offset  = 0;
-            Data.reserve(MaxSize);
-        }
-        void AddPoint(double x, double y) {
-            if (Data.size() < MaxSize)
-                Data.push_back(ImPlotPoint(x,y));
-            else {
-                Data[Offset] = ImPlotPoint(x,y);
-                Offset =  (Offset + 1) % MaxSize;
-            }
-        }
-        void Erase() {
-            if (Data.size() > 0) {
-                Data.shrink(0);
-                Offset  = 0;
-            }
-        }
-      };
 
       static pin_type monitor_pin = X_STEP_PIN;
       static const char* label = "Select Pin";
@@ -195,7 +294,7 @@ Application::Application() {
         ImGui::SliderFloat("Window", &window, 10.f, 100000000000.f,"%.0f ns", ImGuiSliderFlags_Logarithmic);
         static float offset = 0.0f;
         ImGui::SliderFloat("X offset", &offset, 0.f, 10000000000.f,"%.0f ns");
-        ImGui::SliderFloat("X offset", &offset, 0.f, 100000000000.f,"%.0f ns");
+        ImGui::SliderFloat("X offset##2", &offset, 0.f, 100000000000.f,"%.0f ns");
         if (ImPlot::BeginPlot("##SignalAnalyser", ImVec2(-1,150))) {
           ImPlot::SetupAxes(NULL, NULL, ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_LockMin, ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_LockMin);
           ImPlot::SetupAxisLimits(ImAxis_X1, Kernel::SimulationRuntime::nanos() - window - offset, Kernel::SimulationRuntime::nanos() - offset, ImGuiCond_Always);
