@@ -30,6 +30,13 @@ public:
       return component;
     }
 
+    template<typename T>
+    std::shared_ptr<T> get_child(std::string name) {
+      auto child = std::find_if(std::begin(children), std::end(children), [name](auto val){ return val->name == name; });
+      if (child != children.end()) return std::static_pointer_cast<T>(*child);
+      return nullptr;
+    }
+
     std::string name;
     const std::string identifier;
 

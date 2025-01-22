@@ -22,15 +22,16 @@ enum WindowReturnCode {
 struct WindowConfig {
   enum GlProfile { CORE = 0x0001, COMPATIBILITY = 0x0002, ES = 0x0004 };
 
-  std::string title       = "Marlin Simulator";
+  std::string title       = "Window";
   GLuint gl_version_major = 3, gl_version_minor = 3, gl_profile = GlProfile::CORE, multisamples = 4, vsync = 1;
 };
 
 class Window {
 public:
-  Window();
+  Window() {}
   ~Window();
 
+  void init(WindowConfig config = {});
   void* getHandle();
   void swap_buffers();
 };

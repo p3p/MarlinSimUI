@@ -20,8 +20,11 @@
 class Simulation {
 public:
 
-  Simulation() : vis(testPrinter) {
+  Simulation() : vis(testPrinter) {}
+
+  void init() {
     testPrinter.build();
+    vis.create();
   }
 
   void process_event(SDL_Event& e) {}

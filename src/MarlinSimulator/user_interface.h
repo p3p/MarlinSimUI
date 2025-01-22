@@ -7,6 +7,7 @@
 #include <string>
 #include <sstream>
 #include <algorithm>
+#include <filesystem>
 
 #include <gl.h>
 #include <imgui.h>
@@ -87,7 +88,7 @@ public:
 
 class UserInterface {
 public:
-  UserInterface();
+  UserInterface() = default;
   ~UserInterface();
 
   template <typename T, class... Args>
@@ -98,6 +99,7 @@ public:
     return element;
   }
 
+  void init(std::filesystem::path config_path);
   void show();
   void render();
 
@@ -244,7 +246,7 @@ struct SerialMonitor : public UiWindow {
     if (ImGuiFileDialog::Instance()->IsOpened() &&  ImGuiFileDialog::Instance()->Display(file_dialog_key, ImGuiWindowFlags_NoDocking))  {
       if (ImGuiFileDialog::Instance()->IsOk()) {
         std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
-        logger::info("Streaming file: %s\n", filePathName.c_str());
+        logger::info("Streaming file: %s", filePathName.c_str());
         input_file.open(filePathName);
         input_file.seekg(0, std::ios::end);
         stream_total = input_file.tellg();

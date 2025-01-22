@@ -35,13 +35,13 @@ void DockSpace() {
   ImGui::End();
 }
 
-UserInterface::UserInterface() {
-  auto imgui_ini = resource::ResourceManager::get_as_sv("imgui.ini");
-  ImGui::LoadIniSettingsFromMemory(imgui_ini.data(), imgui_ini.size());
-}
-
 UserInterface::~UserInterface() {
   ui_elements.clear();
+}
+
+void UserInterface::init(std::filesystem::path config_path) {
+  auto imgui_ini = resource::ResourceManager::get_as_sv(config_path);
+  ImGui::LoadIniSettingsFromMemory(imgui_ini.data(), imgui_ini.size());
 }
 
 void UserInterface::show() {

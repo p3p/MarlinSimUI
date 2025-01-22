@@ -14,12 +14,16 @@
 #include <regex>
 
 Application::Application() {
+
+  window.init({.title = "Marlin Simulator"});
+  user_interface.init("imgui.ini");
+
   auto log_window = user_interface.addElement<LoggerWindow>("Log");
   logger::set_logger_callback([log_window](const std::string_view value){
     log_window->add_log(value);
   });
 
-  sim.vis.create();
+  sim.init();
 
   user_interface.m_main_menu = [this](){
     if (ImGui::BeginMainMenuBar()) {
@@ -191,11 +195,10 @@ Application::Application() {
         static float offset = 0.0f;
         ImGui::SliderFloat("X offset", &offset, 0.f, 10000000000.f,"%.0f ns");
         ImGui::SliderFloat("X offset", &offset, 0.f, 100000000000.f,"%.0f ns");
-        if (!ImPlot::GetCurrentContext()) ImPlot::CreateContext();
-        if (ImPlot::BeginPlot("##Scrolling", ImVec2(-1,150))) {
+        if (ImPlot::BeginPlot("##SignalAnalyser", ImVec2(-1,150))) {
           ImPlot::SetupAxes(NULL, NULL, ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_LockMin, ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_LockMin);
           ImPlot::SetupAxisLimits(ImAxis_X1, Kernel::SimulationRuntime::nanos() - window - offset, Kernel::SimulationRuntime::nanos() - offset, ImGuiCond_Always);
-          ImPlot::SetupAxisLimits(ImAxis_Y1,0,1);
+          ImPlot::SetupAxisLimits(ImAxis_Y1,0,1.4);
           ImPlot::SetNextFillStyle(IMPLOT_AUTO_COL,0.5f);
           ImPlot::PlotLine(active_label, &sdata.Data[0].x, &sdata.Data[0].y, sdata.Data.size(), 0, sdata.Offset, sizeof(ImPlotPoint));
           ImPlot::EndPlot();

@@ -4,6 +4,7 @@
 #include <imgui.h>
 #include <imgui_impl_sdl2.h>
 #include <imgui_impl_opengl3.h>
+#include <implot.h>
 
 #include "window.h"
 #include "logger.h"
@@ -117,10 +118,13 @@ WindowReturnCode imgui_create() {
     return WindowReturnCode::IMGUI_GLINIT_FAIL;
   }
   window_valid = true;
+
+  ImPlot::CreateContext();
   return WindowReturnCode::WINDOW_OK;
 }
 
 void imgui_destroy() {
+  ImPlot::DestroyContext();
   ImGui_ImplOpenGL3_Shutdown();
   ImGui_ImplSDL2_Shutdown();
   ImGui::DestroyContext();
@@ -128,8 +132,8 @@ void imgui_destroy() {
 
 } // namespace window_impl
 
-Window::Window() {
-  if (window_impl::sdl_window_create()) return;
+void Window::init(WindowConfig config) {
+  if (window_impl::sdl_window_create(config)) return;
   if (window_impl::imgui_create()) return;
   window_impl::imgui_initialised = true;
 }
