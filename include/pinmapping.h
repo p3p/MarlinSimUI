@@ -29,7 +29,7 @@
 typedef pin_type pin_t;
 
 #define P_NC -1
-#define NUM_DIGITAL_PINS 256
+#define NUM_DIGITAL_PINS 250
 #define NUM_ANALOG_INPUTS 16
 
 #define HAL_SENSITIVE_PINS
