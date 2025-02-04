@@ -270,7 +270,7 @@ Application::Application() {
             }
           }
         } catch (const std::exception& e) {
-          auto test = e.what();
+          logger::error("Error exporting VCD file: %s", e.what());
         }
         ImGuiFileDialog::Instance()->Close();
       }
