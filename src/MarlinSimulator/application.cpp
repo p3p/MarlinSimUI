@@ -121,7 +121,7 @@ Application::Application() {
       ImGui::SameLine();
       ImGui::Text("[%04d]", Gpio::get_pin_value(p.pin));
       ImGui::SameLine();
-      ImGui::Text("%s", p.name);
+      ImGui::Text("%s (%d)", p.name, p.pin);
     }
   });
 
