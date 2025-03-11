@@ -19,15 +19,82 @@ Visualisation::Visualisation(VirtualPrinter& virtual_printer) : virtual_printer(
     for (size_t i = 0; i < state.effector_position.size(); ++i) {
       this->set_head_position(i, state.effector_position[i]);
     }
+  #if ENABLED(MP_SCARA)
+    if(state.arm_angle.size() == 2){
+      arm_angle_changed = false;
+      for (size_t i = 0; i < state.arm_angle.size(); ++i) {
+        if(this->arm_angle[i] != state.arm_angle[i])
+          this->arm_angle[i] = state.arm_angle[i];
+          arm_angle_changed = true;
+      }      
+    }
+  #endif
   };
 
   for (int i = 0; i < EXTRUDERS; ++i) {
     extrusion.push_back({});
   }
+#if ENABLED(MP_SCARA)
+  arm_angle.push_back({});
+  arm_angle.push_back({});
+#endif
 }
 
 Visualisation::~Visualisation() {
   destroy();
+}
+
+renderer::mesh_id_t Visualisation::scara_add_mesh_arm(const double link_length)
+{
+  auto mesh_arm = renderer::create_mesh();
+  auto buffer_arm = renderer::Buffer<renderer::vertex_data_t>::create();
+  float arm_L = link_length;
+  float arm_W = arm_L/100;
+  float arm_H = arm_L/100;
+  float x = -arm_W/2;
+  float y = arm_H/2;
+  float z = arm_L;
+
+  buffer_arm->data() = {
+      //top 
+      renderer::vertex_data_t EFFECTOR_VERTEX(0, y, x, EFFECTOR_COLOR_2),
+      EFFECTOR_VERTEX(0, y, -x,  EFFECTOR_COLOR_2),
+      EFFECTOR_VERTEX(z, y, -x, EFFECTOR_COLOR_2),
+
+      EFFECTOR_VERTEX(z, y, x, EFFECTOR_COLOR_2),
+      EFFECTOR_VERTEX(0, y, x,  EFFECTOR_COLOR_2),
+      EFFECTOR_VERTEX(z, y, -x, EFFECTOR_COLOR_2),
+
+      //left
+      EFFECTOR_VERTEX(0, -y, x, EFFECTOR_COLOR_2),
+      EFFECTOR_VERTEX(0, y, x,  EFFECTOR_COLOR_2),
+      EFFECTOR_VERTEX(z, y, x, EFFECTOR_COLOR_2),
+
+      EFFECTOR_VERTEX(z, y, x, EFFECTOR_COLOR_2),
+      EFFECTOR_VERTEX(z, -y, x,  EFFECTOR_COLOR_2),
+      EFFECTOR_VERTEX(0, -y, x, EFFECTOR_COLOR_2),
+
+      //right
+      EFFECTOR_VERTEX(0, y, -x, EFFECTOR_COLOR_2),
+      EFFECTOR_VERTEX(0, -y, -x,  EFFECTOR_COLOR_2),
+      EFFECTOR_VERTEX(z, -y, -x, EFFECTOR_COLOR_2),
+
+      EFFECTOR_VERTEX(z, -y, -x, EFFECTOR_COLOR_2),
+      EFFECTOR_VERTEX(z, y, -x,  EFFECTOR_COLOR_2),
+      EFFECTOR_VERTEX(0, y, -x, EFFECTOR_COLOR_2),
+
+      //front
+      EFFECTOR_VERTEX(0, y, x, EFFECTOR_COLOR_2),
+      EFFECTOR_VERTEX(0, -y, x,  EFFECTOR_COLOR_2),
+      EFFECTOR_VERTEX(0, -y, -x, EFFECTOR_COLOR_2),
+
+      EFFECTOR_VERTEX(0, -y, -x, EFFECTOR_COLOR_2),
+      EFFECTOR_VERTEX(0, -y, x,  EFFECTOR_COLOR_2),
+      EFFECTOR_VERTEX(0, y, x, EFFECTOR_COLOR_2)
+  };
+  renderer::get_mesh_by_id(mesh_arm)->buffer_vector<renderer::vertex_data_t>().push_back(buffer_arm);
+  renderer::get_mesh_by_id(mesh_arm)->set_shader_program(default_program);
+  return mesh_arm;
 }
 
 void Visualisation::create() {
@@ -83,7 +150,11 @@ void Visualisation::create() {
     mesh_object->set_shader_program(default_program);
     mesh_object->m_scale = effector_scale;
   }
-
+#if ENABLED(MP_SCARA)
+// add scara arms
+  m_arm_mesh.push_back(scara_add_mesh_arm(SCARA_LINKAGE_1));
+  m_arm_mesh.push_back(scara_add_mesh_arm(SCARA_LINKAGE_2));  
+#endif
   m_bed_mesh = renderer::create_mesh();
   auto mesh_object = renderer::get_mesh_by_id(m_bed_mesh);
   mesh_object->set_shader_program(default_program);
@@ -123,6 +194,7 @@ void Visualisation::create() {
 
   auto kin = virtual_printer.get_component<KinematicSystem>("Cartesian Kinematic System");
   if(kin == nullptr) kin = virtual_printer.get_component<KinematicSystem>("Delta Kinematic System");
+  if(kin == nullptr) kin = virtual_printer.get_component<KinematicSystem>("MP Scara Kinematic System");
   if (kin != nullptr && kin->state.effector_position.size() == extrusion.size()) {
     size_t i = 0;
     for (auto state : kin->state.effector_position) {
@@ -137,6 +209,11 @@ void Visualisation::create() {
   for (auto mesh : m_extruder_mesh) {
     renderer::render_mesh(mesh);
   }
+#if ENABLED(MP_SCARA)
+  for (auto mesh : m_arm_mesh) {
+    renderer::render_mesh(mesh);
+  }
+#endif
   renderer::render_list_is_ready();
   m_initialised = true;
 }
@@ -234,12 +311,43 @@ void Visualisation::update() {
 
     mesh_id ++;
   }
-
+#if ENABLED(MP_SCARA)
+  auto scara_arm = virtual_printer.get_component<ScaraArm>("ScaraArm");
+  // update the position of the arm mesh for visualisation
+  if(m_arm_mesh.size()>0 && arm_angle_changed)
+  {
+    int arm_index = 0;
+    for (auto it = m_arm_mesh.begin(); it != m_arm_mesh.end(); ++it)
+    {
+      auto mesh_object = renderer::get_mesh_by_id(*it);
+      if(arm_index == 0)
+      {
+        mesh_object->m_position = glm::vec3{SCARA_OFFSET_X, effector_pos.y, -SCARA_OFFSET_Y};;
+      }
+      else if(arm_index == 1)
+      {
+        const float a_sin = std::sin(glm::radians( arm_angle[0])) * SCARA_LINKAGE_1,
+                    a_cos = std::cos(glm::radians(arm_angle[0])) * SCARA_LINKAGE_1;
+        mesh_object->m_position = glm::vec3{a_cos + SCARA_OFFSET_X, effector_pos.y, -(a_sin + SCARA_OFFSET_Y)};
+      }
+      glm::qua<float> m_rotation = glm::qua<float>(glm::radians(glm::vec3(0.0f, arm_angle[arm_index], 0.0f)));
+      mesh_object->m_rotation = m_rotation;
+      mesh_object->m_transform_dirty = true;
+      mesh_object->m_visible = (follow_mode != FOLLOW_Z)&&scara_arm->enabled;
+      arm_index++;
+    }
+  }
+#endif
   if (draw_list_update) {
     renderer::render_mesh(m_bed_mesh);
     for (auto mesh : m_extruder_mesh) {
       renderer::render_mesh(mesh);
     }
+#if ENABLED(MP_SCARA)
+    for (auto mesh : m_arm_mesh) {
+      renderer::render_mesh(mesh);
+    }
+#endif    
     for (auto& ext : extrusion) {
       renderer::render_mesh(ext.mesh);
     }
