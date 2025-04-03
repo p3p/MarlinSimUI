@@ -3,6 +3,9 @@
 #include "../virtual_printer.h"
 #include "Gpio.h"
 #include "print_bed.h"
+#include <bltouch.h>
+
+extern Bltouch simbltouch;
 
 class BedProbe : public VirtualPrinter::Component {
 public:
@@ -21,7 +24,7 @@ public:
   }
 
   bool triggered() {
-    return position.z <= bed.calculate_z({position.x + offset.x, position.y + offset.y}) - offset.z;
+    return !simbltouch.disabled && position.z <= bed.calculate_z({position.x + offset.x, position.y + offset.y}) - offset.z;
   }
 
   pin_type probe_pin;
