@@ -140,6 +140,19 @@ void VirtualPrinter::build() {
     root->add_component<PWMReader>("Fan0", FAN0_PIN);
   #endif
 
+  #if NUM_SERVOS > 0
+    root->add_component<PWMReader>("Servo0", SERVO0_PIN);
+  #endif
+  #if NUM_SERVOS > 1
+    root->add_component<PWMReader>("Servo1", SERVO1_PIN);
+  #endif
+  #if NUM_SERVOS > 2
+    root->add_component<PWMReader>("Servo2", SERVO2_PIN);
+  #endif
+  #if NUM_SERVOS > 3
+    root->add_component<PWMReader>("Servo3", SERVO3_PIN);
+  #endif
+
   #if ENABLED(SPI_FLASH)
     root->add_component<W25QxxDevice>("SPI Flash", spi_bus_by_pins<SPI_FLASH_SCK_PIN, SPI_FLASH_MOSI_PIN, SPI_FLASH_MISO_PIN>(), SPI_FLASH_CS_PIN, SPI_FLASH_SIZE);
   #endif

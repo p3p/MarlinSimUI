@@ -24,7 +24,7 @@ public:
   }
 
   bool triggered() {
-    return !simbltouch.disabled && position.z <= bed.calculate_z({position.x + offset.x, position.y + offset.y}) - offset.z;
+    return !simbltouch.isDisabled() && position.z <= bed.calculate_z({position.x + offset.x, position.y + offset.y}) - offset.z;
   }
 
   pin_type probe_pin;

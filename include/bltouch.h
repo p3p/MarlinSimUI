@@ -8,5 +8,11 @@ public:
   void disable() {
     this->disabled = true;
   }
+
+  bool isDisabled() const {
+    return this->disabled;
+  }
+
+private:
   bool disabled = false;
 };
