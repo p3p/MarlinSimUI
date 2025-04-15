@@ -1,6 +1,11 @@
-#include <src/inc/MarlinConfigPre.h>
-#include <src/core/millis_t.h>
-#include <src/feature/bltouch.h>
+#define BLTOUCH_DEPLOY          10
+#define BLTOUCH_STOW            90
+#define BLTOUCH_SW_MODE         60
+#define BLTOUCH_SELFTEST       120
+#define BLTOUCH_MODE_STORE     130
+#define BLTOUCH_5V_MODE        140
+#define BLTOUCH_OD_MODE        150
+#define BLTOUCH_RESET          160
 
 #include "print_bed.h"
 #include "bed_probe.h"
