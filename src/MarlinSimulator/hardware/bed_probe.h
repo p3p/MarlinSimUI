@@ -3,9 +3,6 @@
 #include "../virtual_printer.h"
 #include "Gpio.h"
 #include "print_bed.h"
-#include <bltouch.h>
-
-extern Bltouch simbltouch;
 
 class BedProbe : public VirtualPrinter::Component {
 public:
@@ -19,14 +16,19 @@ public:
 
   void ui_widget() {
     auto has_triggered = triggered();
-    ImGui::Checkbox("Triggered State", &has_triggered);
-    ImGui::Text("Nozzle Distance Above Bed: %f", position.z - bed.calculate_z({position.x + offset.x, position.y + offset.y}));
+    if (enabled) {
+      ImGui::Checkbox("Triggered State", &has_triggered);
+      ImGui::Text("Nozzle Distance Above Bed: %f", position.z - bed.calculate_z({position.x + offset.x, position.y + offset.y}));
+    } else {
+      ImGui::Text("Disabled");
+    }
   }
 
   bool triggered() {
-    return !simbltouch.isDisabled() && position.z <= bed.calculate_z({position.x + offset.x, position.y + offset.y}) - offset.z;
+    return enabled && position.z <= bed.calculate_z({position.x + offset.x, position.y + offset.y}) - offset.z;
   }
 
+  bool enabled = true;
   pin_type probe_pin;
   glm::vec3 offset;
   glm::vec4& position;

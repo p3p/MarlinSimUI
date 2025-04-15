@@ -28,7 +28,7 @@ void PWMReader::ui_widget() {
       ImGui::Text("Software PWM (%.2fHz) Duty Cycle: %.2f%%", pwm_period ? float(Kernel::TimeControl::ONE_BILLION) / Kernel::TimeControl::ticksToNanos(pwm_period) : 0, pwm_period ? float(pwm_duty * 100) / pwm_period : 0);
       break;
     case Hardware:
-      ImGui::Text("Hardware PWM Duty Cycle : %.2f%%", pwm_period ? float(pwm_duty * 100) / pwm_period : 0);
+      ImGui::Text("Hardware PWM Duty Cycle : (%ld) %.2f%%", pwm_duty, pwm_period ? float(pwm_duty * 100) / pwm_period : 0);
       break;
   }
 }
@@ -48,7 +48,7 @@ void PWMReader::interrupt(GpioEvent& ev) {
     } else if ( ev.event == ev.SET_VALUE) { // Hardware PWM
       pwm_mode = Hardware;
       pwm_duty = Gpio::get_pin_value(pwm_pin);
-      pwm_period = 255;
+      pwm_period = std::numeric_limits<uint16_t>::max();
     }
   }
 }
