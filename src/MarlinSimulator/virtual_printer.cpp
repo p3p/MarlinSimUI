@@ -147,16 +147,21 @@ void VirtualPrinter::build() {
     root->add_component<PWMReader>("Fan0", FAN0_PIN);
   #endif
 
-  #if NUM_SERVOS > 0 && Z_PROBE_SERVO_NR != 0
+  #ifdef Z_PROBE_SERVO_NR
+    #define SERVO_TEST(N) Z_PROBE_SERVO_NR != N
+  #else
+    #define SERVO_TEST(N) 1
+  #endif
+  #if NUM_SERVOS > 0 && SERVO_TEST(0)
     root->add_component<PWMReader>("Servo0", SERVO0_PIN);
   #endif
-  #if NUM_SERVOS > 1 && Z_PROBE_SERVO_NR != 1
+  #if NUM_SERVOS > 1 && SERVO_TEST(1)
     root->add_component<PWMReader>("Servo1", SERVO1_PIN);
   #endif
-  #if NUM_SERVOS > 2 && Z_PROBE_SERVO_NR != 2
+  #if NUM_SERVOS > 2 && SERVO_TEST(2)
     root->add_component<PWMReader>("Servo2", SERVO2_PIN);
   #endif
-  #if NUM_SERVOS > 3 && Z_PROBE_SERVO_NR != 3
+  #if NUM_SERVOS > 3 && SERVO_TEST(3)
     root->add_component<PWMReader>("Servo3", SERVO3_PIN);
   #endif
 
