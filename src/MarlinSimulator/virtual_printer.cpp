@@ -1,10 +1,10 @@
+#include <algorithm>
 #include <imgui.h>
 
 #include "hardware/Button.h"
 #include "hardware/StepperDriver.h"
 #include "hardware/EndStop.h"
 #include "hardware/Heater.h"
-#include "hardware/print_bed.h"
 #include "hardware/print_bed.h"
 #include "hardware/bed_probe.h"
 #include "hardware/ST7796Device.h"
@@ -16,6 +16,7 @@
 #include "hardware/NeoPixelDevice.h"
 #include "hardware/KinematicSystem.h"
 #include "hardware/pwm_reader.h"
+#include "hardware/BLTouch.h"
 
 #include "virtual_printer.h"
 
@@ -48,6 +49,8 @@ void VirtualPrinter::Component::ui_widgets() {
   }
 }
 
+std::map<uint64_t, uint64_t> servo_pin_lookup { {0, SERVO0_PIN}, {1, SERVO1_PIN}, {2, SERVO2_PIN}, {3, SERVO3_PIN}};
+
 void VirtualPrinter::build() {
   root = add_component<Component>("root");
 
@@ -69,7 +72,11 @@ void VirtualPrinter::build() {
   auto print_bed = root->add_component<PrintBed>("Print Bed", glm::vec2{X_BED_SIZE, Y_BED_SIZE});
 
   #if HAS_BED_PROBE
-    root->add_component<BedProbe>("Probe",
+    #if ENABLED(BLTOUCH)
+      root->add_component<BLTouchProbe>("BLTouch", servo_pin_lookup[Z_PROBE_SERVO_NR],
+    #else
+      root->add_component<BedProbe>("Probe",
+    #endif
     #ifdef Z_MIN_PROBE_USES_Z_MIN_ENDSTOP_PIN
       Z_MIN_PIN
     #else
@@ -138,6 +145,24 @@ void VirtualPrinter::build() {
 
   #ifdef FAN0_PIN
     root->add_component<PWMReader>("Fan0", FAN0_PIN);
+  #endif
+
+  #ifdef Z_PROBE_SERVO_NR
+    #define SERVO_TEST(N) Z_PROBE_SERVO_NR != N
+  #else
+    #define SERVO_TEST(N) 1
+  #endif
+  #if NUM_SERVOS > 0 && SERVO_TEST(0)
+    root->add_component<PWMReader>("Servo0", SERVO0_PIN);
+  #endif
+  #if NUM_SERVOS > 1 && SERVO_TEST(1)
+    root->add_component<PWMReader>("Servo1", SERVO1_PIN);
+  #endif
+  #if NUM_SERVOS > 2 && SERVO_TEST(2)
+    root->add_component<PWMReader>("Servo2", SERVO2_PIN);
+  #endif
+  #if NUM_SERVOS > 3 && SERVO_TEST(3)
+    root->add_component<PWMReader>("Servo3", SERVO3_PIN);
   #endif
 
   #if ENABLED(SPI_FLASH)
