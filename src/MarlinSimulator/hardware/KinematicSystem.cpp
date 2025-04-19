@@ -195,9 +195,9 @@ std::array<glm::vec3, 8> filament_color {
 
 void CartesianKinematicSystem::kinematic_update() {
   auto carriage = glm::vec3{
-    std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::X])->steps() / steps_per_unit[0] * (((INVERT_X_DIR * 2) - 1) * -1.0),
-    std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::Y])->steps() / steps_per_unit[1] * (((INVERT_Y_DIR * 2) - 1) * -1.0),
-    std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::Z])->steps() / steps_per_unit[2] * (((INVERT_Z_DIR * 2) - 1) * -1.0)
+    std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::X])->steps() / steps_per_unit[X_AXIS] * (((INVERT_X_DIR * 2) - 1) * -1.0),
+    std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::Y])->steps() / steps_per_unit[Y_AXIS] * (((INVERT_Y_DIR * 2) - 1) * -1.0),
+    std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::Z])->steps() / steps_per_unit[Z_AXIS] * (((INVERT_Z_DIR * 2) - 1) * -1.0)
   };
 
   extruder.clear();
@@ -362,9 +362,9 @@ DeltaKinematicSystem::DeltaKinematicSystem(std::function<void(kinematic_state&)>
 
 void DeltaKinematicSystem::kinematic_update() {
   auto carriage = glm::vec3{
-    std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::X])->steps() / steps_per_unit[0] * (((INVERT_X_DIR * 2) - 1) * -1.0),
-    std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::Y])->steps() / steps_per_unit[1] * (((INVERT_Y_DIR * 2) - 1) * -1.0),
-    std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::Z])->steps() / steps_per_unit[2] * (((INVERT_Z_DIR * 2) - 1) * -1.0),
+    std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::X])->steps() / steps_per_unit[A_AXIS] * (((INVERT_X_DIR * 2) - 1) * -1.0),
+    std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::Y])->steps() / steps_per_unit[B_AXIS] * (((INVERT_Y_DIR * 2) - 1) * -1.0),
+    std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::Z])->steps() / steps_per_unit[C_AXIS] * (((INVERT_Z_DIR * 2) - 1) * -1.0),
   };
 
   std::vector<double> extruder {};

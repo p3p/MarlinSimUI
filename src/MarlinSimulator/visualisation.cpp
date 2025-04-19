@@ -250,7 +250,7 @@ void Visualisation::update() {
 }
 
 void Visualisation::destroy() {
-  if(framebuffer != nullptr) {
+  if (framebuffer != nullptr) {
     framebuffer->release();
     delete framebuffer;
   }
