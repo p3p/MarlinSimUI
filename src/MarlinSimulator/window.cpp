@@ -148,5 +148,5 @@ void* Window::getHandle() {
 }
 
 void Window::swap_buffers() {
-  if(window_impl::window_valid) SDL_GL_SwapWindow(window_impl::window);
+  if (window_impl::window_valid) SDL_GL_SwapWindow(window_impl::window);
 }

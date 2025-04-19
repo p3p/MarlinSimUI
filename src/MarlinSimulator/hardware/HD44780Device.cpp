@@ -143,7 +143,7 @@ void HD44780Device::update() {
 }
 
 void HD44780Device::interrupt(GpioEvent& ev) {
-  if(ev.pin_id == en_pin && ev.event == GpioEvent::RISE) {
+  if (ev.pin_id == en_pin && ev.event == GpioEvent::RISE) {
     //read the bus
     data_byte |= (Gpio::get_pin_value(d7_pin) << 3 | Gpio::get_pin_value(d6_pin) << 2 | Gpio::get_pin_value(d5_pin) << 1 |Gpio::get_pin_value(d4_pin)) << (4 * !data_low_nibble);
     data_low_nibble = !data_low_nibble;

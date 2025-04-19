@@ -116,7 +116,7 @@ Application::Application() {
   user_interface.addElement<UiWindow>("Pin List", [this](UiWindow* window){
     for (auto p : pin_array) {
       bool value = Gpio::get_pin_value(p.pin);
-      if(ImGui::Checkbox((std::string("##") + p.name).c_str(), &value)) {
+      if (ImGui::Checkbox((std::string("##") + p.name).c_str(), &value)) {
         Gpio::set(p.pin, value);
       }
       ImGui::SameLine();
@@ -169,7 +169,7 @@ Application::Application() {
       static pin_type monitor_pin = X_STEP_PIN;
       static const char* label = "Select Pin";
       static char* active_label = (char *)label;
-      if(ImGui::BeginCombo("##Select Pin", active_label)) {
+      if (ImGui::BeginCombo("##Select Pin", active_label)) {
         for (auto p : pin_array) {
           if (ImGui::Selectable(p.name, p.pin == monitor_pin)) {
             monitor_pin = p.pin;

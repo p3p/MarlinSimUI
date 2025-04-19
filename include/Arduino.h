@@ -101,7 +101,7 @@ extern "C" {
 }
 void _delay_ms(const int delay);
 void delayMicroseconds(unsigned long);
-uint32_t millis();
+unsigned long millis();
 uint64_t micros();
 
 //IO functions
