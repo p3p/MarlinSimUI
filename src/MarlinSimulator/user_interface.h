@@ -14,6 +14,7 @@
 #include <imgui_internal.h>
 #include <ImGuiFileDialog.h>
 
+#include "RingBuffer.h"
 #include "logger.h"
 #include "execution_control.h"
 
@@ -110,14 +111,8 @@ public:
   static std::map<std::string, std::shared_ptr<UiWindow>> ui_elements;
 };
 
-#include <serial.h>
-extern MSerialT serial_stream_0;
-extern MSerialT serial_stream_1;
-extern MSerialT serial_stream_2;
-extern MSerialT serial_stream_3;
-
 struct SerialMonitor : public UiWindow {
-  SerialMonitor(std::string name, MSerialT& serial_stream) : UiWindow(name), serial_stream(serial_stream) {};
+  SerialMonitor(std::string name) : UiWindow(name) {};
   char InputBuf[256] = {};
   std::string working_buffer;
   struct line_meta {
@@ -132,16 +127,14 @@ struct SerialMonitor : public UiWindow {
   uint8_t scroll_follow_state = false;
   bool streaming = false;
   std::size_t stream_sent = 0, stream_total = 0;
-  std::mutex buffer_mutex {};
   bool copy_buffer_signal = false;
-
-  MSerialT& serial_stream;
   std::ifstream input_file;
-  uint8_t buffer[HalSerial::receive_buffer_size]{};
   const std::string file_dialog_key = "ChooseFileDlgKey";
   const std::string file_dialog_title = "Choose File";
   char const* file_dialog_filters     = "GCode(*.gcode *.gc *.g){.gcode,.gc,.g},.*";
   const std::string file_dialog_path = ".";
+
+  InOutRingBuffer<uint8_t, 32768> serial_buffer;
 
   int input_callback(ImGuiInputTextCallbackData* data) {
     switch (data->EventFlag) {
@@ -187,12 +180,13 @@ struct SerialMonitor : public UiWindow {
   }
 
   void show() {
-    std::scoped_lock buffer_lock(buffer_mutex);
     // File read into serial port
-    if (input_file.is_open() && serial_stream.receive_buffer.free() && streaming) {
-      size_t read_size = std::min(serial_stream.receive_buffer.free(), stream_total - stream_sent);
+    if (input_file.is_open() && serial_buffer.out.free() && streaming) {
+      static uint8_t buffer[32768];
+      size_t read_size = std::min(serial_buffer.out.free(), stream_total - stream_sent);
+      read_size = std::min(read_size, size_t(32768));
       input_file.read((char*)buffer, read_size);
-      serial_stream.receive_buffer.write(buffer, read_size);
+      serial_buffer.out.write(buffer, read_size);
       stream_sent += read_size;
       if (stream_sent >= stream_total) {
         input_file.close();
@@ -200,6 +194,13 @@ struct SerialMonitor : public UiWindow {
         stream_total = 0;
         stream_sent = 0;
       }
+    }
+
+    while (serial_buffer.in.available()) {
+      static char buffer[32768 + 1];
+      auto count = serial_buffer.in.read((uint8_t*)buffer, 32768);
+      buffer[count] = '\0';
+      insert_text(buffer);
     }
 
     if (!ImGui::Begin((char *)name.c_str(), nullptr, ImGuiWindowFlags_MenuBar)) {
@@ -267,11 +268,17 @@ struct SerialMonitor : public UiWindow {
       if (copy_buffer_signal) {
         ImGui::LogToClipboard();
       }
-      for (auto& line : line_buffer) {
-        if (line.count > 1) ImGui::TextWrapped("[%ld] %s", line.count, (char *)line.text.c_str());
-        else  ImGui::TextWrapped("%s", (char *)line.text.c_str());
+      ImGuiListClipper clipper;
+      clipper.Begin(line_buffer.size());
+      while(clipper.Step()) {
+        for (int line_no = clipper.DisplayStart; line_no < clipper.DisplayEnd; line_no++) {
+          if (line_buffer.at(line_no).count > 1) ImGui::TextWrapped("[%ld] %s", line_buffer.at(line_no).count, (char *)line_buffer.at(line_no).text.c_str());
+          else  ImGui::TextWrapped("%s", (char *)line_buffer.at(line_no).text.c_str());
+        }
+        //ImGui::TextWrapped("%s", (char *)working_buffer.c_str());
       }
-      ImGui::TextWrapped("%s", (char *)working_buffer.c_str());
+      clipper.End();
+
       if (copy_buffer_signal) {
         copy_buffer_signal = false;
         ImGui::LogFinish();
@@ -301,8 +308,8 @@ struct SerialMonitor : public UiWindow {
           if (command_history.size() == 0 || command_history.front() != input) command_history.push_front(input);
           history_index = 0;
           input.push_back('\n');
-          std::size_t count = serial_stream.receive_buffer.free();
-          serial_stream.receive_buffer.write((uint8_t *)input.c_str(), std::min({count, input.size()}));
+          std::size_t count = serial_buffer.out.free();
+          serial_buffer.out.write((uint8_t *)input.c_str(), std::min({count, input.size()}));
         }
         strcpy((char*)InputBuf, "");
         reclaim_focus = true;

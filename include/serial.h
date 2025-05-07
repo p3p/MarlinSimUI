@@ -27,8 +27,6 @@
 #endif
 #include <src/core/serial_hook.h>
 
-#include <mutex>
-#include <atomic>
 #include <cstring>
 #include <stdarg.h>
 #include <stdio.h>
