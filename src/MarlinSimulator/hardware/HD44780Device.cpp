@@ -111,7 +111,7 @@ void HD44780Device::update() {
     dirty = false;
 
     if (state.display_lines == 2) {
-      uint32_t line_length = (LCD_WIDTH*4) / state.display_lines;
+      uint32_t line_length = (LCD_WIDTH * LCD_HEIGHT) / state.display_lines;
       for (std::size_t line = 0; line < state.display_lines; line ++) {
         for (std::size_t line_xindex = 0; line_xindex < line_length; line_xindex ++) {
           uint32_t index = line * 0x40 + ((line_xindex + state.display_shift) % line_length);
