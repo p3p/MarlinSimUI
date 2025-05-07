@@ -62,9 +62,102 @@ Application::Application() {
   };
 
   user_interface.addElement<SerialMonitor>("Serial Monitor(0)");
-  user_interface.addElement<SerialMonitor>("Serial Monitor(1)");
+  auto host_serial = user_interface.addElement<SerialMonitor>("Serial Monitor(1)");
   user_interface.addElement<SerialMonitor>("Serial Monitor(2)");
   user_interface.addElement<SerialMonitor>("Serial Monitor(3)");
+
+  user_interface.addElement<UiWindow>("SerialHost", [this, host_serial](UiWindow* window) {
+    if (ImGui::Button("Home All")) {
+      host_serial->serial_buffer.out.write((uint8_t*)"G28\n", 4);
+    }
+
+    // X Control Buttons
+    if (ImGui::Button("-10##X")) {
+      host_serial->serial_buffer.out.write((uint8_t*)"G91\nG0X-10\nG90\n", 15);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("-1##X")) {
+      host_serial->serial_buffer.out.write((uint8_t*)"G91\nG0X-1\nG90\n", 14);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("-0.1##X")) {
+      host_serial->serial_buffer.out.write((uint8_t*)"G91\nG0X-0.1\nG90\n", 16);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Home X##X")) {
+      host_serial->serial_buffer.out.write((uint8_t*)"G28 X\n", 6);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("+0.1##X")) {
+      host_serial->serial_buffer.out.write((uint8_t*)"G91\nG0X+0.1\nG90\n", 16);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("+1##X")) {
+      host_serial->serial_buffer.out.write((uint8_t*)"G91\nG0X+1\nG90\n", 14);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("+10##X")) {
+      host_serial->serial_buffer.out.write((uint8_t*)"G91\nG0X+10\nG90\n", 15);
+    }
+
+    // Y Control Buttons
+    if (ImGui::Button("-10##Y")) {
+      host_serial->serial_buffer.out.write((uint8_t*)"G91\nG0Y-10\nG90\n", 15);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("-1##Y")) {
+      host_serial->serial_buffer.out.write((uint8_t*)"G91\nG0Y-1\nG90\n", 14);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("-0.1##Y")) {
+      host_serial->serial_buffer.out.write((uint8_t*)"G91\nG0Y-0.1\nG90\n", 16);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Home Y##Y")) {
+      host_serial->serial_buffer.out.write((uint8_t*)"G28 Y\n", 6);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("+0.1##Y")) {
+      host_serial->serial_buffer.out.write((uint8_t*)"G91\nG0Y+0.1\nG90\n", 16);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("+1##Y")) {
+      host_serial->serial_buffer.out.write((uint8_t*)"G91\nG0Y+1\nG90\n", 14);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("+10##Y")) {
+      host_serial->serial_buffer.out.write((uint8_t*)"G91\nG0Y+10\nG90\n", 15);
+    }
+
+    // Z Control Buttons
+    if (ImGui::Button("-10##Z")) {
+      host_serial->serial_buffer.out.write((uint8_t*)"G91\nG0Z-10\nG90\n", 15);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("-1##Z")) {
+      host_serial->serial_buffer.out.write((uint8_t*)"G91\nG0Z-1\nG90\n", 14);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("-0.1##Z")) {
+      host_serial->serial_buffer.out.write((uint8_t*)"G91\nG0Z-0.1\nG90\n", 16);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Home Z##Z")) {
+      host_serial->serial_buffer.out.write((uint8_t*)"G28 Z\n", 6);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("+0.1##Z")) {
+      host_serial->serial_buffer.out.write((uint8_t*)"G91\nG0Z+0.1\nG90\n", 16);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("+1##Z")) {
+      host_serial->serial_buffer.out.write((uint8_t*)"G91\nG0Z+1\nG90\n", 14);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("+10##Z")) {
+      host_serial->serial_buffer.out.write((uint8_t*)"G91\nG0Z+10\nG90\n", 15);
+    }
+  });
 
   user_interface.addElement<UiWindow>("Debug", [this](UiWindow* window){ this->sim.ui_info_callback(window); });
 
