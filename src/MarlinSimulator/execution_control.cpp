@@ -4,9 +4,14 @@
 
 #include "user_interface.h"
 #include "execution_control.h"
-
+#include "serial.h"
 #include "RawSocketSerial.h"
+
 extern RawSocketSerial net_serial;
+extern MSerialT serial_stream_0;
+extern MSerialT serial_stream_1;
+extern MSerialT serial_stream_2;
+extern MSerialT serial_stream_3;
 
 std::chrono::steady_clock Kernel::TimeControl::clock;
 std::chrono::steady_clock::time_point Kernel::TimeControl::last_clock_read(Kernel::TimeControl::clock.now());
@@ -40,39 +45,36 @@ bool Kernel::execute_loop( uint64_t max_end_ticks) {
   //simulation time lock
   TimeControl::realtime_sync();
 
+  static auto terminal_0 = std::dynamic_pointer_cast<SerialMonitor>(UserInterface::ui_elements["Serial Monitor(0)"]);
   if (serial_stream_0.transmit_buffer.available()) {
-    char buffer[serial_stream_0.transmit_buffer_size];
-    auto count = serial_stream_0.transmit_buffer.read((uint8_t *)buffer, serial_stream_0.transmit_buffer_size - 1);
-    buffer[count] = '\0';
-    auto terminal = std::dynamic_pointer_cast<SerialMonitor>(UserInterface::ui_elements["Serial Monitor(0)"]);
-    std::scoped_lock buffer_lock(terminal->buffer_mutex);
-    terminal->insert_text(buffer);
+    serial_stream_0.transmit_buffer.read(terminal_0->serial_buffer.in);
   }
-  if (serial_stream_1.transmit_buffer.available()) {
-    char buffer[serial_stream_1.transmit_buffer_size];
-    auto count = serial_stream_1.transmit_buffer.read((uint8_t *)buffer, serial_stream_1.transmit_buffer_size - 1);
-    buffer[count] = '\0';
-    auto terminal = std::dynamic_pointer_cast<SerialMonitor>(UserInterface::ui_elements["Serial Monitor(1)"]);
-    std::scoped_lock buffer_lock(terminal->buffer_mutex);
-    terminal->insert_text(buffer);
-  }
-  if (serial_stream_2.transmit_buffer.available()) {
-    char buffer[serial_stream_2.transmit_buffer_size];
-    auto count = serial_stream_2.transmit_buffer.read((uint8_t *)buffer, serial_stream_2.transmit_buffer_size - 1);
-    buffer[count] = '\0';
-    auto terminal = std::dynamic_pointer_cast<SerialMonitor>(UserInterface::ui_elements["Serial Monitor(2)"]);
-    std::scoped_lock buffer_lock(terminal->buffer_mutex);
-    terminal->insert_text(buffer);
+  if (terminal_0->serial_buffer.out.available()) {
+    terminal_0->serial_buffer.out.read(serial_stream_0.receive_buffer);
   }
 
+  static auto terminal_1 = std::dynamic_pointer_cast<SerialMonitor>(UserInterface::ui_elements["Serial Monitor(1)"]);
+  if (serial_stream_1.transmit_buffer.available()) {
+    serial_stream_1.transmit_buffer.read(terminal_1->serial_buffer.in);
+  }
+  if (terminal_1->serial_buffer.out.available()) {
+    terminal_1->serial_buffer.out.read(serial_stream_1.receive_buffer);
+  }
+
+  static auto terminal_2 = std::dynamic_pointer_cast<SerialMonitor>(UserInterface::ui_elements["Serial Monitor(2)"]);
+  if (serial_stream_2.transmit_buffer.available()) {
+    serial_stream_2.transmit_buffer.read(terminal_2->serial_buffer.in);
+  }
+  if (terminal_2->serial_buffer.out.available()) {
+    terminal_2->serial_buffer.out.read(serial_stream_2.receive_buffer);
+  }
+
+  static auto terminal_3 = std::dynamic_pointer_cast<SerialMonitor>(UserInterface::ui_elements["Serial Monitor(3)"]);
   if (serial_stream_3.transmit_buffer.available()) {
-    char buffer[serial_stream_3.transmit_buffer_size];
-    auto count = serial_stream_3.transmit_buffer.read((uint8_t *)buffer, serial_stream_3.transmit_buffer_size - 1);
-    net_serial.write((uint8_t*)buffer, count);
-    buffer[count] = '\0';
-    auto terminal = std::dynamic_pointer_cast<SerialMonitor>(UserInterface::ui_elements["Serial Monitor(3)"]);
-    std::scoped_lock buffer_lock(terminal->buffer_mutex);
-    terminal->insert_text(buffer);
+    serial_stream_3.transmit_buffer.read(terminal_3->serial_buffer.in);
+  }
+  if (terminal_3->serial_buffer.out.available()) {
+    terminal_3->serial_buffer.out.read(serial_stream_3.receive_buffer);
   }
 
   if (net_serial.available()) {

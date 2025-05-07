@@ -61,10 +61,10 @@ Application::Application() {
     }
   };
 
-  user_interface.addElement<SerialMonitor>("Serial Monitor(0)", serial_stream_0);
-  user_interface.addElement<SerialMonitor>("Serial Monitor(1)", serial_stream_1);
-  user_interface.addElement<SerialMonitor>("Serial Monitor(2)", serial_stream_2);
-  user_interface.addElement<SerialMonitor>("Serial Monitor(3)", serial_stream_3);
+  user_interface.addElement<SerialMonitor>("Serial Monitor(0)");
+  user_interface.addElement<SerialMonitor>("Serial Monitor(1)");
+  user_interface.addElement<SerialMonitor>("Serial Monitor(2)");
+  user_interface.addElement<SerialMonitor>("Serial Monitor(3)");
 
   user_interface.addElement<UiWindow>("Debug", [this](UiWindow* window){ this->sim.ui_info_callback(window); });
 
