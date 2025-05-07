@@ -111,7 +111,7 @@ void HD44780Device::update() {
     dirty = false;
 
     if (state.display_lines == 2) {
-      uint32_t line_length = 80 / state.display_lines;
+      uint32_t line_length = (LCD_WIDTH*4) / state.display_lines;
       for (std::size_t line = 0; line < state.display_lines; line ++) {
         for (std::size_t line_xindex = 0; line_xindex < line_length; line_xindex ++) {
           uint32_t index = line * 0x40 + ((line_xindex + state.display_shift) % line_length);
@@ -121,8 +121,8 @@ void HD44780Device::update() {
           } else charset_base = ddram_buffer[index] * 0x10;
           uint8_t* charset = (ddram_buffer[index] < 0x10) ? cgram_buffer : active_rom;
 
-          uint16_t x = line_xindex > 19 ? line_xindex - 20 : line_xindex;
-          uint16_t y = (line == 1) | ((line_xindex > 19) << 1);
+          uint16_t x = line_xindex > LCD_WIDTH-1 ? line_xindex - LCD_WIDTH : line_xindex;
+          uint16_t y = (line == 1) | ((line_xindex > LCD_WIDTH-1) << 1);
 
           uint16_t texture_index_x = display_margin + (5 + display_char_pad) * x;
           uint16_t texture_index_y = display_margin + (8 + display_char_pad) * y;

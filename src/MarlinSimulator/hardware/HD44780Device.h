@@ -11,6 +11,10 @@
 #include "../virtual_printer.h"
 #include "Gpio.h"
 
+#ifndef LCD_WIDTH
+  #define LCD_WIDTH 20
+#endif
+
 class HD44780Device: public VirtualPrinter::Component {
 public:
   enum KeyName {
@@ -86,12 +90,12 @@ public:
   float scaler;
   GLuint texture_id;
 
-  static constexpr uint32_t display_x_char = 20;
+  static constexpr uint32_t display_x_char = LCD_WIDTH;
   static constexpr uint32_t display_y_char = 4;
   static constexpr uint32_t display_margin = 6;
   static constexpr uint32_t display_char_pad = 1;
 
-  static constexpr uint32_t texture_x = 132;//((5 * display_x_char) + (display_margin * 2) + (19 * display_char_pad));
+  static constexpr uint32_t texture_x = 1+(5 * display_x_char)+(display_margin * 2)+(19 * display_char_pad);//((5 * display_x_char) + (display_margin * 2) + (19 * display_char_pad));
   static constexpr uint32_t texture_y = 48;//((8 * display_y_char) + (display_margin * 2) + (3 * display_char_pad));
   static constexpr uint32_t width = texture_x, height = texture_y;
   bool render_integer_scaling = false, render_popout = false;
