@@ -54,6 +54,7 @@ public:
     static_assert(std::is_same_v<typename ExtBuffer::element_type, element_type>);
     std::scoped_lock lock{access_mutex, buff.access_mutex};
     IndexType length0                 = static_cast<IndexType>(std::min(buff.free(), available()));
+    if (length0 == 0) return 0;
     IndexType const masked_index_read = mask(index_read);
     IndexType const length1           = std::min(length0, static_cast<IndexType>(buffer_size - masked_index_read));
     buff.write(buffer + masked_index_read, length1);

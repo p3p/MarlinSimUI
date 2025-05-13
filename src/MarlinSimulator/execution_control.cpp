@@ -45,35 +45,27 @@ bool Kernel::execute_loop( uint64_t max_end_ticks) {
   //simulation time lock
   TimeControl::realtime_sync();
 
-  static auto terminal_0 = std::dynamic_pointer_cast<SerialMonitor>(UserInterface::ui_elements["Serial Monitor(0)"]);
-  if (serial_stream_0.transmit_buffer.available()) {
+  static auto terminal_0 = UserInterface::getElement<SerialMonitor>("Serial Monitor(0)");
+  if (terminal_0) {
     serial_stream_0.transmit_buffer.read(terminal_0->serial_buffer.in);
-  }
-  if (terminal_0->serial_buffer.out.available()) {
     terminal_0->serial_buffer.out.read(serial_stream_0.receive_buffer);
   }
 
-  static auto terminal_1 = std::dynamic_pointer_cast<SerialMonitor>(UserInterface::ui_elements["Serial Monitor(1)"]);
-  if (serial_stream_1.transmit_buffer.available()) {
+  static auto terminal_1 = UserInterface::getElement<SerialMonitor>("Serial Monitor(1)");
+  if (terminal_1) {
     serial_stream_1.transmit_buffer.read(terminal_1->serial_buffer.in);
-  }
-  if (terminal_1->serial_buffer.out.available()) {
     terminal_1->serial_buffer.out.read(serial_stream_1.receive_buffer);
   }
 
-  static auto terminal_2 = std::dynamic_pointer_cast<SerialMonitor>(UserInterface::ui_elements["Serial Monitor(2)"]);
-  if (serial_stream_2.transmit_buffer.available()) {
+  static auto terminal_2 = UserInterface::getElement<SerialMonitor>("Serial Monitor(2)");
+  if (terminal_2) {
     serial_stream_2.transmit_buffer.read(terminal_2->serial_buffer.in);
-  }
-  if (terminal_2->serial_buffer.out.available()) {
     terminal_2->serial_buffer.out.read(serial_stream_2.receive_buffer);
   }
 
-  static auto terminal_3 = std::dynamic_pointer_cast<SerialMonitor>(UserInterface::ui_elements["Serial Monitor(3)"]);
-  if (serial_stream_3.transmit_buffer.available()) {
+  static auto terminal_3 = UserInterface::getElement<SerialMonitor>("Serial Monitor(3)");
+  if (terminal_3) {
     serial_stream_3.transmit_buffer.read(terminal_3->serial_buffer.in);
-  }
-  if (terminal_3->serial_buffer.out.available()) {
     terminal_3->serial_buffer.out.read(serial_stream_3.receive_buffer);
   }
 

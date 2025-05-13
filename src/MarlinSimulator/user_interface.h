@@ -31,9 +31,17 @@ public:
       ImGui::End();
       return;
     }
-    if (menu_callback) menu_callback(this);
-    if (show_callback) show_callback(this);
+    if (menu_callback) menu_callback(this); else menu();
+    if (show_callback) show_callback(this); else panel();
     ImGui::End();
+  }
+
+  virtual void panel() {
+
+  }
+
+  virtual void menu() {
+
   }
 
   virtual void enable() {
@@ -100,6 +108,12 @@ public:
     return element;
   }
 
+  template <typename T>
+  static std::shared_ptr<T> getElement(const std::string id) {
+    if (ui_elements.count(id) == 0) return nullptr;
+    return std::dynamic_pointer_cast<T>(ui_elements.at(id));
+  }
+
   void init(std::filesystem::path config_path);
   void show();
   void render();
@@ -135,6 +149,11 @@ struct SerialMonitor : public UiWindow {
   const std::string file_dialog_path = ".";
 
   InOutRingBuffer<uint8_t, 32768> serial_buffer;
+  std::vector<InOutRingBuffer<uint8_t, 32768>*> serial_endpoints;
+
+  void register_endpoint(InOutRingBuffer<uint8_t, 32768>* endpoint) {
+    serial_endpoints.push_back(endpoint);
+  }
 
   int input_callback(ImGuiInputTextCallbackData* data) {
     switch (data->EventFlag) {
@@ -199,9 +218,16 @@ struct SerialMonitor : public UiWindow {
     while (serial_buffer.in.available()) {
       static char buffer[32768 + 1];
       auto count = serial_buffer.in.read((uint8_t*)buffer, 32768);
+      for (auto endpoint : serial_endpoints) {
+        endpoint->in.write((uint8_t*)buffer, count);
+      }
       buffer[count] = '\0';
       insert_text(buffer);
     }
+    for (auto endpoint : serial_endpoints) {
+      endpoint->out.read(serial_buffer.out);
+    }
+
 
     if (!ImGui::Begin((char *)name.c_str(), nullptr, ImGuiWindowFlags_MenuBar)) {
       ImGui::End();
@@ -332,6 +358,148 @@ struct SerialMonitor : public UiWindow {
     ImGui::End();
   }
 
+};
+
+struct SerialController : public UiWindow {
+  SerialController(std::string name) : UiWindow(name) {
+    UserInterface::getElement<SerialMonitor>("Serial Monitor(1)")->register_endpoint(&serial_buffer);
+  };
+  InOutRingBuffer<uint8_t, 32768> serial_buffer;
+
+  void process_response(std::string_view buffer) {
+    // logger::info(buffer.data());
+
+    if (buffer.substr(0, 2).compare("ok") == 0) {
+      if (buffer.size() > 2) {
+        // logger::info("is advanced ok");
+      } else {
+        // logger::info("is ok");
+      }
+    }
+
+    if (buffer.substr(0, 2).compare("//") == 0) {
+      // logger::info("is info for host");
+    }
+
+    if (buffer.substr(0, 4).compare("echo") == 0) {
+      // logger::info("is echo");
+    }
+
+    if (buffer.substr(0, 2).compare("X:") == 0) {
+      // logger::info("is position report");
+    }
+
+    if (buffer.substr(0, 3).compare(" T:") == 0) {
+      // logger::info("is temp report");
+    }
+
+  }
+
+  virtual void panel() override {
+    static std::function<size_t(const char*)> serial_write = [this](const char* str){
+      return serial_buffer.out.write((uint8_t*)str, strlen(str));
+    };
+
+    std::size_t index = 0;
+    while (serial_buffer.in.find_next_index_of(uint8_t('\n'), index)) {
+      static char buffer[513] {};
+      serial_buffer.in.read((uint8_t*)buffer, index);
+      serial_buffer.in.drop(1);
+      buffer[index] = 0;
+      process_response(buffer);
+    }
+
+    if (ImGui::Button("Home All")) {
+      serial_write("G28\n");
+    }
+
+    // X Control Buttons
+    if (ImGui::Button("-10##X")) {
+      serial_write("G91\nG0X-10\nG90\n");
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("-1##X")) {
+      serial_write("G91\nG0X-1\nG90\n");
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("-0.1##X")) {
+      serial_write("G91\nG0X-0.1\nG90\n");
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Home X##X")) {
+      serial_write("G28 X\n");
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("+0.1##X")) {
+      serial_write("G91\nG0X+0.1\nG90\n");
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("+1##X")) {
+      serial_write("G91\nG0X+1\nG90\n");
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("+10##X")) {
+      serial_write("G91\nG0X+10\nG90\n");
+    }
+
+    // Y Control Buttons
+    if (ImGui::Button("-10##Y")) {
+      serial_write("G91\nG0Y-10\nG90\n");
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("-1##Y")) {
+      serial_write("G91\nG0Y-1\nG90\n");
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("-0.1##Y")) {
+      serial_write("G91\nG0Y-0.1\nG90\n");
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Home Y##Y")) {
+      serial_write("G28 Y\n");
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("+0.1##Y")) {
+      serial_write("G91\nG0Y+0.1\nG90\n");
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("+1##Y")) {
+      serial_write("G91\nG0Y+1\nG90\n");
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("+10##Y")) {
+      serial_write("G91\nG0Y+10\nG90\n");
+    }
+
+    // Z Control Buttons
+    if (ImGui::Button("-10##Z")) {
+      serial_write("G91\nG0Z-10\nG90\n");
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("-1##Z")) {
+      serial_write("G91\nG0Z-1\nG90\n");
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("-0.1##Z")) {
+      serial_write("G91\nG0Z-0.1\nG90\n");
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Home Z##Z")) {
+      serial_write("G28 Z\n");
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("+0.1##Z")) {
+      serial_write("G91\nG0Z+0.1\nG90\n");
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("+1##Z")) {
+      serial_write("G91\nG0Z+1\nG90\n");
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("+10##Z")) {
+      serial_write("G91\nG0Z+10\nG90\n");
+    }
+  }
 };
 
 struct TextureWindow : public UiWindow {
