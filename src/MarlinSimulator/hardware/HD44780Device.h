@@ -19,8 +19,10 @@
   #define LCD_HEIGHT 4
 #endif
 
-static_assert(LCD_WIDTH == 16 || LCD_WIDTH == 20, "Unsupported Character LCD Width");
-static_assert(LCD_HEIGHT == 2 || LCD_HEIGHT == 4, "Unsupported Character LCD Height");
+#ifdef REPRAP_DISCOUNT_SMART_CONTROLLER
+  static_assert(LCD_WIDTH == 16 || LCD_WIDTH == 20, "Unsupported Character LCD Width");
+  static_assert(LCD_HEIGHT == 2 || LCD_HEIGHT == 4, "Unsupported Character LCD Height");
+#endif
 
 class HD44780Device: public VirtualPrinter::Component {
 public:
