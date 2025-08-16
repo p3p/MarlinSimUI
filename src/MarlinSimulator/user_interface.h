@@ -362,7 +362,7 @@ struct SerialMonitor : public UiWindow {
 
 struct SerialController : public UiWindow {
   SerialController(std::string name) : UiWindow(name) {
-    UserInterface::getElement<SerialMonitor>("Serial Monitor(1)")->register_endpoint(&serial_buffer);
+    UserInterface::getElement<SerialMonitor>("Serial Monitor(0)")->register_endpoint(&serial_buffer);
   };
   InOutRingBuffer<uint8_t, 32768> serial_buffer;
 
