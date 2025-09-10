@@ -54,7 +54,18 @@ public:
   uint16_t graphic_ram_index = 0;
   uint16_t graphic_ram_index_x = 0, graphic_ram_index_y = 0;
 
-  uint32_t address_counter = 0;
+  static constexpr uint8_t ddram_size = 120; //  60 * 16 bits
+  uint8_t ddram[ddram_size] = {};
+
+  static constexpr uint8_t cgram_size = 128; // 1024 bits
+  uint8_t cgram[cgram_size] = {};
+
+  bool in_cgram = false; // whether address_counter refers to CGRAM
+  bool cgram_written = false; // whether CGRAM has been written to
+
+  // Separate address counters for DDRAM and CGRAM
+  uint32_t ddram_address_counter = 0;
+  uint32_t cgram_address_counter = 0;
   int8_t address_increment = 1;
 
   uint8_t coordinate[2] = {};
