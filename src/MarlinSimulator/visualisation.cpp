@@ -24,6 +24,8 @@ Visualisation::Visualisation(VirtualPrinter& virtual_printer) : virtual_printer(
   for (int i = 0; i < EXTRUDERS; ++i) {
     extrusion.push_back({});
   }
+
+  SERIAL_ECHOLNPGM("\nCamera Controls:\nW A S D : Pan             F G : Follow Z / XY\nE Q     : Zoom In / Out   F1  : Path (Full)\nI       : Invert Pan      F2  : Path (Line)\nR       : Reset View      F4  : Path Clear\n");
 }
 
 Visualisation::~Visualisation() {
@@ -412,6 +414,8 @@ void Visualisation::ui_viewport_menu_callback(UiWindow*) {
 }
 
 void Visualisation::ui_viewport_callback(UiWindow* window) {
+  static bool invert_pan = false;
+
   std::scoped_lock extrusion_lock(extrusion_mutex);
   auto now = clock.now();
   float delta = std::chrono::duration_cast<std::chrono::duration<float>>(now- last_update).count();
@@ -429,28 +433,39 @@ void Visualisation::ui_viewport_callback(UiWindow* window) {
   }
 
   if (viewport.focused) {
+    // R = Camera Reset
     if (ImGui::IsKeyDown(ImGuiKey_R)) {
       follow_mode = FOLLOW_NONE;
       camera = initCamera;
       camera.generate();
     }
+    // W A S D = Camera Pan
     if (ImGui::IsKeyDown(ImGuiKey_W)) {
-      camera.position += camera.speed * camera.direction * delta;
+      const glm::vec3 dist = camera.world_up * camera.speed * delta;
+      camera.position += invert_pan ? -dist : dist;
     }
     if (ImGui::IsKeyDown(ImGuiKey_S)) {
-      camera.position -= camera.speed * camera.direction * delta;
+      const glm::vec3 dist = camera.world_up * camera.speed * delta;
+      camera.position -= invert_pan ? -dist : dist;
     }
     if (ImGui::IsKeyDown(ImGuiKey_A)) {
-      camera.position -= glm::normalize(glm::cross(camera.direction, camera.up)) * camera.speed * delta;
+      const glm::vec3 dist = glm::normalize(glm::cross(camera.direction, camera.up)) * camera.speed * delta;
+      camera.position -= invert_pan ? -dist : dist;
     }
     if (ImGui::IsKeyDown(ImGuiKey_D)) {
-      camera.position += glm::normalize(glm::cross(camera.direction, camera.up)) * camera.speed * delta;
+      const glm::vec3 dist = glm::normalize(glm::cross(camera.direction, camera.up)) * camera.speed * delta;
+      camera.position += invert_pan ? -dist : dist;
     }
-    if (ImGui::IsKeyDown(ImGuiKey_Space)) {
-      camera.position += camera.world_up * camera.speed * delta;
+    // I = Invert WASD
+    if (ImGui::IsKeyPressed(ImGuiKey_I)) {
+      invert_pan ^= true;
     }
-    if (ImGui::IsKeyDown(ImGuiKey_LeftShift)) {
-      camera.position -= camera.world_up * camera.speed * delta;
+    // E / Q = Camera Zoom / Unzoom
+    if (ImGui::IsKeyDown(ImGuiKey_E)) {
+      camera.position += camera.speed * camera.direction * delta;
+    }
+    if (ImGui::IsKeyDown(ImGuiKey_Q)) {
+      camera.position -= camera.speed * camera.direction * delta;
     }
     if (ImGui::IsKeyPressed(ImGuiKey_F)) {
       follow_mode = follow_mode == FOLLOW_Z ? FOLLOW_NONE : FOLLOW_Z;
