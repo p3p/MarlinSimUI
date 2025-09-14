@@ -30,6 +30,14 @@ Visualisation::~Visualisation() {
   destroy();
 }
 
+static PerspectiveCamera initCamera = {
+  { 37.0f, 121.0f, 129.0f }, // Position
+  { -192.0f, -25.0, 0.0f },  // Rotation
+  { 0.0f, 1.0f, 0.0f },      // Up = Y-Axis
+  float(100) / float(100),   // Aspect Ratio
+  glm::radians(45.0f), 0.1f, 2000.0f // FOV, Near, Far
+};
+
 void Visualisation::create() {
   extrusion_program = renderer::ShaderProgram::create("data/shaders/extrusion.vs", "data/shaders/extrusion.fs", "data/shaders/extrusion.gs");
   default_program = renderer::ShaderProgram::create("data/shaders/default.vs","data/shaders/default.fs");
@@ -44,7 +52,7 @@ void Visualisation::create() {
     }
   }
 
-  camera = { {37.0f, 121.0f, 129.0f}, {-192.0f, -25.0, 0.0f}, {0.0f, 1.0f, 0.0f}, float(100) / float(100), glm::radians(45.0f), 0.1f, 2000.0f};
+  camera = initCamera;
   camera.generate();
 
   if (EXTRUDERS > 0) {
@@ -335,9 +343,9 @@ void Visualisation::ui_viewport_menu_callback(UiWindow*) {
   if (ImGui::BeginMenuBar()) {
     if (ImGui::BeginMenu("Camera")) {
       if (ImGui::MenuItem("Reset")) {
-        camera.position = {37.0f, 121.0f, 129.0f};
-        camera.rotation = {-192.0f, -25.0, 0.0f};
-        camera.up       = {0.0f, 1.0f, 0.0f};
+        follow_mode = FOLLOW_NONE;
+        camera = initCamera;
+        camera.generate();
       }
       // if (ImGui::BeginMenu("Mode")) {
       //   if (ImGui::MenuItem("Fly", nullptr, true, true)) { }
@@ -421,6 +429,11 @@ void Visualisation::ui_viewport_callback(UiWindow* window) {
   }
 
   if (viewport.focused) {
+    if (ImGui::IsKeyDown(ImGuiKey_R)) {
+      follow_mode = FOLLOW_NONE;
+      camera = initCamera;
+      camera.generate();
+    }
     if (ImGui::IsKeyDown(ImGuiKey_W)) {
       camera.position += camera.speed * camera.direction * delta;
     }
