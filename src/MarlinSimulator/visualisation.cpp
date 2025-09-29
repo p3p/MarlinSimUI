@@ -463,25 +463,28 @@ void Visualisation::ui_viewport_callback(UiWindow* window) {
     mouse_captured = false;
   }
 
+  // IMGUI: Relative Mouse mode within a window does not seem to be supported through the imgui mouse api
   if (mouse_captured && !last_mouse_captured) {
     ImVec2 mouse_pos = ImGui::GetMousePos();
     mouse_lock_pos = {mouse_pos.x, mouse_pos.y};
     SDL_SetWindowGrab(SDL_GL_GetCurrentWindow(), SDL_TRUE);
     SDL_SetRelativeMouseMode(SDL_TRUE);
+    SDL_GetRelativeMouseState(nullptr, nullptr);
   } else if (!mouse_captured && last_mouse_captured) {
     SDL_SetRelativeMouseMode(SDL_FALSE);
     SDL_SetWindowGrab(SDL_GL_GetCurrentWindow(), SDL_FALSE);
     SDL_WarpMouseInWindow(SDL_GL_GetCurrentWindow(), mouse_lock_pos.x, mouse_lock_pos.y);
+    SDL_GetRelativeMouseState(nullptr, nullptr);
   } else if (mouse_captured) {
-    camera.rotation.x -= ImGui::GetIO().MouseDelta.x * 0.2;
-    camera.rotation.y -= ImGui::GetIO().MouseDelta.y * 0.2;
+    int rel_x, rel_y;
+    SDL_GetRelativeMouseState(&rel_x, &rel_y);
+    camera.rotation.x -= rel_x * 0.2;
+    camera.rotation.y -= rel_y * 0.2;
     if (camera.rotation.y > 89.0f) camera.rotation.y = 89.0f;
     else if (camera.rotation.y < -89.0f) camera.rotation.y = -89.0f;
   }
 
-  if (!ImGui::BeginPopup("Extrusion Settings")) {
-    ImGui::EndPopup();
-  } else {
+  if (ImGui::BeginPopup("Extrusion Settings")) {
     ImGui::PushItemWidth(150);
     ImGui::Text("Extrude Width    ");
     ImGui::PopItemWidth();

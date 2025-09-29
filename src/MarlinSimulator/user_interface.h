@@ -78,13 +78,12 @@ public:
       ImGui::OpenPopup(name.c_str());
       m_will_open = false;
     }
-    if (!((m_is_modal && ImGui::BeginPopupModal((char*)name.c_str(), &active, flags)) || ImGui::BeginPopup((char*)name.c_str(), flags))) {
+
+    if (((m_is_modal && ImGui::BeginPopupModal(name.c_str(), &active, flags)) || ImGui::BeginPopup(name.c_str(), flags))) {
+      if (menu_callback) menu_callback(this);
+      if (show_callback) show_callback(this);
       ImGui::EndPopup();
-      return;
     }
-    if (menu_callback) menu_callback(this);
-    if (show_callback) show_callback(this);
-    ImGui::EndPopup();
   }
 
   void enable() override {

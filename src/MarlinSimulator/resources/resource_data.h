@@ -204,7 +204,7 @@ static const char * data_shader_default_fs = R"SHADERSTR(
 static constexpr char const* imgui_ini = R"(
 [Window][DockSpaceWindwow]
 Pos=0,19
-Size=1280,701
+Size=1728,934
 Collapsed=0
 
 [Window][Debug##Default]
@@ -213,64 +213,64 @@ Size=400,400
 Collapsed=0
 
 [Window][Components]
-Pos=1003,19
-Size=277,701
+Pos=1451,19
+Size=277,934
 Collapsed=0
-DockId=0x00000006,0
+DockId=0x00000002,0
 
 [Window][Simulation]
 Pos=0,19
-Size=313,140
+Size=312,467
 Collapsed=0
-DockId=0x0000000B,0
+DockId=0x0000000A,0
 
 [Window][Viewport]
-Pos=315,19
-Size=686,463
+Pos=314,19
+Size=1135,707
 Collapsed=0
-DockId=0x00000009,0
+DockId=0x00000004,0
 
 [Window][Status]
 Pos=0,109
 Size=313,611
 Collapsed=0
-DockId=0x00000004,0
+DockId=0x6F13380E,0
 
 [Window][Signal Analyser]
-Pos=315,19
-Size=686,463
+Pos=314,19
+Size=1135,707
 Collapsed=0
-DockId=0x00000009,1
+DockId=0x00000004,1
 
 [Window][Pin List]
-Pos=1003,19
-Size=277,701
+Pos=1451,19
+Size=277,934
 Collapsed=0
-DockId=0x00000006,1
+DockId=0x00000002,1
 
 [Window][Serial Monitor(0)]
-Pos=315,484
-Size=686,236
+Pos=314,728
+Size=1135,225
 Collapsed=0
-DockId=0x0000000A,0
+DockId=0x00000003,0
 
 [Window][Serial Monitor(1)]
-Pos=315,484
-Size=686,236
+Pos=314,728
+Size=1135,225
 Collapsed=0
-DockId=0x0000000A,1
+DockId=0x00000003,2
 
 [Window][Serial Monitor(2)]
-Pos=315,484
-Size=686,236
+Pos=314,728
+Size=1135,225
 Collapsed=0
-DockId=0x0000000A,2
+DockId=0x00000003,1
 
 [Window][Serial Monitor(3)]
-Pos=315,484
-Size=686,236
+Pos=314,728
+Size=1135,225
 Collapsed=0
-DockId=0x0000000A,3
+DockId=0x00000003,3
 
 [Window][Serial Monitor]
 Pos=272,453
@@ -284,16 +284,16 @@ Size=678,431
 Collapsed=0
 
 [Window][Debug]
-Pos=0,161
-Size=313,559
+Pos=0,488
+Size=312,465
 Collapsed=0
-DockId=0x0000000C,1
+DockId=0x0000000B,0
 
 [Window][Log]
-Pos=315,484
-Size=686,236
+Pos=314,728
+Size=1135,225
 Collapsed=0
-DockId=0x0000000A,4
+DockId=0x00000003,4
 
 [Window][Choose File##ChooseSDFileDlgKey]
 Pos=271,95
@@ -301,10 +301,16 @@ Size=678,431
 Collapsed=0
 
 [Window][SerialHost]
-Pos=0,161
-Size=313,559
+Pos=0,488
+Size=312,465
 Collapsed=0
-DockId=0x0000000C,0
+DockId=0x0000000B,1
+
+[Window][Motion Analyser]
+Pos=314,19
+Size=1135,707
+Collapsed=0
+DockId=0x00000004,2
 
 [Table][0x5E7B4F09,4]
 RefScale=13
@@ -319,18 +325,17 @@ RefScale=13
 Column 0  Sort=0v
 
 [Docking][Data]
-DockSpace         ID=0x6F13380E Window=0x49B6D357 Pos=0,19 Size=1280,701 Split=X
-  DockNode        ID=0x00000005 Parent=0x6F13380E SizeRef=1001,720 Split=X
-    DockNode      ID=0x00000001 Parent=0x00000005 SizeRef=313,720 Split=Y Selected=0x7CAC602A
-      DockNode    ID=0x00000003 Parent=0x00000001 SizeRef=637,107 Split=Y Selected=0xFBEA9FC2
-        DockNode  ID=0x0000000B Parent=0x00000003 SizeRef=313,140 Selected=0xFBEA9FC2
-        DockNode  ID=0x0000000C Parent=0x00000003 SizeRef=313,559 Selected=0x50775094
-      DockNode    ID=0x00000004 Parent=0x00000001 SizeRef=637,611 Selected=0x7CAC602A
-    DockNode      ID=0x00000002 Parent=0x00000005 SizeRef=686,720 Split=Y Selected=0x995B0CF8
-      DockNode    ID=0x00000007 Parent=0x00000002 SizeRef=448,451 Split=Y Selected=0x995B0CF8
-        DockNode  ID=0x00000009 Parent=0x00000007 SizeRef=623,482 CentralNode=1 Selected=0x13926F0B
-        DockNode  ID=0x0000000A Parent=0x00000007 SizeRef=623,236 Selected=0x4B8A34E6
-      DockNode    ID=0x00000008 Parent=0x00000002 SizeRef=448,267 Selected=0xB42549D5
-  DockNode        ID=0x00000006 Parent=0x6F13380E SizeRef=277,720 Selected=0xFCB30AB3
+DockSpace       ID=0x6510BC37 Window=0x21AA7A91 Pos=0,19 Size=1728,934 Split=X
+  DockNode      ID=0x00000001 Parent=0x6510BC37 SizeRef=1305,962 Split=X
+    DockNode    ID=0x00000006 Parent=0x00000001 SizeRef=312,962 Split=Y Selected=0xCA59C0CF
+      DockNode  ID=0x0000000A Parent=0x00000006 SizeRef=312,481 Selected=0xCA59C0CF
+      DockNode  ID=0x0000000B Parent=0x00000006 SizeRef=312,479 Selected=0xA78E8264
+    DockNode    ID=0x00000009 Parent=0x00000001 SizeRef=1270,962 Split=Y
+      DockNode  ID=0x00000004 Parent=0x00000009 SizeRef=1584,707 CentralNode=1 Selected=0xC450F867
+      DockNode  ID=0x00000003 Parent=0x00000009 SizeRef=1584,225 Selected=0xD9AEB01A
+  DockNode      ID=0x00000002 Parent=0x6510BC37 SizeRef=277,962 Selected=0x0AFE37CF
+DockSpace       ID=0x6F13380E Pos=0,19 Size=1280,701 Split=Y
+  DockNode      ID=0x00000007 Parent=0x6F13380E SizeRef=448,451 CentralNode=1 Selected=0x995B0CF8
+  DockNode      ID=0x00000008 Parent=0x6F13380E SizeRef=448,267 Selected=0xB42549D5
 
 )";

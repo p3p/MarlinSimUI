@@ -23,9 +23,9 @@
     "includeDir": "",
     "srcFilter": [
       "+<src/**/*.cpp>",
-      "+<vendor/imgui-1.90.6-docking/*.cpp>",
-      "+<vendor/imgui-1.90.6-docking/backends/*.cpp>",
-      "+<vendor/implot-f156599/*.cpp>",
+      "+<vendor/imgui-1.92.3-docking/*.cpp>",
+      "+<vendor/imgui-1.92.3-docking/backends/*.cpp>",
+      "+<vendor/implot-3da8bd3/*.cpp>",
       "+<vendor/ImGuiFileDialog-0.6.7/*.cpp>",
       "+<vendor/vcd-writer-b4fe347/src/*.cpp>",
       "+<vendor/glad/glad.c>"
@@ -33,9 +33,9 @@
     "flags": [
       "-Isrc",
       "-Iinclude",
-      "-Ivendor/imgui-1.90.6-docking",
-      "-Ivendor/imgui-1.90.6-docking/backends",
-      "-Ivendor/implot-f156599",
+      "-Ivendor/imgui-1.92.3-docking",
+      "-Ivendor/imgui-1.92.3-docking/backends",
+      "-Ivendor/implot-3da8bd3",
       "-Ivendor/ImGuiFileDialog-0.6.7",
       "-Ivendor/vcd-writer-b4fe347/include",
       "-Ivendor/glad/include",
