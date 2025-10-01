@@ -169,6 +169,7 @@ Application::Application() {
       ImPlot::EndPlot();
     }
 
+    step_count = 0;
     for (int i = 0; i < count; ++i) {
       ImGui::Text("%d: %d, \t%d, \t%d, \t%d, \t%d, \t%d, \t%d",
         step_count,
@@ -180,6 +181,7 @@ Application::Application() {
         planner_blocks[i].step_event_count,
         planner_blocks[i].acceleration_rate
       );
+      step_count += planner_blocks[i].step_event_count;
     }
 
   });
