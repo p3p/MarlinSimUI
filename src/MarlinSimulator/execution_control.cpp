@@ -31,6 +31,8 @@ std::deque<KernelTimer*> Kernel::isr_stack;
 bool Kernel::quit_requested = false;
 std::atomic_uint64_t Kernel::isr_timing_error = 0;
 
+std::mutex Kernel::marlin_data_mutex;
+
 bool Kernel::is_initialized(bool known_state) {
   static bool is_running = known_state;
   is_running = is_running || known_state;
@@ -43,7 +45,9 @@ bool Kernel::execute_loop( uint64_t max_end_ticks) {
   if (debug_break_flag) { debug_break_flag = false; debug_break(); }
 
   //simulation time lock
+  marlin_data_mutex.unlock();
   TimeControl::realtime_sync();
+  marlin_data_mutex.lock();
 
   static auto terminal_0 = UserInterface::getElement<SerialMonitor>("Serial Monitor(0)");
   if (terminal_0) {

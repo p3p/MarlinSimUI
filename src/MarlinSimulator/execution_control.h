@@ -260,4 +260,5 @@ public:
   static bool quit_requested;
   static std::atomic_uint64_t isr_timing_error;
   static std::atomic_bool debug_break_flag;
+  static std::mutex marlin_data_mutex;
 };

@@ -12,6 +12,10 @@
 #include <fstream>
 #include <vcd_writer.h>
 #include <regex>
+#include <mutex>
+
+#include <src/module/planner.h>
+extern Planner planner;
 
 constexpr float steps_per_unit[] = DEFAULT_AXIS_STEPS_PER_UNIT;
 
@@ -104,6 +108,82 @@ Application::Application() {
   user_interface.addElement<UiWindow>("Components", [this](UiWindow* window){ this->sim.testPrinter.ui_widgets(); });
   user_interface.addElement<Viewport>("Viewport", [this](UiWindow* window){ this->sim.vis.ui_viewport_callback(window); }, [this](UiWindow* window){ this->sim.vis.ui_viewport_menu_callback(window); });
 
+  user_interface.addElement<UiWindow>("Planner", [this](UiWindow* window){
+    // lock Marlin from running, copy data that needs rendered to ui
+    static block_t planner_blocks[BLOCK_BUFFER_SIZE] {};
+    static int count = 0;
+    if(Kernel::marlin_data_mutex.try_lock()) {
+      count = 0;
+      for (auto i = Planner::block_buffer_tail;;) {
+        if ( i == Planner::block_buffer_head) break;
+        memcpy((void*)&planner_blocks[count], (void*)&planner.block_buffer[i], sizeof(block_t));
+        i = (i + 1) % BLOCK_BUFFER_SIZE;
+        ++count;
+      }
+      Kernel::marlin_data_mutex.unlock();
+    }
+
+    ScrollingData planner_data;
+    ScrollingData segment_data;
+
+    uint32_t step_count = 0;
+    uint32_t max_value = 0;
+    for (int i = 0; i < count; ++i) {
+      segment_data.AddPoint(step_count, 0.0);
+      segment_data.AddPoint(step_count, 1.0);
+      segment_data.AddPoint(step_count, 0.0);
+
+      if (planner_blocks[i].accelerate_before < planner_blocks[i].decelerate_start) {
+        planner_data.AddPoint(step_count, planner_blocks[i].initial_rate);
+        planner_data.AddPoint(step_count + planner_blocks[i].accelerate_before, planner_blocks[i].nominal_rate);
+        planner_data.AddPoint(step_count + planner_blocks[i].decelerate_start, planner_blocks[i].nominal_rate);
+        planner_data.AddPoint(step_count + planner_blocks[i].step_event_count, planner_blocks[i].final_rate);
+      } else if (planner_blocks[i].accelerate_before == planner_blocks[i].decelerate_start && (planner_blocks[i].decelerate_start == planner_blocks[i].step_event_count || planner_blocks[i].decelerate_start == 0)) {
+        planner_data.AddPoint(step_count, planner_blocks[i].initial_rate);
+        planner_data.AddPoint(step_count + planner_blocks[i].step_event_count, planner_blocks[i].final_rate);
+      } else if (planner_blocks[i].accelerate_before == planner_blocks[i].decelerate_start) {
+        // can only accelerate for planner_blocks[i].accelerate_before steps, planner_blocks[i].acceleration_rate?
+        // Acceleration rate in (2^24 steps)/timer_ticks*s
+        planner_data.AddPoint(step_count, planner_blocks[i].initial_rate);
+        planner_data.AddPoint(step_count + planner_blocks[i].accelerate_before, planner_blocks[i].nominal_rate); // this is not nominal rate, how do I get the speed it can reach given x steps of acceleration
+        planner_data.AddPoint(step_count + planner_blocks[i].step_event_count, planner_blocks[i].final_rate);
+      }
+
+      if (max_value < planner_blocks[i].nominal_rate) max_value = planner_blocks[i].nominal_rate;
+
+      step_count += planner_blocks[i].step_event_count;
+    }
+
+    max_value *= 1.1;
+
+    if (ImPlot::BeginPlot("##PannerData", ImVec2(-1,400))) {
+      ImPlot::SetupAxes(NULL, NULL, ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_RangeFit, ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_RangeFit);
+      ImPlot::SetupAxis(ImAxis_Y2, NULL, ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_RangeFit | ImPlotAxisFlags_NoGridLines);
+      ImPlot::SetupAxisLimits(ImAxis_X1, 0, step_count, ImPlotCond_Always );
+      ImPlot::SetupAxisLimits(ImAxis_Y1, 0, max_value, ImPlotCond_Always);
+      ImPlot::SetupAxisLimits(ImAxis_Y2, 0, 1.0, ImPlotCond_Always);
+      ImPlot::PlotLine("planner", &planner_data.Data[0].x, &planner_data.Data[0].y, planner_data.Data.size(), 0, planner_data.Offset, sizeof(ImPlotPoint));
+
+      ImPlot::SetAxis(ImAxis_Y2);
+      ImPlot::PlotLine("segments", &segment_data.Data[0].x, &segment_data.Data[0].y, segment_data.Data.size(), 0, segment_data.Offset, sizeof(ImPlotPoint));
+      ImPlot::EndPlot();
+    }
+
+    for (int i = 0; i < count; ++i) {
+      ImGui::Text("%d: %d, \t%d, \t%d, \t%d, \t%d, \t%d, \t%d",
+        step_count,
+        planner_blocks[i].accelerate_before,
+        planner_blocks[i].initial_rate,
+        planner_blocks[i].nominal_rate,
+        planner_blocks[i].decelerate_start,
+        planner_blocks[i].final_rate,
+        planner_blocks[i].step_event_count,
+        planner_blocks[i].acceleration_rate
+      );
+    }
+
+  });
+
   user_interface.addElement<UiWindow>("Simulation", [this](UiWindow* window){
     //Simulation Time
     uint64_t time_source = Kernel::SimulationRuntime::nanos();
@@ -116,11 +196,14 @@ Application::Application() {
     ImGui::Text("%02ld:%02ld:%02ld.%09ld", hours, mins, seconds, remainder); //TODO: work around cross platform format string differences
     // Simulation Control
     auto ui_realtime_scale = Kernel::TimeControl::realtime_scale.load();
-    ImGui::PushItemWidth(-1);
-    ImGui::SliderFloat("##SimSpeed", &ui_realtime_scale, 0.0f, 100.0f, "%.3f", ImGuiSliderFlags_Logarithmic);
-    ImGui::PopItemWidth();
     static float resume_scale = ui_realtime_scale;
     static bool paused = false;
+
+    ImGui::PushItemWidth(-1);
+    if (ImGui::SliderFloat("##SimSpeed", &ui_realtime_scale, 0.0f, 100.0f, "%.3f", ImGuiSliderFlags_Logarithmic)) {
+      paused = false;
+    }
+    ImGui::PopItemWidth();
     if (!paused) {
       if (ImGui::Button("Pause")) {
         resume_scale = ui_realtime_scale;
@@ -173,9 +256,9 @@ Application::Application() {
     ImGui::PopItemWidth();
     if (ui_time_window_start > (5.0 - ui_time_window)) ui_time_window_start = 5.0 - ui_time_window;
 
-    ScrollingData step_count_data;
-    ScrollingData step_velocity_data;
-    ScrollingData step_accel_data;
+    static ScrollingData step_position_data;
+    static ScrollingData step_velocity_data;
+    static ScrollingData step_accel_data;
 
     double time_window_length = ui_time_window;
     double pos_max_value = 10.0;
@@ -186,36 +269,101 @@ Application::Application() {
     double time_window_end = Kernel::SimulationRuntime::seconds() - ui_time_window_start;
     double time_window_start = Kernel::SimulationRuntime::seconds() - (time_window_length + ui_time_window_start);
 
-    step_count_data.AddPoint(point_time, position);
-    for (auto& value : x_stepper->history) {
-      position = (double)value.count / steps_per_unit[0];
-      point_time = (double)Kernel::TimeControl::ticksToNanos(value.timestamp) / Kernel::TimeControl::ONE_BILLION;
-      if (pos_max_value < std::fabs(position)) pos_max_value = position;
-      step_count_data.AddPoint(point_time, position);
+    // step_position_data.AddPoint(point_time, position);
+    // for (auto& value : x_stepper->history) {
+    //   position = (double)value.count / steps_per_unit[0];
+    //   point_time = (double)Kernel::TimeControl::ticksToNanos(value.timestamp) / Kernel::TimeControl::ONE_BILLION;
+    //   if (pos_max_value < std::fabs(position)) pos_max_value = position;
+    //   step_position_data.AddPoint(point_time, position);
 
-      if (step_count_data.Data.size() > 1) {
-        uint64_t index = step_count_data.Data.size() - 1;
-        point_time = step_count_data.Data[index].x;
-        double time_delta = step_count_data.Data[index].x - step_count_data.Data[index - 1].x;
-        double position_delta = step_count_data.Data[index].y - step_count_data.Data[index - 1].y;
-        double velocity = position_delta / (time_delta != 0.0 ? time_delta : 0.000000001 );
-        if (vel_max_value < std::fabs(velocity)) vel_max_value = velocity;
-        step_velocity_data.AddPoint(point_time, velocity);
+    //   if (step_position_data.Data.size() > 1) {
+    //     uint64_t index = step_position_data.Data.size() - 1;
+    //     point_time = step_position_data.Data[index].x;
+    //     double time_delta = step_position_data.Data[index].x - step_position_data.Data[index - 1].x;
+    //     double position_delta = step_position_data.Data[index].y - step_position_data.Data[index - 1].y;
+    //     double velocity = position_delta / (time_delta != 0.0 ? time_delta : 0.000000001 );
+    //     if (vel_max_value < std::fabs(velocity)) vel_max_value = velocity;
+    //     step_velocity_data.AddPoint(point_time, velocity);
 
-        if (step_velocity_data.Data.size() > 1) {
-          index = step_velocity_data.Data.size() - 1;
-          point_time = step_velocity_data.Data[index].x;
-          time_delta = step_velocity_data.Data[index].x - step_velocity_data.Data[index - 1].x;
-          double velocity_delta = step_velocity_data.Data[index].y - step_velocity_data.Data[index - 1].y;
-          if (time_delta > 0.0000001) {
-            double accel = velocity_delta / time_delta;
-            if (acc_max_value < std::fabs(accel)) acc_max_value = accel;
-            step_accel_data.AddPoint(point_time, accel);
+    //     if (step_velocity_data.Data.size() > 1) {
+    //       index = step_velocity_data.Data.size() - 1;
+    //       point_time = step_velocity_data.Data[index].x;
+    //       time_delta = step_velocity_data.Data[index].x - step_velocity_data.Data[index - 1].x;
+    //       double velocity_delta = step_velocity_data.Data[index].y - step_velocity_data.Data[index - 1].y;
+    //       if (time_delta > 0.0000001) {
+    //         double accel = velocity_delta / (time_delta != 0.0 ? time_delta : 0.000000001 );
+    //         if (acc_max_value < std::fabs(accel)) acc_max_value = accel;
+    //         step_accel_data.AddPoint(point_time, accel);
+    //       }
+    //     }
+    //   }
+    // }
+    // step_position_data.AddPoint(time_window_end, position);
+    if (Kernel::marlin_data_mutex.try_lock()) {
+      step_position_data.Erase();
+      step_velocity_data.Erase();
+      step_accel_data.Erase();
+
+      if (x_stepper->history.size() > 1) {
+        double time = time_window_start;
+        double time_step = time_window_length / 1000;
+
+        for (size_t i = 0; i < (x_stepper->history.size() - 1);) {
+          auto& s_start = x_stepper->history[i];
+          auto& s_end = x_stepper->history[i + 1];
+          auto s_start_time = ((double)Kernel::TimeControl::ticksToNanos(s_start.timestamp)) / Kernel::TimeControl::ONE_BILLION;
+          auto s_end_time = ((double)Kernel::TimeControl::ticksToNanos(s_end.timestamp)) / Kernel::TimeControl::ONE_BILLION;
+          auto start_position = (double)s_start.count / steps_per_unit[0];
+          auto end_position = (double)s_end.count / steps_per_unit[0];
+
+          if (time > s_end_time) {
+            position = end_position;
+            step_position_data.AddPoint(s_end_time, position);
+            if (pos_max_value < std::fabs(position)) pos_max_value = std::fabs(position);
+            ++i;
+            continue;
+          } else if (time < s_start_time) {
+            position = start_position;
+            step_position_data.AddPoint(time, position);
+            if (pos_max_value < std::fabs(position)) pos_max_value = std::fabs(position);
+            time += time_step;
+            continue;
           }
+
+          // Position linear interpolate
+          auto delta_position = end_position - start_position;
+          auto section_time = s_end_time - s_start_time;
+          auto section_time_complete = time - s_start_time;
+          auto time_ratio = section_time_complete / section_time;
+          position = start_position + (delta_position * time_ratio);
+
+          step_position_data.AddPoint(time, position);
+          if (pos_max_value < std::fabs(position)) pos_max_value = std::fabs(position);
+
+          //Velocity
+          double velocity = delta_position / section_time;
+          step_velocity_data.AddPoint(time, velocity);
+          if (vel_max_value < std::fabs(velocity)) vel_max_value = std::fabs(velocity);
+
+          //Acceleration
+          if(step_velocity_data.Data.size() > 1) {
+            double last_velocity = step_velocity_data.Data[step_velocity_data.Data.size() - 2].y;
+            double last_vel_time = step_velocity_data.Data[step_velocity_data.Data.size() - 2].x;
+
+            double accel = (velocity - last_velocity) / (time - last_vel_time);
+            step_accel_data.AddPoint(time, accel);
+            if (acc_max_value < std::fabs(accel)) acc_max_value = std::fabs(accel);
+          }
+
+          time += time_step;
         }
+        step_position_data.AddPoint(time_window_end, position);
+      } else {
+        step_position_data.AddPoint(time_window_start, 0.0);
+        step_position_data.AddPoint(time_window_end, 0.0);
       }
+      Kernel::marlin_data_mutex.unlock();
     }
-    step_count_data.AddPoint(time_window_end, position);
 
 
     pos_max_value *= 1.1;
@@ -224,11 +372,11 @@ Application::Application() {
 
    static ImPlotRect limits, select;
 
-    if (ImPlot::BeginPlot("##XStepperCount", ImVec2(-1,200))) {
+    if (ImPlot::BeginPlot("##XStepperCount", ImVec2(-1,400))) {
       ImPlot::SetupAxes(NULL, NULL, ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_RangeFit, ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_RangeFit);
       ImPlot::SetupAxisLimits(ImAxis_X1, time_window_start, time_window_end, ImPlotCond_Always );
       ImPlot::SetupAxisLimits(ImAxis_Y1, -pos_max_value, pos_max_value, ImPlotCond_Always);
-      ImPlot::PlotLine("X Step", &step_count_data.Data[0].x, &step_count_data.Data[0].y, step_count_data.Data.size(), 0, step_count_data.Offset, sizeof(ImPlotPoint));
+      ImPlot::PlotLine("X Step", &step_position_data.Data[0].x, &step_position_data.Data[0].y, step_position_data.Data.size(), 0, step_position_data.Offset, sizeof(ImPlotPoint));
       ImPlot::EndPlot();
     }
 
