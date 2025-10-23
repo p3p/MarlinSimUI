@@ -33,6 +33,7 @@
     "flags": [
       "-Isrc",
       "-Iinclude",
+      "-Ivendor",
       "-Ivendor/imgui-1.92.3-docking",
       "-Ivendor/imgui-1.92.3-docking/backends",
       "-Ivendor/implot-3da8bd3",
