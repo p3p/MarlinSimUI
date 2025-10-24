@@ -81,12 +81,17 @@ uint16_t analogRead(pin_t adc_pin) {
   return Gpio::get(digitalPinToAnalogIndex(adc_pin));
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 char *dtostrf(double __val, signed char __width, unsigned char __prec, char *__s) {
   char format_string[20];
   snprintf(format_string, 20, "%%%d.%df", __width, __prec);
   sprintf(__s, format_string, __val);
   return __s;
 }
+
+#pragma GCC diagnostic pop
 
 int32_t random(int32_t max) {
   return rand() % max;

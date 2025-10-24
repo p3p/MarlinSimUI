@@ -160,7 +160,6 @@ public:
   std::shared_ptr<renderer::ShaderProgram> default_program;
 
   bool mouse_captured = false;
-  bool input_state[6] = {};
   glm::vec<2, int> mouse_lock_pos;
 
   #define BED_NORMAL 0.0, 1.0, 0.0
