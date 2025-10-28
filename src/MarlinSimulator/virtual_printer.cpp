@@ -18,6 +18,7 @@
 #include "hardware/pwm_reader.h"
 #include "hardware/BLTouch.h"
 #include "hardware/Buzzer.h"
+#include "hardware/Speaker.h"
 
 #include "virtual_printer.h"
 
@@ -196,6 +197,7 @@ void VirtualPrinter::build() {
 
   #ifdef BEEPER_PIN
     #ifdef SPEAKER
+      root->add_component<Speaker>("Speaker", BEEPER_PIN, false);
     #else
       root->add_component<Buzzer>("Buzzer", BEEPER_PIN, false);
     #endif

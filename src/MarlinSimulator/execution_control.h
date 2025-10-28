@@ -209,7 +209,7 @@ public:
         return timers[timer_id].compare;
       return 0;
     }
-    static std::array<KernelTimer, 4> timers;
+    static std::array<KernelTimer, 5> timers;
   };
 
   // To avoid issues with global initialization order, this should be called with a true value

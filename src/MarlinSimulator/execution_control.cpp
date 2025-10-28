@@ -23,8 +23,15 @@ std::atomic_bool Kernel::debug_break_flag = false;
 extern void marlin_loop();
 extern "C" void TIMER0_IRQHandler();
 extern "C" void TIMER1_IRQHandler();
+extern "C" void TIMER3_IRQHandler();
 extern void SYSTICK_IRQHandler();
-std::array<KernelTimer, 4> Kernel::Timers::timers({KernelTimer{"Stepper ISR", TIMER0_IRQHandler, 1}, {"Temperature ISR", TIMER1_IRQHandler, 10}, {"SysTick", SYSTICK_IRQHandler, 5}, {"Marlin Loop", marlin_loop, 100}});
+
+std::array<KernelTimer, 5> Kernel::Timers::timers({KernelTimer {"Stepper ISR", TIMER0_IRQHandler, 1},
+                                                               {"Temperature ISR", TIMER1_IRQHandler, 10},
+                                                               {"SysTick", SYSTICK_IRQHandler, 5},
+                                                               {"Tone ISR", TIMER3_IRQHandler, 8},
+                                                               {"Marlin Loop", marlin_loop, 100}
+});
 
 bool Kernel::timers_active = true;
 std::deque<KernelTimer*> Kernel::isr_stack;
@@ -116,6 +123,7 @@ uint64_t Kernel::TimeControl::nanos() {
   if (debug_break_flag) { debug_break_flag = false; debug_break();}  // break into debugger when stuck in time dependent loops
   if (quit_requested) throw (std::runtime_error("Quit Requested"));  // quit program when stuck in time dependent loops
   addTicks(1 + nanosToTicks(100)); // Marlin has loops that only break after x ticks, so we need to increment ticks here
+  yield();
   return ticksToNanos(getTicks());
 }
 

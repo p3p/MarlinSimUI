@@ -10,7 +10,7 @@ struct SdlAudio{
 static bool running = false;
 static SdlAudio audio;
 static Config config = {.sampleFrequency = 44100, // Standard CD quality
-                        .sampleSize = 512,       // 11ms
+                        .sampleSize = 4410,       // 100ms
                         .audioFrequency = 440,    // A4 frequency
                         .audioAmplitude = 200};   // Volume
 

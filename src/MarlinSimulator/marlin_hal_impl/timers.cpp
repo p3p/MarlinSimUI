@@ -28,6 +28,7 @@ extern Kernel kernel;
 void HAL_timer_init() {
   Kernel::Timers::timerInit(MF_TIMER_STEP, STEPPER_TIMER_RATE);
   Kernel::Timers::timerInit(MF_TIMER_TEMP, TEMP_TIMER_RATE);
+  Kernel::Timers::timerInit(MF_TIMER_TONE, TONE_TIMER_RATE);
   // Configure and start systick early
   Kernel::Timers::timerInit(MF_TIMER_SYSTICK, 1000000);
   HAL_timer_enable_interrupt(MF_TIMER_SYSTICK);
