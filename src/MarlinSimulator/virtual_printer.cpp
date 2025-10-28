@@ -17,6 +17,7 @@
 #include "hardware/KinematicSystem.h"
 #include "hardware/pwm_reader.h"
 #include "hardware/BLTouch.h"
+#include "hardware/Buzzer.h"
 
 #include "virtual_printer.h"
 
@@ -191,6 +192,13 @@ void VirtualPrinter::build() {
 
   #ifdef NEOPIXEL_LED
     root->add_component<NeoPixelDevice>("NeoPixelDevice", NEOPIXEL_PIN, NEOPIXEL_TYPE, NEOPIXEL_PIXELS);
+  #endif
+
+  #ifdef BEEPER_PIN
+    #ifdef SPEAKER
+    #else
+      root->add_component<Buzzer>("Buzzer", BEEPER_PIN, false);
+    #endif
   #endif
 
   for(auto const& component : components) component->ui_init();

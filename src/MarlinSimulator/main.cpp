@@ -7,6 +7,7 @@
 #include "src/inc/MarlinConfig.h"
 
 #include "RawSocketSerial.h"
+#include "audio.h"
 
 RawSocketSerial net_serial{};
 
@@ -59,8 +60,12 @@ void simulation_main() {
 
 // Main code
 int main(int, char**) {
-  SDL_Init(0);
+  bool audio_enabled = true; // TODO: get from config
+  uint32_t sdl_flags = audio_enabled ? SDL_INIT_AUDIO : 0;
+  SDL_Init(sdl_flags);
   SDLNet_Init();
+
+  if (audio_enabled) audio_init();
 
   // Listen before starting simulator loop to avoid
   // thread synchronization issues if listen_on_port fails
