@@ -80,7 +80,7 @@ public:
     inline static void realtime_sync() {
       updateRealtime();
       if (getRealtimeTicks() > getTicks() || realtime_scale > 99.0f) {
-        realtime_nanos = nanos();
+        realtime_nanos = SimulationRuntime::nanos();
       } else while (getTicks() > getRealtimeTicks()) {
         if (quit_requested) throw (std::runtime_error("Quit Requested"));  // quit program when stuck at 0 speed
         updateRealtime();

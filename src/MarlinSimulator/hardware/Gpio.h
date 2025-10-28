@@ -85,7 +85,7 @@ public:
     if (value != pin_map[pin].value) { // Optimizes for size, but misses "meaningless" sets
       pin_map[pin].value = value;
       if (logging_enabled) {
-        pin_map[pin].event_log.push_back(pin_log_data{Kernel::TimeControl::nanos(), pin_map[pin].value});
+        pin_map[pin].event_log.push_back(pin_log_data{Kernel::SimulationRuntime::nanos(), pin_map[pin].value});
         if (pin_map[pin].event_log.size() > 100000) pin_map[pin].event_log.pop_front();
       }
     }
@@ -184,7 +184,7 @@ public:
     for (auto &pin : pin_map) {
       // Seed each pin with an initial value to ensure important edges are not the first sample.
       pin.event_log.clear();
-      pin.event_log.push_back(pin_log_data{Kernel::TimeControl::nanos(), pin.value});
+      pin.event_log.push_back(pin_log_data{Kernel::SimulationRuntime::nanos(), pin.value});
     }
   }
 
