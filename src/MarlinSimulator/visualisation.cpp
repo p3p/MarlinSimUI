@@ -24,11 +24,21 @@ Visualisation::Visualisation(VirtualPrinter& virtual_printer) : virtual_printer(
   for (int i = 0; i < EXTRUDERS; ++i) {
     extrusion.push_back({});
   }
+
+  SERIAL_ECHOLNPGM("\nCamera Controls:\nW A S D : Pan             F G : Follow Z / XY\nE Q     : Zoom In / Out   F1  : Path (Full)\nI       : Invert Pan      F2  : Path (Line)\nR       : Reset View      F4  : Path Clear\n");
 }
 
 Visualisation::~Visualisation() {
   destroy();
 }
+
+static PerspectiveCamera initCamera = {
+  { 37.0f, 121.0f, 129.0f }, // Position
+  { -192.0f, -25.0, 0.0f },  // Rotation
+  { 0.0f, 1.0f, 0.0f },      // Up = Y-Axis
+  float(100) / float(100),   // Aspect Ratio
+  glm::radians(45.0f), 0.1f, 2000.0f // FOV, Near, Far
+};
 
 void Visualisation::create() {
   extrusion_program = renderer::ShaderProgram::create("data/shaders/extrusion.vs", "data/shaders/extrusion.fs", "data/shaders/extrusion.gs");
@@ -44,7 +54,7 @@ void Visualisation::create() {
     }
   }
 
-  camera = { {37.0f, 121.0f, 129.0f}, {-192.0f, -25.0, 0.0f}, {0.0f, 1.0f, 0.0f}, float(100) / float(100), glm::radians(45.0f), 0.1f, 2000.0f};
+  camera = initCamera;
   camera.generate();
 
   if (EXTRUDERS > 0) {
@@ -335,9 +345,9 @@ void Visualisation::ui_viewport_menu_callback(UiWindow*) {
   if (ImGui::BeginMenuBar()) {
     if (ImGui::BeginMenu("Camera")) {
       if (ImGui::MenuItem("Reset")) {
-        camera.position = {37.0f, 121.0f, 129.0f};
-        camera.rotation = {-192.0f, -25.0, 0.0f};
-        camera.up       = {0.0f, 1.0f, 0.0f};
+        follow_mode = FOLLOW_NONE;
+        camera = initCamera;
+        camera.generate();
       }
       // if (ImGui::BeginMenu("Mode")) {
       //   if (ImGui::MenuItem("Fly", nullptr, true, true)) { }
@@ -404,6 +414,8 @@ void Visualisation::ui_viewport_menu_callback(UiWindow*) {
 }
 
 void Visualisation::ui_viewport_callback(UiWindow* window) {
+  static bool invert_pan = false;
+
   std::scoped_lock extrusion_lock(extrusion_mutex);
   auto now = clock.now();
   float delta = std::chrono::duration_cast<std::chrono::duration<float>>(now- last_update).count();
@@ -421,23 +433,39 @@ void Visualisation::ui_viewport_callback(UiWindow* window) {
   }
 
   if (viewport.focused) {
+    // R = Camera Reset
+    if (ImGui::IsKeyDown(ImGuiKey_R)) {
+      follow_mode = FOLLOW_NONE;
+      camera = initCamera;
+      camera.generate();
+    }
+    // W A S D = Camera Pan
     if (ImGui::IsKeyDown(ImGuiKey_W)) {
-      camera.position += camera.speed * camera.direction * delta;
+      const glm::vec3 dist = camera.world_up * camera.speed * delta;
+      camera.position += invert_pan ? -dist : dist;
     }
     if (ImGui::IsKeyDown(ImGuiKey_S)) {
-      camera.position -= camera.speed * camera.direction * delta;
+      const glm::vec3 dist = camera.world_up * camera.speed * delta;
+      camera.position -= invert_pan ? -dist : dist;
     }
     if (ImGui::IsKeyDown(ImGuiKey_A)) {
-      camera.position -= glm::normalize(glm::cross(camera.direction, camera.up)) * camera.speed * delta;
+      const glm::vec3 dist = glm::normalize(glm::cross(camera.direction, camera.up)) * camera.speed * delta;
+      camera.position -= invert_pan ? -dist : dist;
     }
     if (ImGui::IsKeyDown(ImGuiKey_D)) {
-      camera.position += glm::normalize(glm::cross(camera.direction, camera.up)) * camera.speed * delta;
+      const glm::vec3 dist = glm::normalize(glm::cross(camera.direction, camera.up)) * camera.speed * delta;
+      camera.position += invert_pan ? -dist : dist;
     }
-    if (ImGui::IsKeyDown(ImGuiKey_Space)) {
-      camera.position += camera.world_up * camera.speed * delta;
+    // I = Invert WASD
+    if (ImGui::IsKeyPressed(ImGuiKey_I)) {
+      invert_pan ^= true;
     }
-    if (ImGui::IsKeyDown(ImGuiKey_LeftShift)) {
-      camera.position -= camera.world_up * camera.speed * delta;
+    // E / Q = Camera Zoom / Unzoom
+    if (ImGui::IsKeyDown(ImGuiKey_E)) {
+      camera.position += camera.speed * camera.direction * delta;
+    }
+    if (ImGui::IsKeyDown(ImGuiKey_Q)) {
+      camera.position -= camera.speed * camera.direction * delta;
     }
     if (ImGui::IsKeyPressed(ImGuiKey_F)) {
       follow_mode = follow_mode == FOLLOW_Z ? FOLLOW_NONE : FOLLOW_Z;
