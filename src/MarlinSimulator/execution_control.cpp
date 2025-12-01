@@ -65,14 +65,22 @@ bool Kernel::execute_loop( uint64_t max_end_ticks) {
 
   static auto terminal_3 = UserInterface::getElement<SerialMonitor>("Serial Monitor(3)");
   if (terminal_3) {
-    serial_stream_3.transmit_buffer.read(terminal_3->serial_buffer.in);
+    if (serial_stream_3.transmit_buffer.available()) {
+      static uint8_t buffer[1024];
+      auto count = serial_stream_3.transmit_buffer.read(buffer, std::size(buffer));
+      terminal_3->serial_buffer.in.write(buffer, count);
+      {
+        std::scoped_lock buffer_lock(net_serial.buffer_mutex);
+        net_serial.tx_buffer.write(buffer, count);
+      }
+    }
     terminal_3->serial_buffer.out.read(serial_stream_3.receive_buffer);
   }
 
   if (net_serial.available()) {
-    char buffer[512];
+    static char buffer[1024];
     std::scoped_lock buffer_lock(net_serial.buffer_mutex);
-    auto count = net_serial.readBytes(buffer, 512);
+    auto count = net_serial.readBytes(buffer, std::size(buffer));
     serial_stream_3.receive_buffer.write((uint8_t *)buffer, count);
   }
 
