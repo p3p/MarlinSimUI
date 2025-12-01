@@ -34,11 +34,10 @@ struct KernelTimer {
   bool enabled() { return active; }
   void disable() { active = false; }
 
-  // in timer frequency
+  // In timer frequency
   void set_compare(const uint64_t compare) { this->compare = compare; }
   uint64_t get_compare() { return compare; }
   uint64_t get_count(const uint64_t source_count, const uint64_t source_frequency) { return tickConvertFrequency(source_count - source_offset, source_frequency, timer_frequency); }
-
 
   void set_isr(std::string name, void (*callback)()) {
     isr_function = {callback};
@@ -65,9 +64,9 @@ public:
       auto now = clock.now();
       auto delta = now - last_clock_read;
       uint64_t delta_uint64 = std::chrono::duration_cast<std::chrono::nanoseconds>(delta).count();
-      if(delta_uint64 > std::numeric_limits<std::uint64_t>::max() - ONE_BILLION) {
+      if (delta_uint64 > std::numeric_limits<std::uint64_t>::max() - ONE_BILLION) {
         //printf("rt info: %ld : %f\n", delta_uint64, realtime_scale.load());
-        //aparently time can go backwards, thread issue?
+        // Apparently time can go backwards, thread issue?
         delta_uint64 = 0;
       }
       uint64_t delta_uint64_scaled = delta_uint64 * realtime_scale;
@@ -82,7 +81,7 @@ public:
       if (getRealtimeTicks() > getTicks() || realtime_scale > 99.0f) {
         realtime_nanos = SimulationRuntime::nanos();
       } else while (getTicks() > getRealtimeTicks()) {
-        if (quit_requested) throw (std::runtime_error("Quit Requested"));  // quit program when stuck at 0 speed
+        if (quit_requested) throw (std::runtime_error("Quit Requested"));  // Quit program when stuck at 0 speed
         updateRealtime();
         realtime_scale > 20.0f ?  std::this_thread::yield() : std::this_thread::sleep_for(std::chrono::nanoseconds(1));
       }
@@ -157,7 +156,7 @@ public:
     inline static void timerInit(uint8_t timer_id, uint32_t rate) {
       if (timer_id < timers.size()) {
         timers[timer_id].timer_frequency = rate;
-        // printf("Timer[%d] Initialised( rate: %d )\n", timer_id, rate);
+        //printf("Timer[%d] Initialised( rate: %d )\n", timer_id, rate);
       }
     }
 
@@ -165,14 +164,14 @@ public:
       if (timer_id < timers.size()) {
         timers[timer_id].compare = timers[timer_id].timer_frequency / interrupt_frequency;
         timers[timer_id].source_offset = TimeControl::getTicks();
-        // printf("Timer[%d] Started( frequency: %d compare: %ld)\n", timer_id, interrupt_frequency, timers[timer_id].compare);
+        //printf("Timer[%d] Started( frequency: %d compare: %ld)\n", timer_id, interrupt_frequency, timers[timer_id].compare);
       }
     }
 
     inline static void timerEnable(uint8_t timer_id) {
       if (timer_id < timers.size()) {
         timers[timer_id].active = true;
-        // printf("Timer[%d] Enabled\n", timer_id);
+        //printf("Timer[%d] Enabled\n", timer_id);
       }
     }
 
@@ -190,9 +189,7 @@ public:
     }
 
     inline static void timerSetCompare(uint8_t timer_id, uint64_t compare) {
-      if (timer_id < timers.size()) {
-        timers[timer_id].compare = compare;
-      }
+      if (timer_id < timers.size()) timers[timer_id].compare = compare;
     }
 
     inline static uint64_t timerGetCount(uint8_t timer_id) {
@@ -214,13 +211,13 @@ public:
 
   // To avoid issues with global initialization order, this should be called with a true value
   // to enable operation of execute_loop.
-  static bool is_initialized(bool known_state = false);
+  static bool is_initialized(const bool known_state = false);
 
-  //execute highest priority thread with closest interrupt, return true if something was executed
+  // Execute highest priority thread with closest interrupt, return true if something was executed
   static bool execute_loop(uint64_t max_end_ticks = std::numeric_limits<uint64_t>::max());
-  // if a thread wants to wait, see what should be executed during that wait
-  static void delayCycles(uint64_t cycles);
-  // this was neede for when marlin loops idle waiting for an event with no delays
+  // If a thread wants to wait, see what should be executed during that wait
+  static void delayCycles(const uint64_t cycles);
+  // This was needed for when marlin loops idle waiting for an event with no delays
   static void yield();
 
   static void shutdown() {
@@ -230,14 +227,9 @@ public:
 
   static void execution_break() { debug_break_flag = true; }
 
-  //Timers
-  inline static void disableInterrupts() {
-    timers_active = false;
-  }
-
-  inline static void enableInterrupts() {
-    timers_active = true;
-  }
+  // Timers
+  inline static void disableInterrupts() { timers_active = false; }
+  inline static void enableInterrupts() { timers_active = true; }
 
   inline static void delayNanos(uint64_t ns) {
     delayCycles(TimeControl::nanosToTicks(ns));

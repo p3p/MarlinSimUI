@@ -25,7 +25,7 @@ namespace resource {
     std::streamsize size = file.tellg();
     file.seekg(0, std::ios::beg);
     m_data.reserve(size + 1);
-    if(file.read(m_data.data(), size)) {
+    if (file.read(m_data.data(), size)) {
       m_buffer = m_data.data();
       m_data[size] = 0;
     } else {

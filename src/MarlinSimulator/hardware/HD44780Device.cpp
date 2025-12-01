@@ -38,8 +38,12 @@ HD44780Device::HD44780Device(pin_type rs, pin_type en, pin_type d4, pin_type d5,
     active_rom = hd44780_a00_rom;
   #elif DISPLAY_CHARSET_HD44780 == WESTERN
     active_rom = hd44780_a02_rom;
+  #elif DISPLAY_CHARSET_HD44780 == CYRILLIC
+    active_rom = hd44780_a02_rom;
+    #warning "CYRILLIC HD44780 Character ROM not available. Falling back to WESTERN."
   #else
-    #error Unavailable HD44780 Character ROM
+    active_rom = hd44780_a02_rom;
+    #warning "Unknown HD44780 Character ROM. Falling back to WESTERN."
   #endif
 }
 
@@ -143,7 +147,7 @@ void HD44780Device::update() {
 }
 
 void HD44780Device::interrupt(GpioEvent& ev) {
-  if(ev.pin_id == en_pin && ev.event == GpioEvent::RISE) {
+  if (ev.pin_id == en_pin && ev.event == GpioEvent::RISE) {
     //read the bus
     data_byte |= (Gpio::get_pin_value(d7_pin) << 3 | Gpio::get_pin_value(d6_pin) << 2 | Gpio::get_pin_value(d5_pin) << 1 |Gpio::get_pin_value(d4_pin)) << (4 * !data_low_nibble);
     data_low_nibble = !data_low_nibble;

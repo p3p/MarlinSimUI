@@ -16,7 +16,7 @@ public:
 
   void ui_widget() {
     ImGui::Button("State");
-    if(ImGui::IsItemActive()) {
+    if (ImGui::IsItemActive()) {
       active = invert_logic;
     } else {
       active = !invert_logic;

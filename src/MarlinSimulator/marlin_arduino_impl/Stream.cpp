@@ -128,22 +128,22 @@ long Stream::parseInt(char skipChar)
 
   c = peekNextDigit();
   // ignore non numeric leading characters
-  if(c < 0)
+  if (c < 0)
     return 0; // zero returned if timeout
 
-  do{
-    if(c == skipChar)
+  do {
+    if (c == skipChar)
       ; // ignore this charactor
-    else if(c == '-')
+    else if (c == '-')
       isNegative = true;
-    else if(c >= '0' && c <= '9')        // is c a digit?
+    else if (c >= '0' && c <= '9')       // is c a digit?
       value = value * 10 + c - '0';
     read();  // consume the character we got with peek
     c = timedPeek();
   }
   while( (c >= '0' && c <= '9') || c == skipChar );
 
-  if(isNegative)
+  if (isNegative)
     value = -value;
   return value;
 }
@@ -165,20 +165,20 @@ float Stream::parseFloat(char skipChar){
   float fraction = 1.0;
 
   c = peekNextDigit();
-    // ignore non numeric leading characters
-  if(c < 0)
+  // ignore non numeric leading characters
+  if (c < 0)
     return 0; // zero returned if timeout
 
-  do{
-    if(c == skipChar)
+  do {
+    if (c == skipChar)
       ; // ignore
-    else if(c == '-')
+    else if (c == '-')
       isNegative = true;
     else if (c == '.')
       isFraction = true;
-    else if(c >= '0' && c <= '9')  {      // is c a digit?
+    else if (c >= '0' && c <= '9')  {     // is c a digit?
       value = value * 10 + c - '0';
-      if(isFraction)
+      if (isFraction)
          fraction *= 0.1;
     }
     read();  // consume the character we got with peek
@@ -186,9 +186,9 @@ float Stream::parseFloat(char skipChar){
   }
   while( (c >= '0' && c <= '9')  || c == '.' || c == skipChar );
 
-  if(isNegative)
+  if (isNegative)
     value = -value;
-  if(isFraction)
+  if (isFraction)
     return value * fraction;
   else
     return value;

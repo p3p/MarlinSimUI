@@ -70,7 +70,7 @@ public:
     callbacks.push_back(std::function<void(SpiEvent&)>(args...));
   }
 
-  void acquire() { if(busy == true) printf("spi bus contention!\n"); busy = true; }
+  void acquire() { if (busy) printf("spi bus contention!\n"); busy = true; }
   void release() { busy = false; }
   bool is_busy() { return busy; }
 

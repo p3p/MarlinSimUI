@@ -122,7 +122,7 @@ void Visualisation::create() {
   }
 
   auto kin = virtual_printer.get_component<KinematicSystem>("Cartesian Kinematic System");
-  if(kin == nullptr) kin = virtual_printer.get_component<KinematicSystem>("Delta Kinematic System");
+  if (kin == nullptr) kin = virtual_printer.get_component<KinematicSystem>("Delta Kinematic System");
   if (kin != nullptr && kin->state.effector_position.size() == extrusion.size()) {
     size_t i = 0;
     for (auto state : kin->state.effector_position) {
@@ -250,7 +250,7 @@ void Visualisation::update() {
 }
 
 void Visualisation::destroy() {
-  if(framebuffer != nullptr) {
+  if (framebuffer != nullptr) {
     framebuffer->release();
     delete framebuffer;
   }
@@ -283,7 +283,7 @@ void Visualisation::set_head_position(size_t hotend_index, extruder_state& state
     if (active_buffer != nullptr && active_buffer->size() > 1 && active_buffer->size() < renderer::MAX_BUFFER_SIZE) {
 
       if (glm::length(glm::vec3(position) - glm::vec3(extruder.last_position)) > m_config.extrusion_segment_minimum_length) { // smooth out the path so the model renders with less geometry, rendering each individual step hurts the fps
-        if((points_are_collinear(position, active_buffer->cdata().end()[-3].position, active_buffer->cdata().end()[-2].position, m_config.extrusion_segment_collinearity_max_deviation) && extruder.extruding == extruder.last_extruding) || ( extruder.extruding == false && extruder.last_extruding == false)) {
+        if ((points_are_collinear(position, active_buffer->cdata().end()[-3].position, active_buffer->cdata().end()[-2].position, m_config.extrusion_segment_collinearity_max_deviation) && extruder.extruding == extruder.last_extruding) || ( extruder.extruding == false && extruder.last_extruding == false)) {
           // collinear and extrusion state has not changed so we can just change the current point.
           active_buffer->data().end()[-2].position = position;
           active_buffer->data().end()[-1].position = position;
@@ -464,18 +464,18 @@ void Visualisation::ui_viewport_callback(UiWindow* window) {
   }
 
   // IMGUI: Relative Mouse mode within a window does not seem to be supported through the imgui mouse api
-  if (mouse_captured && !last_mouse_captured) {
+  if (mouse_captured && !last_mouse_captured) {        // Mouse button was just pressed
     ImVec2 mouse_pos = ImGui::GetMousePos();
-    mouse_lock_pos = {mouse_pos.x, mouse_pos.y};
+    mouse_lock_pos = { mouse_pos.x, mouse_pos.y };
     SDL_SetWindowGrab(SDL_GL_GetCurrentWindow(), SDL_TRUE);
     SDL_SetRelativeMouseMode(SDL_TRUE);
     SDL_GetRelativeMouseState(nullptr, nullptr);
-  } else if (!mouse_captured && last_mouse_captured) {
+  } else if (!mouse_captured && last_mouse_captured) { // Mouse button was just released
     SDL_SetRelativeMouseMode(SDL_FALSE);
     SDL_SetWindowGrab(SDL_GL_GetCurrentWindow(), SDL_FALSE);
     SDL_WarpMouseInWindow(SDL_GL_GetCurrentWindow(), mouse_lock_pos.x, mouse_lock_pos.y);
     SDL_GetRelativeMouseState(nullptr, nullptr);
-  } else if (mouse_captured) {
+  } else if (mouse_captured) {                         // Mouse button is being held
     int rel_x, rel_y;
     SDL_GetRelativeMouseState(&rel_x, &rel_y);
     camera.rotation.x -= rel_x * 0.2;
