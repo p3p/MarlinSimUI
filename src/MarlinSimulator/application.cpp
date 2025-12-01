@@ -195,7 +195,7 @@ Application::Application() {
         ImGui::SliderFloat("Window", &window, 10.f, 100000000000.f,"%.0f ns", ImGuiSliderFlags_Logarithmic);
         static float offset = 0.0f;
         ImGui::SliderFloat("X offset", &offset, 0.f, 10000000000.f,"%.0f ns");
-        ImGui::SliderFloat("X offset", &offset, 0.f, 100000000000.f,"%.0f ns");
+        ImGui::SliderFloat("X offset##2", &offset, 0.f, 100000000000.f,"%.0f ns");
         if (ImPlot::BeginPlot("##SignalAnalyser", ImVec2(-1,150))) {
           ImPlot::SetupAxes(NULL, NULL, ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_LockMin, ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_LockMin);
           ImPlot::SetupAxisLimits(ImAxis_X1, Kernel::SimulationRuntime::nanos() - window - offset, Kernel::SimulationRuntime::nanos() - offset, ImGuiCond_Always);
