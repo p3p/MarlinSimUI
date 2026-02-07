@@ -123,6 +123,12 @@ void Visualisation::create() {
 
   auto kin = virtual_printer.get_component<KinematicSystem>("Cartesian Kinematic System");
   if(kin == nullptr) kin = virtual_printer.get_component<KinematicSystem>("Delta Kinematic System");
+  if(kin == nullptr) kin = virtual_printer.get_component<KinematicSystem>("CoreXY Kinematic System");
+  if(kin == nullptr) kin = virtual_printer.get_component<KinematicSystem>("CoreXZ Kinematic System");
+  if(kin == nullptr) kin = virtual_printer.get_component<KinematicSystem>("CoreYZ Kinematic System");
+  if(kin == nullptr) kin = virtual_printer.get_component<KinematicSystem>("CoreYX Kinematic System");
+  if(kin == nullptr) kin = virtual_printer.get_component<KinematicSystem>("CoreZX Kinematic System");
+  if(kin == nullptr) kin = virtual_printer.get_component<KinematicSystem>("CoreZY Kinematic System");
   if (kin != nullptr && kin->state.effector_position.size() == extrusion.size()) {
     size_t i = 0;
     for (auto state : kin->state.effector_position) {

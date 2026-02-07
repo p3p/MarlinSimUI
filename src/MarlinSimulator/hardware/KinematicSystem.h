@@ -42,6 +42,54 @@ public:
   std::vector<double> extruder {};
 };
 
+class CoreXYKinematicSystem : public KinematicSystem {
+public:
+  CoreXYKinematicSystem(std::function<void(kinematic_state&)> on_kinematic_update);
+  virtual void ui_widget() override;
+  virtual void kinematic_update() override;
+  std::vector<double> extruder {};
+};
+
+class CoreXZKinematicSystem : public KinematicSystem {
+public:
+  CoreXZKinematicSystem(std::function<void(kinematic_state&)> on_kinematic_update);
+  virtual void ui_widget() override;
+  virtual void kinematic_update() override;
+  std::vector<double> extruder {};
+};
+
+class CoreYZKinematicSystem : public KinematicSystem {
+public:
+  CoreYZKinematicSystem(std::function<void(kinematic_state&)> on_kinematic_update);
+  virtual void ui_widget() override;
+  virtual void kinematic_update() override;
+  std::vector<double> extruder {};
+};
+
+class CoreYXKinematicSystem : public KinematicSystem {
+public:
+  CoreYXKinematicSystem(std::function<void(kinematic_state&)> on_kinematic_update);
+  virtual void ui_widget() override;
+  virtual void kinematic_update() override;
+  std::vector<double> extruder {};
+};
+
+class CoreZXKinematicSystem : public KinematicSystem {
+public:
+  CoreZXKinematicSystem(std::function<void(kinematic_state&)> on_kinematic_update);
+  virtual void ui_widget() override;
+  virtual void kinematic_update() override;
+  std::vector<double> extruder {};
+};
+
+class CoreZYKinematicSystem : public KinematicSystem {
+public:
+  CoreZYKinematicSystem(std::function<void(kinematic_state&)> on_kinematic_update);
+  virtual void ui_widget() override;
+  virtual void kinematic_update() override;
+  std::vector<double> extruder {};
+};
+
 class DeltaKinematicSystem : public KinematicSystem {
 public:
   DeltaKinematicSystem(std::function<void(kinematic_state&)> on_kinematic_update);
