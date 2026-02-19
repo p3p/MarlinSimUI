@@ -256,6 +256,356 @@ void CartesianKinematicSystem::ui_widget() {
   }
 }
 
+CoreXYKinematicSystem::CoreXYKinematicSystem(std::function<void(kinematic_state&)> on_kinematic_update) : KinematicSystem(on_kinematic_update) {
+  collect_steppers();
+
+  srand(time(0));
+  hardware_offset.push_back(glm::vec3{
+    (rand() % (int)((X_MAX_POS / 4) - X_MIN_POS)) + X_MIN_POS,
+    (rand() % (int)((Y_MAX_POS / 4) - Y_MIN_POS)) + Y_MIN_POS,
+    (rand() % (int)((Z_MAX_POS / 8) - Z_MIN_POS)) + Z_MIN_POS
+  });
+}
+
+void CoreXYKinematicSystem::kinematic_update() {
+  // In CoreXY:
+  // X motor moves: +X+Y (A motor)
+  // Y motor moves: +X-Y (B motor)
+  // Therefore: X = (A + B) / 2, Y = (A - B) / 2
+
+  auto stepperA = std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::X])->steps() / steps_per_unit[0] * (((INVERT_X_DIR * 2) - 1) * -1.0);
+  auto stepperB = std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::Y])->steps() / steps_per_unit[1] * (((INVERT_Y_DIR * 2) - 1) * -1.0);
+
+  auto carriage = glm::vec3{
+    (stepperA + stepperB) / 2.0,  // X position
+    (stepperA - stepperB) / 2.0,  // Y position
+    std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::Z])->steps() / steps_per_unit[2] * (((INVERT_Z_DIR * 2) - 1) * -1.0)
+  };
+
+  extruder.clear();
+  for (size_t i = 0; i < EXTRUDERS; ++i) {
+    extruder.push_back(std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::E0 + i])->steps() / steps_per_unit[3 + (i * distinct_e_factors)] * (((extruder_invert_dir[i] * 2) - 1) * -1.0));
+  }
+
+  for (size_t i = 0; i < HOTENDS; ++i) {
+    state.effector_position[i] = {carriage, glm::vec4(hardware_offset[0], 0.0f) + glm::vec4{hotend_offset_x[i], hotend_offset_y[i], hotend_offset_z[i], 0.0} + glm::vec4(carriage, extruder[i]), filament_color[i]};
+  }
+
+  state.position = state.effector_position[0].position;
+  on_kinematic_update(state);
+}
+
+void CoreXYKinematicSystem::ui_widget() {
+  if (state.effector_position.size() > 0) {
+    auto value = state.effector_position[0].position.x;
+    if (ImGui::SliderFloat("X Position(mm)", &value, X_MIN_POS, X_MAX_POS)) {
+      hardware_offset[0].x = value - state.effector_position[0].stepper_position.x;
+      kinematic_update();
+    }
+
+    value = state.effector_position[0].position.y;
+    if (ImGui::SliderFloat("Y Position(mm)",  &value, Y_MIN_POS, Y_MAX_POS)) {
+      hardware_offset[0].y = value - state.effector_position[0].stepper_position.y;
+      kinematic_update();
+          }
+    value = state.effector_position[0].position.z;
+    if (ImGui::SliderFloat("Z Position(mm)",  &value, Z_MIN_POS, Z_MAX_POS)) {
+      hardware_offset[0].z = value - state.effector_position[0].stepper_position.z;
+      kinematic_update();
+    }
+  }
+}
+
+// CoreXZ: X motor = X+Z, Z motor = X-Z
+CoreXZKinematicSystem::CoreXZKinematicSystem(std::function<void(kinematic_state&)> on_kinematic_update) : KinematicSystem(on_kinematic_update) {
+  collect_steppers();
+
+  srand(time(0));
+  hardware_offset.push_back(glm::vec3{
+    (rand() % (int)((X_MAX_POS / 4) - X_MIN_POS)) + X_MIN_POS,
+    (rand() % (int)((Y_MAX_POS / 4) - Y_MIN_POS)) + Y_MIN_POS,
+    (rand() % (int)((Z_MAX_POS / 8) - Z_MIN_POS)) + Z_MIN_POS
+  });
+}
+
+void CoreXZKinematicSystem::kinematic_update() {
+  // In CoreXZ: X motor moves X+Z, Z motor moves X-Z
+  // Therefore: X = (A + C) / 2, Z = (A - C) / 2
+
+  auto stepperA = std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::X])->steps() / steps_per_unit[0] * (((INVERT_X_DIR * 2) - 1) * -1.0);
+  auto stepperC = std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::Z])->steps() / steps_per_unit[2] * (((INVERT_Z_DIR * 2) - 1) * -1.0);
+
+  auto carriage = glm::vec3{
+    (stepperA + stepperC) / 2.0,  // X position
+    std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::Y])->steps() / steps_per_unit[1] * (((INVERT_Y_DIR * 2) - 1) * -1.0),
+    (stepperA - stepperC) / 2.0   // Z position
+  };
+
+  extruder.clear();
+  for (size_t i = 0; i < EXTRUDERS; ++i) {
+    extruder.push_back(std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::E0 + i])->steps() / steps_per_unit[3 + (i * distinct_e_factors)] * (((extruder_invert_dir[i] * 2) - 1) * -1.0));
+  }
+
+  for (size_t i = 0; i < HOTENDS; ++i) {
+    state.effector_position[i] = {carriage, glm::vec4(hardware_offset[0], 0.0f) + glm::vec4{hotend_offset_x[i], hotend_offset_y[i], hotend_offset_z[i], 0.0} + glm::vec4(carriage, extruder[i]), filament_color[i]};
+  }
+
+  state.position = state.effector_position[0].position;
+  on_kinematic_update(state);
+}
+
+void CoreXZKinematicSystem::ui_widget() {
+  if (state.effector_position.size() > 0) {
+    auto value = state.effector_position[0].position.x;
+    if (ImGui::SliderFloat("X Position(mm)", &value, X_MIN_POS, X_MAX_POS)) {
+      hardware_offset[0].x = value - state.effector_position[0].stepper_position.x;
+      kinematic_update();
+    }
+    value = state.effector_position[0].position.y;
+    if (ImGui::SliderFloat("Y Position(mm)",  &value, Y_MIN_POS, Y_MAX_POS)) {
+      hardware_offset[0].y = value - state.effector_position[0].stepper_position.y;
+      kinematic_update();
+    }
+    value = state.effector_position[0].position.z;
+    if (ImGui::SliderFloat("Z Position(mm)",  &value, Z_MIN_POS, Z_MAX_POS)) {
+      hardware_offset[0].z = value - state.effector_position[0].stepper_position.z;
+      kinematic_update();
+    }
+  }
+}
+
+// CoreYZ: Y motor = Y+Z, Z motor = Y-Z
+CoreYZKinematicSystem::CoreYZKinematicSystem(std::function<void(kinematic_state&)> on_kinematic_update) : KinematicSystem(on_kinematic_update) {
+  collect_steppers();
+
+  srand(time(0));
+  hardware_offset.push_back(glm::vec3{
+    (rand() % (int)((X_MAX_POS / 4) - X_MIN_POS)) + X_MIN_POS,
+    (rand() % (int)((Y_MAX_POS / 4) - Y_MIN_POS)) + Y_MIN_POS,
+    (rand() % (int)((Z_MAX_POS / 8) - Z_MIN_POS)) + Z_MIN_POS
+  });
+}
+
+void CoreYZKinematicSystem::kinematic_update() {
+  // In CoreYZ: Y motor moves Y+Z, Z motor moves Y-Z
+  // Therefore: Y = (B + C) / 2, Z = (B - C) / 2
+
+  auto stepperB = std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::Y])->steps() / steps_per_unit[1] * (((INVERT_Y_DIR * 2) - 1) * -1.0);
+  auto stepperC = std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::Z])->steps() / steps_per_unit[2] * (((INVERT_Z_DIR * 2) - 1) * -1.0);
+
+  auto carriage = glm::vec3{
+    std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::X])->steps() / steps_per_unit[0] * (((INVERT_X_DIR * 2) - 1) * -1.0),
+    (stepperB + stepperC) / 2.0,  // Y position
+    (stepperB - stepperC) / 2.0   // Z position
+  };
+
+  extruder.clear();
+  for (size_t i = 0; i < EXTRUDERS; ++i) {
+    extruder.push_back(std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::E0 + i])->steps() / steps_per_unit[3 + (i * distinct_e_factors)] * (((extruder_invert_dir[i] * 2) - 1) * -1.0));
+  }
+
+  for (size_t i = 0; i < HOTENDS; ++i) {
+    state.effector_position[i] = {carriage, glm::vec4(hardware_offset[0], 0.0f) + glm::vec4{hotend_offset_x[i], hotend_offset_y[i], hotend_offset_z[i], 0.0} + glm::vec4(carriage, extruder[i]), filament_color[i]};
+  }
+
+  state.position = state.effector_position[0].position;
+  on_kinematic_update(state);
+}
+
+void CoreYZKinematicSystem::ui_widget() {
+  if (state.effector_position.size() > 0) {
+    auto value = state.effector_position[0].position.x;
+    if (ImGui::SliderFloat("X Position(mm)", &value, X_MIN_POS, X_MAX_POS)) {
+      hardware_offset[0].x = value - state.effector_position[0].stepper_position.x;
+      kinematic_update();
+    }
+    value = state.effector_position[0].position.y;
+    if (ImGui::SliderFloat("Y Position(mm)",  &value, Y_MIN_POS, Y_MAX_POS)) {
+      hardware_offset[0].y = value - state.effector_position[0].stepper_position.y;
+      kinematic_update();
+    }
+    value = state.effector_position[0].position.z;
+    if (ImGui::SliderFloat("Z Position(mm)",  &value, Z_MIN_POS, Z_MAX_POS)) {
+      hardware_offset[0].z = value - state.effector_position[0].stepper_position.z;
+      kinematic_update();
+    }
+  }
+}
+
+// CoreYX: Y motor = Y+X, X motor = Y-X (reversed CoreXY)
+CoreYXKinematicSystem::CoreYXKinematicSystem(std::function<void(kinematic_state&)> on_kinematic_update) : KinematicSystem(on_kinematic_update) {
+  collect_steppers();
+
+  srand(time(0));
+  hardware_offset.push_back(glm::vec3{
+    (rand() % (int)((X_MAX_POS / 4) - X_MIN_POS)) + X_MIN_POS,
+    (rand() % (int)((Y_MAX_POS / 4) - Y_MIN_POS)) + Y_MIN_POS,
+    (rand() % (int)((Z_MAX_POS / 8) - Z_MIN_POS)) + Z_MIN_POS
+  });
+}
+
+void CoreYXKinematicSystem::kinematic_update() {
+  // In CoreYX: Y motor moves Y+X, X motor moves Y-X
+  // Therefore: Y = (B + A) / 2, X = (B - A) / 2
+
+  auto stepperA = std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::X])->steps() / steps_per_unit[0] * (((INVERT_X_DIR * 2) - 1) * -1.0);
+  auto stepperB = std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::Y])->steps() / steps_per_unit[1] * (((INVERT_Y_DIR * 2) - 1) * -1.0);
+
+  auto carriage = glm::vec3{
+    (stepperB - stepperA) / 2.0,  // X position
+    (stepperB + stepperA) / 2.0,  // Y position
+    std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::Z])->steps() / steps_per_unit[2] * (((INVERT_Z_DIR * 2) - 1) * -1.0)
+  };
+
+  extruder.clear();
+  for (size_t i = 0; i < EXTRUDERS; ++i) {
+    extruder.push_back(std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::E0 + i])->steps() / steps_per_unit[3 + (i * distinct_e_factors)] * (((extruder_invert_dir[i] * 2) - 1) * -1.0));
+  }
+
+  for (size_t i = 0; i < HOTENDS; ++i) {
+    state.effector_position[i] = {carriage, glm::vec4(hardware_offset[0], 0.0f) + glm::vec4{hotend_offset_x[i], hotend_offset_y[i], hotend_offset_z[i], 0.0} + glm::vec4(carriage, extruder[i]), filament_color[i]};
+  }
+
+  state.position = state.effector_position[0].position;
+  on_kinematic_update(state);
+}
+
+void CoreYXKinematicSystem::ui_widget() {
+  if (state.effector_position.size() > 0) {
+    auto value = state.effector_position[0].position.x;
+    if (ImGui::SliderFloat("X Position(mm)", &value, X_MIN_POS, X_MAX_POS)) {
+      hardware_offset[0].x = value - state.effector_position[0].stepper_position.x;
+      kinematic_update();
+    }
+    value = state.effector_position[0].position.y;
+    if (ImGui::SliderFloat("Y Position(mm)",  &value, Y_MIN_POS, Y_MAX_POS)) {
+      hardware_offset[0].y = value - state.effector_position[0].stepper_position.y;
+      kinematic_update();
+    }
+    value = state.effector_position[0].position.z;
+    if (ImGui::SliderFloat("Z Position(mm)",  &value, Z_MIN_POS, Z_MAX_POS)) {
+      hardware_offset[0].z = value - state.effector_position[0].stepper_position.z;
+      kinematic_update();
+    }
+  }
+}
+
+// CoreZX: Z motor = Z+X, X motor = Z-X (reversed CoreXZ)
+CoreZXKinematicSystem::CoreZXKinematicSystem(std::function<void(kinematic_state&)> on_kinematic_update) : KinematicSystem(on_kinematic_update) {
+  collect_steppers();
+
+  srand(time(0));
+  hardware_offset.push_back(glm::vec3{
+    (rand() % (int)((X_MAX_POS / 4) - X_MIN_POS)) + X_MIN_POS,
+    (rand() % (int)((Y_MAX_POS / 4) - Y_MIN_POS)) + Y_MIN_POS,
+    (rand() % (int)((Z_MAX_POS / 8) - Z_MIN_POS)) + Z_MIN_POS
+  });
+}
+
+void CoreZXKinematicSystem::kinematic_update() {
+  // In CoreZX: Z motor moves Z+X, X motor moves Z-X
+  // Therefore: Z = (C + A) / 2, X = (C - A) / 2
+
+  auto stepperA = std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::X])->steps() / steps_per_unit[0] * (((INVERT_X_DIR * 2) - 1) * -1.0);
+  auto stepperC = std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::Z])->steps() / steps_per_unit[2] * (((INVERT_Z_DIR * 2) - 1) * -1.0);
+
+  auto carriage = glm::vec3{
+    (stepperC - stepperA) / 2.0,  // X position
+    std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::Y])->steps() / steps_per_unit[1] * (((INVERT_Y_DIR * 2) - 1) * -1.0),
+    (stepperC + stepperA) / 2.0   // Z position
+  };
+
+  extruder.clear();
+  for (size_t i = 0; i < EXTRUDERS; ++i) {
+    extruder.push_back(std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::E0 + i])->steps() / steps_per_unit[3 + (i * distinct_e_factors)] * (((extruder_invert_dir[i] * 2) - 1) * -1.0));
+  }
+
+  for (size_t i = 0; i < HOTENDS; ++i) {
+    state.effector_position[i] = {carriage, glm::vec4(hardware_offset[0], 0.0f) + glm::vec4{hotend_offset_x[i], hotend_offset_y[i], hotend_offset_z[i], 0.0} + glm::vec4(carriage, extruder[i]), filament_color[i]};
+  }
+
+  state.position = state.effector_position[0].position;
+  on_kinematic_update(state);
+}
+
+void CoreZXKinematicSystem::ui_widget() {
+  if (state.effector_position.size() > 0) {
+    auto value = state.effector_position[0].position.x;
+    if (ImGui::SliderFloat("X Position(mm)", &value, X_MIN_POS, X_MAX_POS)) {
+      hardware_offset[0].x = value - state.effector_position[0].stepper_position.x;
+      kinematic_update();
+    }
+    value = state.effector_position[0].position.y;
+    if (ImGui::SliderFloat("Y Position(mm)",  &value, Y_MIN_POS, Y_MAX_POS)) {
+      hardware_offset[0].y = value - state.effector_position[0].stepper_position.y;
+      kinematic_update();
+    }
+    value = state.effector_position[0].position.z;
+    if (ImGui::SliderFloat("Z Position(mm)",  &value, Z_MIN_POS, Z_MAX_POS)) {
+      hardware_offset[0].z = value - state.effector_position[0].stepper_position.z;
+      kinematic_update();
+    }
+  }
+}
+
+// CoreZY: Z motor = Z+Y, Y motor = Z-Y (reversed CoreYZ)
+CoreZYKinematicSystem::CoreZYKinematicSystem(std::function<void(kinematic_state&)> on_kinematic_update) : KinematicSystem(on_kinematic_update) {
+  collect_steppers();
+
+  srand(time(0));
+  hardware_offset.push_back(glm::vec3{
+    (rand() % (int)((X_MAX_POS / 4) - X_MIN_POS)) + X_MIN_POS,
+    (rand() % (int)((Y_MAX_POS / 4) - Y_MIN_POS)) + Y_MIN_POS,
+    (rand() % (int)((Z_MAX_POS / 8) - Z_MIN_POS)) + Z_MIN_POS
+  });
+}
+
+void CoreZYKinematicSystem::kinematic_update() {
+  // In CoreZY: Z motor moves Z+Y, Y motor moves Z-Y
+  // Therefore: Z = (C + B) / 2, Y = (C - B) / 2
+
+  auto stepperB = std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::Y])->steps() / steps_per_unit[1] * (((INVERT_Y_DIR * 2) - 1) * -1.0);
+  auto stepperC = std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::Z])->steps() / steps_per_unit[2] * (((INVERT_Z_DIR * 2) - 1) * -1.0);
+
+  auto carriage = glm::vec3{
+    std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::X])->steps() / steps_per_unit[0] * (((INVERT_X_DIR * 2) - 1) * -1.0),
+    (stepperC - stepperB) / 2.0,  // Y position
+    (stepperC + stepperB) / 2.0   // Z position
+  };
+
+  extruder.clear();
+  for (size_t i = 0; i < EXTRUDERS; ++i) {
+    extruder.push_back(std::static_pointer_cast<StepperDriver>(steppers[AxisIndex::E0 + i])->steps() / steps_per_unit[3 + (i * distinct_e_factors)] * (((extruder_invert_dir[i] * 2) - 1) * -1.0));
+  }
+
+  for (size_t i = 0; i < HOTENDS; ++i) {
+    state.effector_position[i] = {carriage, glm::vec4(hardware_offset[0], 0.0f) + glm::vec4{hotend_offset_x[i], hotend_offset_y[i], hotend_offset_z[i], 0.0} + glm::vec4(carriage, extruder[i]), filament_color[i]};
+  }
+
+  state.position = state.effector_position[0].position;
+  on_kinematic_update(state);
+}
+
+void CoreZYKinematicSystem::ui_widget() {
+  if (state.effector_position.size() > 0) {
+    auto value = state.effector_position[0].position.x;
+    if (ImGui::SliderFloat("X Position(mm)", &value, X_MIN_POS, X_MAX_POS)) {
+      hardware_offset[0].x = value - state.effector_position[0].stepper_position.x;
+      kinematic_update();
+    }
+    value = state.effector_position[0].position.y;
+    if (ImGui::SliderFloat("Y Position(mm)",  &value, Y_MIN_POS, Y_MAX_POS)) {
+      hardware_offset[0].y = value - state.effector_position[0].stepper_position.y;
+      kinematic_update();
+    }
+    value = state.effector_position[0].position.z;
+    if (ImGui::SliderFloat("Z Position(mm)",  &value, Z_MIN_POS, Z_MAX_POS)) {
+      hardware_offset[0].z = value - state.effector_position[0].stepper_position.z;
+      kinematic_update();
+    }
+  }
+}
+
 enum DeltaAxis {
   A_AXIS_IDX,
   B_AXIS_IDX,
